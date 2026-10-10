@@ -15,6 +15,7 @@ import (
 
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/attachment"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/crypto"
+	"github.com/cyberinq/agiparel/services/edge-daemon/internal/ocr"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/packing"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/wal"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -73,7 +74,7 @@ func main() {
 
 	ledger := crypto.NewMerkleLedger(secret)
 
-	// Hydrate ledger from offline WAL
+	// Hydrate ledger manipud iti offline WAL
 	records, err := localWAL.ReplayAll()
 	if err != nil {
 		log.Printf("Warning: failed to replay WAL: %v", err)
@@ -141,6 +142,12 @@ func main() {
 		mux.HandleFunc("/api/v1/packing/session/scan", server.handlePackingScan)
 		mux.HandleFunc("/api/v1/packing/session/seal", server.handlePackingSeal)
 		log.Println("Mounted endpoints: mod_packing")
+	}
+
+	// Conditional: mod_ocr (Reconciliation Ledger)
+	if modules.IsEnabled("mod_ocr") {
+		mux.HandleFunc("/api/v1/ocr/reconcile", server.handleOCRReconcile)
+		log.Println("Mounted endpoints: mod_ocr")
 	}
 
 	httpServer := &http.Server{
@@ -237,7 +244,7 @@ func (s *EdgeServer) handleLedgerLatest(w http.ResponseWriter, r *http.Request) 
 }
 
 type BindTagRequest struct {
-	NFCUID string                  `json:"nfc_uid"`
+	NFCUID string                   `json:"nfc_uid"`
 	Node   attachment.SubBundleNode `json:"node"`
 }
 
@@ -382,4 +389,31 @@ func (s *EdgeServer) handlePackingSeal(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "SEALED"})
+}
+
+type ReconcileRequest struct {
+	OrderID         string             `json:"order_id"`
+	CutNo           int                `json:"cut_no"`
+	Breakdown       ocr.StageBreakdown `json:"breakdown"`
+	VarianceComment string             `json:"variance_comment"`
+}
+
+func (s *EdgeServer) handleOCRReconcile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req ReconcileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	report, err := ocr.EvaluateConservation(req.OrderID, req.CutNo, req.Breakdown, req.VarianceComment)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(report)
 }
