@@ -1,22 +1,63 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
     container_name: agiparel-postgres
-    restart: always
-    env_file:
-      - ./env/dev.env
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agiparel_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-agiparel_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_secret_vault_pg16}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ../services/core-api/migrations:/docker-entrypoint-initdb.d:ro
+      - ../services/core-api/migrations/0001_initial_schema.sql:/docker-entrypoint-initdb.d/01_initial_schema.sql:ro
+      - ../services/core-api/migrations/0002_rls_policies.sql:/docker-entrypoint-initdb.d/02_rls_policies.sql:ro
+      - ../services/core-api/migrations/0003_app_role.sql:/docker-entrypoint-initdb.d/03_app_role.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agiparel_app -d agiparel_db"]
-      interval: 5s
-      timeout: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agiparel_admin} -d ${POSTGRES_DB:-agiparel_dev}"]
+      interval: 3s
+      timeout: 3s
       retries: 5
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: agiparel-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  plant-edge-os:
+    build:
+      context: ..
+      dockerfile: services/edge-daemon/Dockerfile
+    container_name: agiparel-edge-daemon
+    restart: unless-stopped
+    environment:
+      ENV: ${ENVIRONMENT:-development}
+      PORT: ${EDGE_DAEMON_PORT:-8080}
+      LEDGER_SECRET: ${LEDGER_HMAC_SECRET:-c9b2e61a4f8d073e51a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f7a8}
+      WAL_PATH: "/data/wal/events.wal"
+      ENABLED_MODULES: ${ENABLED_MODULES:-mod_stores,mod_cutting,mod_sewing,mod_packing,mod_ocr}
+      DATABASE_URL: "postgres://${POSTGRES_USER:-agiparel_admin}:${POSTGRES_PASSWORD:-dev_secret_vault_pg16}@postgres:5432/${POSTGRES_DB:-agiparel_dev}?sslmode=disable"
+    volumes:
+      - edge_wal_data:/data/wal
+    ports:
+      - "${EDGE_DAEMON_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   pgdata:
+  redisdata:
+  edge_wal_data:
