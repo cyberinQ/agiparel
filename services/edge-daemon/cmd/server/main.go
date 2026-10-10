@@ -14,9 +14,11 @@ import (
 	"time"
 
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/attachment"
+	"github.com/cyberinq/agiparel/services/edge-daemon/internal/cutting"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/crypto"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/ocr"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/packing"
+	"github.com/cyberinq/agiparel/services/edge-daemon/internal/stores"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/wal"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -44,6 +46,7 @@ type EdgeServer struct {
 	modules        *ModuleRegistry
 	ledger         *crypto.MerkleLedger
 	attachment     *attachment.AttachmentEngine
+	stores         *stores.StoresEngine
 	wal            *wal.LocalWAL
 	db             *sql.DB
 	secretKey      string
@@ -101,12 +104,23 @@ func main() {
 	modules := NewModuleRegistry(enabledMods)
 	log.Printf("Active modular engines: %s", enabledMods)
 
+	storesEng := stores.NewStoresEngine()
+	// Pre-seed ground-truth Roll #7 (59m) reserved for Cut 1 of PO MK6574J9
+	storesEng.RegisterRoll(stores.RollStock{
+		RollID:          "ROLL-007",
+		OriginalLengthM: 59.0,
+		RemainingLength: 59.0,
+		ReservedOrderID: "MK6574J9",
+		ReservedCutNo:   1,
+		Status:          "RESERVED",
+	})
+
 	dbURL := os.Getenv("DATABASE_URL")
 	var db *sql.DB
 	if dbURL != "" {
 		db, err = sql.Open("pgx", dbURL)
 		if err != nil {
-			log.Printf("Notice: Core database unreachable (%v). Running pure air-gapped mode.", err)
+			log.Printf("Notice: Core database unreachable (%v). Air-gapped fallback.", err)
 		} else {
 			db.SetMaxOpenConns(25)
 			db.SetMaxIdleConns(5)
@@ -117,6 +131,7 @@ func main() {
 		modules:        modules,
 		ledger:         ledger,
 		attachment:     attachment.NewAttachmentEngine(),
+		stores:         storesEng,
 		wal:            localWAL,
 		db:             db,
 		secretKey:      secret,
@@ -131,6 +146,20 @@ func main() {
 	mux.HandleFunc("/api/v1/modules", server.handleGetModules)
 	mux.HandleFunc("/api/v1/ledger/append", server.handleLedgerAppend)
 	mux.HandleFunc("/api/v1/ledger/latest", server.handleLedgerLatest)
+
+	// mod_stores routes
+	if modules.IsEnabled("mod_stores") {
+		mux.HandleFunc("/api/v1/stores/indent-check", server.handleStoresIndentCheck)
+		mux.HandleFunc("/api/v1/stores/issue-double-witness", server.handleStoresIssueDoubleWitness)
+		log.Println("Mounted endpoints: mod_stores")
+	}
+
+	// mod_cutting routes
+	if modules.IsEnabled("mod_cutting") {
+		mux.HandleFunc("/api/v1/cutting/plan-target", server.handleCuttingPlanTarget)
+		mux.HandleFunc("/api/v1/cutting/lay-roll", server.handleCuttingLayRoll)
+		log.Println("Mounted endpoints: mod_cutting")
+	}
 
 	// mod_sewing routes
 	if modules.IsEnabled("mod_sewing") {
@@ -243,6 +272,108 @@ func (s *EdgeServer) handleLedgerLatest(w http.ResponseWriter, r *http.Request) 
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"latest_hash": hash,
 	})
+}
+
+type IndentCheckRequest struct {
+	SKU            string  `json:"sku"`
+	BOMRequiredQty float64 `json:"bom_required_qty"`
+	UnreservedQty  float64 `json:"unreserved_qty"`
+}
+
+func (s *EdgeServer) handleStoresIndentCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req IndentCheckRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	calc := stores.CalculateNetIndent(req.SKU, req.BOMRequiredQty, req.UnreservedQty)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(calc)
+}
+
+type DoubleWitnessIssueRequest struct {
+	RollID        string  `json:"roll_id"`
+	OrderID       string  `json:"order_id"`
+	CutNo         int     `json:"cut_no"`
+	IssuedLengthM float64 `json:"issued_length_m"`
+	IssuerID      string  `json:"issuer_id"`
+	RecipientID   string  `json:"recipient_id"`
+}
+
+func (s *EdgeServer) handleStoresIssueDoubleWitness(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req DoubleWitnessIssueRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	record, err := s.stores.DoubleWitnessIssue(
+		req.RollID, req.OrderID, req.CutNo, req.IssuedLengthM, req.IssuerID, req.RecipientID, s.secretKey,
+	)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(record)
+}
+
+type CutPlanTargetRequest struct {
+	OrderID     string `json:"order_id"`
+	SizeVariant string `json:"size_variant"`
+	OrderQty    int    `json:"order_qty"`
+}
+
+func (s *EdgeServer) handleCuttingPlanTarget(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req CutPlanTargetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	target := cutting.CalculateCutTarget(req.OrderID, req.SizeVariant, req.OrderQty)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(target)
+}
+
+type LayRollRequest struct {
+	RollID        string  `json:"roll_id"`
+	OrderID       string  `json:"order_id"`
+	CutNo         int     `json:"cut_no"`
+	LayStart      int     `json:"lay_start"`
+	LayEnd        int     `json:"lay_end"`
+	EndBitLengthM float64 `json:"end_bit_length_m"`
+}
+
+func (s *EdgeServer) handleCuttingLayRoll(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req LayRollRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	record, err := cutting.EvaluateEndBitDisposition(
+		req.RollID, req.OrderID, req.CutNo, req.LayStart, req.LayEnd, req.EndBitLengthM,
+	)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(record)
 }
 
 type BindTagRequest struct {
@@ -457,9 +588,9 @@ func (s *EdgeServer) handleOCRSign(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":      "ACCEPTED",
-		"department":  req.Department,
-		"signature":   sess.Signatures[req.Department],
+		"status":     "ACCEPTED",
+		"department": req.Department,
+		"signature":  sess.Signatures[req.Department],
 	})
 }
 
