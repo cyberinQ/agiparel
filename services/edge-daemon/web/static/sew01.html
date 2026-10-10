@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>SEW-01: Station HMI</title>
+  <style>
+    :root {
+      --bg: #121214;
+      --card: #1f1f23;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --disabled: #374151;
+      --text: #f9fafb;
+    }
+    * { box-sizing: border-box; user-select: none; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+      overflow: hidden;
+    }
+    header {
+      background: var(--card);
+      padding: 14px 20px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    .badge {
+      background: #3b82f6;
+      padding: 4px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    .timer-bar-container {
+      width: 100%;
+      height: 14px;
+      background: var(--disabled);
+      border-radius: 7px;
+      overflow: hidden;
+      margin: 12px 0;
+    }
+    .timer-bar {
+      width: 0%;
+      height: 100%;
+      background: var(--green);
+      transition: width 0.1s linear;
+    }
+    .touch-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      flex: 1;
+      justify-content: center;
+    }
+    button {
+      border: none;
+      border-radius: 16px;
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+    }
+    button:active { transform: scale(0.98); }
+    .btn-done {
+      flex: 2;
+      background: var(--green);
+    }
+    .btn-done:disabled {
+      background: var(--disabled);
+      color: #6b7280;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .aux-row {
+      display: flex;
+      gap: 16px;
+      flex: 1;
+    }
+    .btn-defect { flex: 1; background: var(--amber); }
+    .btn-help { flex: 1; background: var(--red); }
+    footer {
+      font-size: 0.9rem;
+      color: #9ca3af;
+      text-align: center;
+      padding-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>LINE 14 | ST-04</div>
+    <div class="badge" id="op-display">OP_BACK_RISE (SAM: 36s)</div>
+  </header>
+
+  <div class="timer-bar-container">
+    <div class="timer-bar" id="timer-bar"></div>
+  </div>
+
+  <div class="touch-grid">
+    <button class="btn-done" id="btn-done" disabled onclick="onCycleDone()">
+      CYCLE DONE
+    </button>
+    <div class="aux-row">
+      <button class="btn-defect" onclick="onDefect()">DEFECT</button>
+      <button class="btn-help" onclick="onHelp()">HELP / ANDON</button>
+    </div>
+  </div>
+
+  <footer>
+    <span id="dwell-indicator">LOCKED: 14.4s floor</span> | Plant Edge OS Kernel
+  </footer>
+
+  <script>
+    const FACTORY_SAM_SEC = 36.0;
+    const DWELL_FLOOR_SEC = FACTORY_SAM_SEC * 0.40; // 14.4s anti-ghost floor
+    let cycleStartTime = Date.now();
+    let audioCtx = null;
+
+    function getAudioCtx() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return audioCtx;
+    }
+
+    function playTone(freq, durationMs) {
+      try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + (durationMs / 1000));
+        setTimeout(() => osc.stop(), durationMs);
+      } catch (e) { console.warn(e); }
+    }
+
+    function updateDwell() {
+      const elapsed = (Date.now() - cycleStartTime) / 1000;
+      const progress = Math.min(100, (elapsed / DWELL_FLOOR_SEC) * 100);
+      document.getElementById("timer-bar").style.width = progress + "%";
+
+      const btn = document.getElementById("btn-done");
+      const indicator = document.getElementById("dwell-indicator");
+
+      if (elapsed >= DWELL_FLOOR_SEC) {
+        btn.disabled = false;
+        indicator.innerText = "READY FOR TAP";
+      } else {
+        btn.disabled = true;
+        const remain = (DWELL_FLOOR_SEC - elapsed).toFixed(1);
+        indicator.innerText = `LOCKED: ${remain}s dwell floor`;
+      }
+    }
+
+    setInterval(updateDwell, 100);
+
+    async function onCycleDone() {
+      const elapsed = (Date.now() - cycleStartTime) / 1000;
+      if (elapsed < DWELL_FLOOR_SEC) {
+        playTone(150, 400); // Alert buzz
+        return;
+      }
+
+      playTone(800, 150); // 800Hz confirmation chime
+      cycleStartTime = Date.now();
+
+      await fetch("/api/v1/ledger/append", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          station_id: "LINE14_ST04",
+          operator_id: "OP_A814",
+          event_type: "CYCLE_DONE",
+          payload: JSON.stringify({ sam: FACTORY_SAM_SEC, actual_sec: elapsed })
+        })
+      });
+    }
+
+    async function onDefect() {
+      playTone(400, 250);
+      await fetch("/api/v1/ledger/append", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          station_id: "LINE14_ST04",
+          operator_id: "OP_A814",
+          event_type: "DEFECT_TAG",
+          payload: JSON.stringify({ defect: "STITCH_DEFECT" })
+        })
+      });
+    }
+
+    async function onHelp() {
+      playTone(150, 800);
+      await fetch("/api/v1/ledger/append", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          station_id: "LINE14_ST04",
+          operator_id: "OP_A814",
+          event_type: "ANDON_CALL",
+          payload: JSON.stringify({ type: "MECHANIC" })
+        })
+      });
+    }
+  </script>
+</body>
+</html>

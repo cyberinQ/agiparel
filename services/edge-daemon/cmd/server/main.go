@@ -20,6 +20,7 @@ import (
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/packing"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/stores"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/wal"
+	"github.com/cyberinq/agiparel/services/edge-daemon/internal/web"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -184,6 +185,19 @@ func main() {
 		mux.HandleFunc("/api/v1/ocr/seal", server.handleOCRSeal)
 		log.Println("Mounted endpoints: mod_ocr")
 	}
+
+	// Static HMI Files (Compiled into binary via go:embed)
+	mux.Handle("/static/", http.StripPrefix("/static/", web.StaticHandler()))
+	mux.HandleFunc("/sew01", func(w http.ResponseWriter, r *http.Request) {
+		data, err := web.GetSEW01HTML()
+		if err != nil {
+			http.Error(w, "HMI not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write(data)
+	})
+	log.Println("Mounted endpoints: /sew01 and /static/ (embedded)")
 
 	httpServer := &http.Server{
 		Addr:         ":" + port,
