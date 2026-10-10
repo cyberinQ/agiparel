@@ -21,6 +21,7 @@ import (
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/stores"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/wal"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/web"
+	"github.com/cyberinq/agiparel/services/edge-daemon/internal/topology"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -48,6 +49,7 @@ type EdgeServer struct {
 	ledger         *crypto.MerkleLedger
 	attachment     *attachment.AttachmentEngine
 	stores         *stores.StoresEngine
+	spatialTwin    *topology.SpatialTwin
 	wal            *wal.LocalWAL
 	db             *sql.DB
 	secretKey      string
@@ -127,12 +129,13 @@ func main() {
 			db.SetMaxIdleConns(5)
 		}
 	}
-
+	twin := topology.NewSpatialTwin()
 	server := &EdgeServer{
 		modules:        modules,
 		ledger:         ledger,
 		attachment:     attachment.NewAttachmentEngine(),
 		stores:         storesEng,
+		spatialTwin:    twin,
 		wal:            localWAL,
 		db:             db,
 		secretKey:      secret,
@@ -185,6 +188,21 @@ func main() {
 		mux.HandleFunc("/api/v1/ocr/seal", server.handleOCRSeal)
 		log.Println("Mounted endpoints: mod_ocr")
 	}
+
+	// Spatial Factory Twin View
+	mux.HandleFunc("/api/v1/topology/devices", server.handleGetTopologyDevices)
+	mux.HandleFunc("/plant", func(w http.ResponseWriter, r *http.Request) {
+		data, err := web.GetPlantViewHTML()
+		if err != nil {
+			http.Error(w, "View not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write(data)
+	})
+	log.Println("Mounted endpoints: /plant and /api/v1/topology/devices")
+
+
 
 	// Static HMI Files (Compiled into binary via go:embed)
 	mux.Handle("/static/", http.StripPrefix("/static/", web.StaticHandler()))
@@ -639,4 +657,8 @@ func (s *EdgeServer) handleOCRSeal(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(cert)
+}
+func (s *EdgeServer) handleGetTopologyDevices(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(s.spatialTwin.GetDevices())
 }

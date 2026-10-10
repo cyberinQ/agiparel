@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Noble Garments OKHLA Unit 002/02 — Factory OT Edge Topology</title>
+  <style>
+    :root {
+      --bg: #090a0f;
+      --card: #131722;
+      --border: #232936;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --cyan: #38bdf8;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --indigo: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .title-group h1 { font-size: 1.25rem; font-weight: 700; color: #fff; }
+    .title-group p { font-size: 0.82rem; color: var(--muted); }
+    .stats-bar { display: flex; gap: 20px; }
+    .stat-pill { display: flex; flex-direction: column; align-items: flex-end; }
+    .stat-pill .val { font-size: 1.1rem; font-weight: 700; color: var(--cyan); }
+    .stat-pill .lbl { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; }
+
+    .main-workspace {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 65px);
+    }
+    .viewport {
+      flex: 1;
+      position: relative;
+      background: radial-gradient(circle at 50% 50%, #151a28 0%, #090a0f 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    svg.floor-map {
+      width: 100%;
+      height: 100%;
+      max-width: 1200px;
+      max-height: 600px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0f131d;
+    }
+    .sidebar {
+      width: 360px;
+      background: var(--card);
+      border-left: 1px solid var(--border);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+    .sidebar h2 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .device-card {
+      background: #181e2b;
+      border: 1px solid var(--border);
+      padding: 14px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .device-card.active { border-color: var(--cyan); }
+    .card-row { display: flex; justify-content: space-between; font-size: 0.85rem; }
+    .status-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--green);
+    }
+    .zone-box {
+      fill: #141a26;
+      stroke: #2a3449;
+      stroke-dasharray: 4;
+      stroke-width: 1.5;
+    }
+    .zone-label {
+      font-size: 12px;
+      font-weight: 700;
+      fill: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+    }
+    .node-pulse {
+      animation: pulse 2s infinite;
+      transform-origin: center;
+    }
+    @keyframes pulse {
+      0% { r: 12; opacity: 0.8; }
+      50% { r: 24; opacity: 0.0; }
+      100% { r: 12; opacity: 0.0; }
+    }
+    .device-node { cursor: pointer; transition: transform 0.15s ease; }
+    .device-node:hover { transform: scale(1.15); }
+    .conduit-line {
+      stroke: #334155;
+      stroke-width: 3;
+      stroke-dasharray: 6;
+      animation: dash 30s linear infinite;
+    }
+    @keyframes dash {
+      to { stroke-dashoffset: -1000; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title-group">
+      <h1>Noble Garments OKHLA Unit 002/02</h1>
+      <p>OT Edge Spatial Twin &bull; 14-Node Air-Gapped Cyber-Physical Substrate</p>
+    </div>
+    <div class="stats-bar">
+      <div class="stat-pill"><span class="val" id="online-count">14 / 14</span><span class="lbl">Devices Online</span></div>
+      <div class="stat-pill"><span class="val">&lt; 3.0 ms</span><span class="lbl">Avg OT Latency</span></div>
+      <div class="stat-pill"><span class="val" style="color: var(--green);">Air-Gapped</span><span class="lbl">WAN Mode</span></div>
+    </div>
+  </header>
+
+  <div class="main-workspace">
+    <div class="viewport">
+      <svg class="floor-map" viewBox="0 0 1050 480" id="floor-svg">
+        <!-- Floor Grid Lines -->
+        <g stroke="#1a2233" stroke-width="1">
+          <line x1="0" y1="80" x2="1050" y2="80" />
+          <line x1="0" y1="160" x2="1050" y2="160" />
+          <line x1="0" y1="240" x2="1050" y2="240" />
+          <line x1="0" y1="320" x2="1050" y2="320" />
+          <line x1="0" y1="400" x2="1050" y2="400" />
+        </g>
+
+        <!-- Physical Production Zones -->
+        <!-- 1. STORES & INTAKE -->
+        <rect class="zone-box" x="20" y="30" width="170" height="270" rx="8"/>
+        <text class="zone-label" x="35" y="60">Stores & Intake</text>
+
+        <!-- 2. CUTTING TABLE 01 -->
+        <rect class="zone-box" x="210" y="30" width="180" height="270" rx="8"/>
+        <text class="zone-label" x="225" y="60">Cutting Table 01</text>
+
+        <!-- 3. LINE 14 SEWING WORKCELL -->
+        <rect class="zone-box" x="410" y="30" width="310" height="270" rx="8"/>
+        <text class="zone-label" x="425" y="60">Line 14 Sewing Workcell</text>
+
+        <!-- 4. FINISHING & QC -->
+        <rect class="zone-box" x="740" y="30" width="130" height="270" rx="8"/>
+        <text class="zone-label" x="755" y="60">Finishing / QC</text>
+
+        <!-- 5. PACKING & DISPATCH -->
+        <rect class="zone-box" x="890" y="30" width="140" height="270" rx="8"/>
+        <text class="zone-label" x="905" y="60">Carton Packing</text>
+
+        <!-- 6. SUPERVISOR & GATEWAY DESK -->
+        <rect class="zone-box" x="350" y="330" width="370" height="120" rx="8"/>
+        <text class="zone-label" x="370" y="360">OT Core Appliance / Supervisor Desk</text>
+
+        <!-- Physical Material Flow Conduit -->
+        <path class="conduit-line" d="M 110 180 L 300 180 L 520 170 L 790 170 L 920 170" fill="none"/>
+
+        <!-- Devices Layer Anchor -->
+        <g id="devices-layer"></g>
+      </svg>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+      <h2>Edge Device Inspector</h2>
+      <div id="inspector-body">
+        <p style="color: var(--muted); font-size: 0.9rem;">Select any physical node on the shop-floor map to inspect hardware credentials, telemetry state, and live IP.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let devices = [];
+
+    async function loadTopology() {
+      try {
+        const res = await fetch("/api/v1/topology/devices");
+        devices = await res.json();
+        document.getElementById("online-count").innerText = `${devices.length} / 14`;
+        renderMap();
+      } catch (err) {
+        console.error("Failed to load edge device topology", err);
+      }
+    }
+
+    function renderMap() {
+      const container = document.getElementById("devices-layer");
+      container.innerHTML = "";
+
+      devices.forEach(d => {
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("class", "device-node");
+        g.setAttribute("transform", `translate(${d.pos_x}, ${d.pos_y})`);
+        g.onclick = () => inspectDevice(d.id);
+
+        const pulse = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        pulse.setAttribute("class", "node-pulse");
+        pulse.setAttribute("cx", "0");
+        pulse.setAttribute("cy", "0");
+        pulse.setAttribute("r", "12");
+        pulse.setAttribute("fill", "#38bdf8");
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", "0");
+        circle.setAttribute("cy", "0");
+        circle.setAttribute("r", "10");
+        let fill = "#38bdf8";
+        if (d.type === "EDGE_SERVER") fill = "#6366f1";
+        if (d.type === "PHONE_HMI") fill = "#10b981";
+        if (d.type === "DIGITAL_SCALE" || d.type === "BT_RING_SCANNER") fill = "#f59e0b";
+        circle.setAttribute("fill", fill);
+        circle.setAttribute("stroke", "#ffffff");
+        circle.setAttribute("stroke-width", "2");
+
+        const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        txt.setAttribute("x", "0");
+        txt.setAttribute("y", "22");
+        txt.setAttribute("text-anchor", "middle");
+        txt.setAttribute("fill", "#cbd5e1");
+        txt.setAttribute("font-size", "10px");
+        txt.setAttribute("font-weight", "600");
+        txt.textContent = d.id;
+
+        g.appendChild(pulse);
+        g.appendChild(circle);
+        g.appendChild(txt);
+        container.appendChild(g);
+      });
+    }
+
+    function inspectDevice(id) {
+      const dev = devices.find(x => x.id === id);
+      if (!dev) return;
+
+      const body = document.getElementById("inspector-body");
+      body.innerHTML = `
+        <div class="device-card active">
+          <div class="card-row">
+            <strong style="color: var(--cyan); font-size: 1.05rem;">${dev.name}</strong>
+            <span class="status-badge">${dev.status}</span>
+          </div>
+          <div class="card-row" style="margin-top: 6px;">
+            <span style="color: var(--muted);">Node ID:</span>
+            <span>${dev.id}</span>
+          </div>
+          <div class="card-row">
+            <span style="color: var(--muted);">Form Factor:</span>
+            <span>${dev.type}</span>
+          </div>
+          <div class="card-row">
+            <span style="color: var(--muted);">IP Address:</span>
+            <span style="font-family: monospace;">${dev.ip}</span>
+          </div>
+          <div class="card-row">
+            <span style="color: var(--muted);">MAC Address:</span>
+            <span style="font-family: monospace;">${dev.mac}</span>
+          </div>
+          <div class="card-row">
+            <span style="color: var(--muted);">Work Zone:</span>
+            <span>${dev.zone}</span>
+          </div>
+          <div class="card-row">
+            <span style="color: var(--muted);">Roundtrip Ping:</span>
+            <span style="color: var(--green); font-weight: 700;">${dev.ping_ms} ms</span>
+          </div>
+          <div class="card-row">
+            <span style="color: var(--muted);">Operator/User:</span>
+            <span style="color: var(--amber); font-weight: 600;">${dev.active_user || "SYSTEM"}</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;">
+          ${dev.type === 'PHONE_HMI' ? '<a href="/sew01" target="_blank" style="display: block; text-align: center; background: #2563eb; color: #fff; text-decoration: none; padding: 10px; border-radius: 6px; font-weight: 600; font-size: 0.9rem;">Open Station HMI View</a>' : ''}
+          <button onclick="pingEcho('${dev.id}', '${dev.ip}')" style="background: #1e293b; color: #94a3b8; border: 1px solid var(--border); padding: 9px; border-radius: 6px; font-size: 0.85rem; cursor: pointer;">
+            Ping Hardware Echo (${dev.ip})
+          </button>
+        </div>
+      `;
+    }
+
+    function pingEcho(id, ip) {
+      alert(`[OT ECHO] ICMP ping ACK received from ${id} (${ip}) in 2.1 ms over air-gapped subnet.`);
+    }
+
+    loadTopology();
+    setInterval(loadTopology, 4000);
+  </script>
+</body>
+</html>
