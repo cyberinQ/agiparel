@@ -46,8 +46,11 @@ type EdgeServer struct {
 	attachment     *attachment.AttachmentEngine
 	wal            *wal.LocalWAL
 	db             *sql.DB
+	secretKey      string
 	packingMu      sync.Mutex
 	activePackings map[int]*packing.CartonPackingSession
+	ocrMu          sync.Mutex
+	activeOCRSess  map[string]*ocr.SignOffSession
 }
 
 func main() {
@@ -74,7 +77,6 @@ func main() {
 
 	ledger := crypto.NewMerkleLedger(secret)
 
-	// Hydrate ledger manipud iti offline WAL
 	records, err := localWAL.ReplayAll()
 	if err != nil {
 		log.Printf("Warning: failed to replay WAL: %v", err)
@@ -117,18 +119,20 @@ func main() {
 		attachment:     attachment.NewAttachmentEngine(),
 		wal:            localWAL,
 		db:             db,
+		secretKey:      secret,
 		activePackings: make(map[int]*packing.CartonPackingSession),
+		activeOCRSess:  make(map[string]*ocr.SignOffSession),
 	}
 
 	mux := http.NewServeMux()
 
-	// Base kernel endpoints
+	// Base kernel routes
 	mux.HandleFunc("/healthz", server.handleHealth)
 	mux.HandleFunc("/api/v1/modules", server.handleGetModules)
 	mux.HandleFunc("/api/v1/ledger/append", server.handleLedgerAppend)
 	mux.HandleFunc("/api/v1/ledger/latest", server.handleLedgerLatest)
 
-	// Conditional: mod_sewing (Anti-Mistake Directed Graph)
+	// mod_sewing routes
 	if modules.IsEnabled("mod_sewing") {
 		mux.HandleFunc("/api/v1/sewing/bind-tag", server.handleSewingBindTag)
 		mux.HandleFunc("/api/v1/sewing/validate-pair", server.handleSewingValidatePair)
@@ -136,7 +140,7 @@ func main() {
 		log.Println("Mounted endpoints: mod_sewing")
 	}
 
-	// Conditional: mod_packing (Ratio Carton Verification)
+	// mod_packing routes
 	if modules.IsEnabled("mod_packing") {
 		mux.HandleFunc("/api/v1/packing/session/start", server.handlePackingStart)
 		mux.HandleFunc("/api/v1/packing/session/scan", server.handlePackingScan)
@@ -144,9 +148,11 @@ func main() {
 		log.Println("Mounted endpoints: mod_packing")
 	}
 
-	// Conditional: mod_ocr (Reconciliation Ledger)
+	// mod_ocr routes
 	if modules.IsEnabled("mod_ocr") {
 		mux.HandleFunc("/api/v1/ocr/reconcile", server.handleOCRReconcile)
+		mux.HandleFunc("/api/v1/ocr/sign", server.handleOCRSign)
+		mux.HandleFunc("/api/v1/ocr/seal", server.handleOCRSeal)
 		log.Println("Mounted endpoints: mod_ocr")
 	}
 
@@ -210,19 +216,16 @@ func (s *EdgeServer) handleLedgerAppend(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
 	var req AppendRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-
 	event, err := s.ledger.AppendEvent(req.StationID, req.OperatorID, req.EventType, req.Payload)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	evBytes, _ := json.Marshal(event)
 	_ = s.wal.Append(wal.Record{
 		Index:     event.Index,
@@ -230,7 +233,6 @@ func (s *EdgeServer) handleLedgerAppend(w http.ResponseWriter, r *http.Request) 
 		Type:      "LEDGER_EVENT",
 		Payload:   evBytes,
 	})
-
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(event)
 }
@@ -414,6 +416,82 @@ func (s *EdgeServer) handleOCRReconcile(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	key := req.OrderID
+	s.ocrMu.Lock()
+	s.activeOCRSess[key] = ocr.NewSignOffSession(report, s.secretKey)
+	s.ocrMu.Unlock()
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(report)
+}
+
+type SignRequest struct {
+	OrderID    string `json:"order_id"`
+	Department string `json:"department"`
+	SignerID   string `json:"signer_id"`
+}
+
+func (s *EdgeServer) handleOCRSign(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req SignRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.ocrMu.Lock()
+	sess, exists := s.activeOCRSess[req.OrderID]
+	s.ocrMu.Unlock()
+	if !exists {
+		http.Error(w, "Reconciliation session not initialized for order", http.StatusNotFound)
+		return
+	}
+
+	if err := sess.Sign(req.Department, req.SignerID); err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":      "ACCEPTED",
+		"department":  req.Department,
+		"signature":   sess.Signatures[req.Department],
+	})
+}
+
+type SealRequest struct {
+	OrderID string `json:"order_id"`
+}
+
+func (s *EdgeServer) handleOCRSeal(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req SealRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.ocrMu.Lock()
+	sess, exists := s.activeOCRSess[req.OrderID]
+	s.ocrMu.Unlock()
+	if !exists {
+		http.Error(w, "Reconciliation session not initialized for order", http.StatusNotFound)
+		return
+	}
+
+	cert, err := sess.Seal()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(cert)
 }
