@@ -1,7 +1,7 @@
 # Agiparel OS: Master Product & Architecture Requirements Document (PRD/ARD)
 **Author:** Sunil Jain, CyberinQ LLC  
 **Product Baseline:** v1.1.0-PROD  
-**Target Environment:** Local Apple Silicon iMac (Docker Compose) + Staging Ingress via Cloudflare Tunnel (`agiparel.empowerai.us`)  
+**Target Environment:** Local Apple Silicon Mac (Docker Compose) + Staging Ingress via Cloudflare Tunnel (`agiparel.empowerai.us`)  
 **Pilot Ground Truth:** Noble Garments, OKHLA Unit 002/02 | Pilot Line 14 | Buyer: Pery | Style: KK524867 | PO: MK6574J9  
 
 ---
@@ -20,12 +20,12 @@ Every physical transaction across Stores, Cutting, Sewing, Finishing, Packing, a
 - **CyberinQ Central Cloud Control Plane:** Manages tenant billing (Stripe/Razorpay), multi-tenant SaaS routing, and issues cryptographically signed time-boxed license tokens (`license.jwt`) that unlock specific modules (`mod_stores`, `mod_cutting`, `mod_sewing`, `mod_packing`, `mod_ocr`).
 - **Factory Edge Binaries (`plant-edge-os`):** Self-contained, compiled Go static binaries running on an on-premise industrial mini-PC (Intel N100, fanless, 15W) inside an isolated Docker container with an embedded SQLite Write-Ahead Log (WAL) and HMAC-SHA256 Merkle WORM ledger. Operates 100% air-gapped with zero WAN dependency.
 
-### 2.2 "Agie": The Autonomous Factory Onboarding Agent
-Instead of manual IT configuration, an AI agent named **Agie** conducts audio/text interviews with the Factory GM, Line Supervisors, and Store Managers:
-- **Conversational Discovery:** Agie gathers shift timings, machine classes, bottleneck frequencies, and operation bulletins in local languages.
-- **Dynamic Schema Extension ("DB-Smith"):** Safely provisions custom table attributes and JSONB fields on the fly without breaking core WORM ledgers.
-- **Workflow & Rule Mapping ("Logic-Weaver"):** Translates verbal rules into in-memory directed attachment DAGs and dwell-time interlocks.
-- **Auto-Documentation ("Doc-Scribe"):** Generates 5th-grade plain-English user manuals and multi-lingual audio prompt scripts.
+### 2.2 "Agie": The Autonomous Factory Onboarding Agent & Sub-Agent Team
+Instead of manual IT configuration, an AI orchestrator agent named **Agie** conducts audio/text interviews with the Factory GM, Line Supervisors, and Store Managers:
+- **Conversational Discovery (`Interviewer`):** Agie gathers shift timings, machine classes, bottleneck frequencies, and operation bulletins in local languages.
+- **Dynamic Schema Extension (`DB-Smith`):** Safely provisions custom table attributes and JSONB fields on the fly without breaking core WORM ledgers.
+- **Workflow & Rule Mapping (`Logic-Weaver`):** Translates verbal rules into in-memory directed attachment DAGs and dwell-time interlocks.
+- **Auto-Documentation (`Doc-Scribe`):** Generates 5th-grade plain-English user manuals and multi-lingual audio prompt scripts.
 - **Human-in-the-Loop Gate:** Agie presents its configuration plan on a clean review dashboard, requiring a single-click **"Approve & Go Live"** from the Factory Head.
 
 ---
