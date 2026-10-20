@@ -126,8 +126,8 @@
 
   <header>
     <div>
-      <h1>Factory Production Scoreboard</h1>
-      <p>Noble Garments &bull; Unit 002/02 &bull; Style: KK524867 (PO: MK6574J9)</p>
+      <h1 id="header-plant-name">Factory Production Scoreboard</h1>
+      <p id="header-plant-sub">Loading plant configuration...</p>
     </div>
     <div class="status-pill status-green" id="top-status">Line Pacing: Normal</div>
   </header>
@@ -137,6 +137,28 @@
   </div>
 
   <script>
+    async function fetchConfigAndLoad() {
+      let plantTitle = "Noble Garments &bull; Unit 002/02";
+      let lineInfo = "Style: KK524867 (PO: MK6574J9)";
+      try {
+        const res = await fetch("/api/v1/config?t=" + Date.now()); // Prevent caching
+        if (res.ok) {
+          const cfg = await res.json();
+          if (cfg.plant_name) {
+            plantTitle = `${cfg.plant_name} &bull; ${cfg.unit_code || "Unit 01"}`;
+            lineInfo = `Pilot Line: ${cfg.pilot_line} | Style: ${cfg.style_code || "SK01"} (PO: ${cfg.po_number || "PO01"})`;
+          }
+        }
+      } catch (e) {
+        console.warn("Using default pilot metadata", e);
+      }
+      document.getElementById("header-plant-name").innerText = "Factory Production Scoreboard";
+      document.getElementById("header-plant-sub").innerHTML = `${plantTitle} | ${lineInfo}`;
+      loadScorecards();
+    }
+
+    fetchConfigAndLoad();
+    setInterval(loadScorecards, 5000);
     async function loadScorecards() {
       try {
         // Simulated or live production telemetry data matching our pilot scope

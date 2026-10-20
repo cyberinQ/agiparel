@@ -648,20 +648,7 @@ func (s *EdgeServer) handleOCRSeal(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(cert)
 }
-
 func (s *EdgeServer) handleGetTopologyDevices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(s.spatialTwin.GetDevices())
 }
-// Inside main() in services/edge-daemon/cmd/server/main.go
-agieEng := interviewer.NewInterviewerEngine()
-mux.HandleFunc("/api/v1/agie/interview/start", func(w http.ResponseWriter, r *http.Request) {
-    // Initialize interview session for Factory GM or Supervisor
-    sess := interviewer.NewSessionID()
-    w.Header().Set("Content-Type", "application/json")
-    _ = json.NewEncoder(w).Encode(map[string]string{
-        "status":     "STARTED",
-        "session_id": sess,
-        "greeting":   "Hello! I am Agie, your factory onboarding architect. Let's configure your line layout and operation bulletins.",
-    })
-})

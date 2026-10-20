@@ -1,0 +1,29 @@
+name: Build and Release Agiparel OS
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build Edge Binary
+        run: |
+          CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o dist/plant-edge-os ./services/edge-daemon/cmd/server
+
+      - name: Create GitHub Release & Upload Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/plant-edge-os
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
