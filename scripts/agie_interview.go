@@ -60,7 +60,7 @@ func main() {
 	fmt.Println("🤖 AGIE: Autonomous Factory Onboarding & IT Consultant (v1.1-PROD)")
 	fmt.Println("==================================================================")
 
-	speak("Hello! I am Agie, your single-window factory intelligence partner. I am connected locally to Qwen. Let us inspect and configure your shop floor layout and order parameters.")
+	speak("Hello! I am Agie, your single-window factory intelligence partner. Totally secured and private, I never take any data out of this factory. My goal is to make blame impossible by making evidence automatic. Enforce quality and compliance by impossibility, not by post-hoc inspection. Let us inspect and configure your shop floor layout and order parameters.")
 
 	reader := bufio.NewReader(os.Stdin)
 
