@@ -14,6 +14,7 @@ services:
       - ../services/core-api/migrations/0001_initial_schema.sql:/docker-entrypoint-initdb.d/01_initial_schema.sql:ro
       - ../services/core-api/migrations/0002_rls_policies.sql:/docker-entrypoint-initdb.d/02_rls_policies.sql:ro
       - ../services/core-api/migrations/0003_app_role.sql:/docker-entrypoint-initdb.d/03_app_role.sql:ro
+      - ../services/core-api/migrations/0004_executive_telemetry_schema.sql:/docker-entrypoint-initdb.d/04_executive_telemetry_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agiparel_admin} -d ${POSTGRES_DB:-agiparel_dev}"]
       interval: 3s
@@ -47,6 +48,10 @@ services:
       WAL_PATH: "/data/wal/events.wal"
       ENABLED_MODULES: ${ENABLED_MODULES:-mod_stores,mod_cutting,mod_sewing,mod_packing,mod_ocr}
       DATABASE_URL: "postgres://${POSTGRES_USER:-agiparel_admin}:${POSTGRES_PASSWORD:-dev_secret_vault_pg16}@postgres:5432/${POSTGRES_DB:-agiparel_dev}?sslmode=disable"
+      OLLAMA_HOST: "http://host.docker.internal:11434"
+      AGIE_MODEL: "qwen2.5-coder:7b"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - edge_wal_data:/data/wal
     ports:

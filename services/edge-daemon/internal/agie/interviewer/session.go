@@ -1,7 +1,6 @@
 package interviewer
 
 import (
-	"encoding/json"
 	"errors"
 	"sync"
 	"time"

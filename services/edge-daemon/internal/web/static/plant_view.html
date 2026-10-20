@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Production Scorecard - Noble Garments</title>
+  <title>Production Scorecard - Agiparel OS</title>
   <style>
     body {
       background: #f8fafc;
@@ -41,7 +41,6 @@
       grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
       gap: 25px;
     }
-
     .card {
       background: #ffffff;
       border-radius: 16px;
@@ -52,7 +51,6 @@
     }
     .card.warning { border-left-color: #f59e0b; }
     .card.danger { border-left-color: #ef4444; }
-
     .card-title {
       font-size: 22px;
       font-weight: bold;
@@ -62,7 +60,6 @@
       align-items: center;
       color: #1e293b;
     }
-
     .scorecard-metric {
       background: #f8fafc;
       border-radius: 10px;
@@ -79,7 +76,6 @@
     .metric-row:last-child { margin-bottom: 0; }
     .metric-label { color: #64748b; font-weight: bold; }
     .metric-value { color: #0f172a; font-weight: bold; }
-
     .progress-bar-container {
       width: 100%;
       height: 12px;
@@ -94,7 +90,6 @@
       width: 0%;
       transition: width 0.4s ease;
     }
-
     .issue-box {
       background: #fef2f2;
       border: 1px solid #fecaca;
@@ -105,7 +100,6 @@
       margin-top: 12px;
       font-weight: bold;
     }
-
     .btn {
       display: block;
       width: 100%;
@@ -120,10 +114,166 @@
       margin-top: 18px;
     }
     .btn:hover { background: #1d4ed8; }
+
+    /* --- Floating Trigger Button --- */
+    .agie-fab {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: #0f172a;
+      color: #ffffff;
+      border: none;
+      padding: 16px 24px;
+      border-radius: 50px;
+      font-size: 16px;
+      font-weight: 700;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 999;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .agie-fab:hover {
+      transform: translateY(-2px);
+      background: #1e293b;
+    }
+
+    /* --- Slide-Out Drawer --- */
+    .agie-drawer-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.4);
+      z-index: 1000;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .agie-drawer-backdrop.active {
+      display: block;
+      opacity: 1;
+    }
+    .agie-drawer {
+      position: fixed;
+      top: 0;
+      right: -520px;
+      width: 500px;
+      height: 100%;
+      background: #ffffff;
+      box-shadow: -10px 0 30px rgba(0,0,0,0.15);
+      z-index: 1001;
+      display: flex;
+      flex-direction: column;
+      transition: right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .agie-drawer.open {
+      right: 0;
+    }
+    .drawer-header {
+      padding: 20px 24px;
+      background: #0f172a;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .drawer-header h2 {
+      margin: 0;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .drawer-header span {
+      font-size: 12px;
+      background: #1e293b;
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: #94a3b8;
+    }
+    .drawer-close {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 24px;
+      cursor: pointer;
+    }
+    .drawer-close:hover { color: white; }
+
+    .chat-messages {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: #f8fafc;
+    }
+    .msg {
+      max-width: 85%;
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .msg-agie {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      color: #1e293b;
+      align-self: flex-start;
+      border-bottom-left-radius: 2px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .msg-user {
+      background: #2563eb;
+      color: #ffffff;
+      align-self: flex-end;
+      border-bottom-right-radius: 2px;
+    }
+    .msg-memo {
+      background: #fefce8;
+      border: 1px solid #fef08a;
+      color: #713f12;
+      align-self: stretch;
+      max-width: 100%;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+    }
+
+    .chat-input-bar {
+      padding: 16px 20px;
+      border-top: 1px solid #e2e8f0;
+      background: #ffffff;
+      display: flex;
+      gap: 10px;
+    }
+    .chat-input {
+      flex: 1;
+      padding: 12px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+    .chat-input:focus { border-color: #2563eb; }
+    .chat-send-btn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .chat-send-btn:hover { background: #1d4ed8; }
   </style>
 </head>
 <body>
-
   <header>
     <div>
       <h1 id="header-plant-name">Factory Production Scoreboard</h1>
@@ -132,8 +282,32 @@
     <div class="status-pill status-green" id="top-status">Line Pacing: Normal</div>
   </header>
 
-  <div class="grid" id="scorecard-grid">
-    <!-- Dynamic Scorecards load here -->
+  <div class="grid" id="scorecard-grid"></div>
+
+  <!-- Agie Executive Trigger -->
+  <button class="agie-fab" onclick="toggleDrawer()">
+    🤖 Ask Agie (Advisor)
+  </button>
+
+  <!-- Slide-Out Chat Drawer -->
+  <div class="agie-drawer-backdrop" id="drawer-backdrop" onclick="toggleDrawer()"></div>
+  <div class="agie-drawer" id="chat-drawer">
+    <div class="drawer-header">
+      <div>
+        <h2>🤖 Agie Assistant/Advisor<span>C-Suite Sandbox</span></h2>
+      </div>
+      <button class="drawer-close" onclick="toggleDrawer()">&times;</button>
+    </div>
+    <div class="chat-messages" id="chat-stream">
+      <div class="msg msg-agie">
+        Welcome, I am Agie, your <strong>personal assistant/ advisor</strong>. We can brainstorm lean line balancing, discuss buyer compliance, troubleshoot bottleneck pacing, or plan CAPEX.<br><br>
+        <em>Note: This conversation is transient unless you ask me to "make a note" or "remember this".</em>
+      </div>
+    </div>
+    <div class="chat-input-bar">
+      <input type="text" id="user-input" class="chat-input" placeholder="Ask anything about line pacing, costs, or bottlenecks..." onkeydown="handleKey(event)" />
+      <button class="chat-send-btn" onclick="sendAgieMessage()">Send</button>
+    </div>
   </div>
 
   <script>
@@ -141,7 +315,7 @@
       let plantTitle = "Noble Garments &bull; Unit 002/02";
       let lineInfo = "Style: KK524867 (PO: MK6574J9)";
       try {
-        const res = await fetch("/api/v1/config?t=" + Date.now()); // Prevent caching
+        const res = await fetch("/api/v1/config?t=" + Date.now());
         if (res.ok) {
           const cfg = await res.json();
           if (cfg.plant_name) {
@@ -156,12 +330,11 @@
       document.getElementById("header-plant-sub").innerHTML = `${plantTitle} | ${lineInfo}`;
       loadScorecards();
     }
-
     fetchConfigAndLoad();
     setInterval(loadScorecards, 5000);
+
     async function loadScorecards() {
       try {
-        // Simulated or live production telemetry data matching our pilot scope
         const zones = [
           {
             id: "stores",
@@ -188,7 +361,7 @@
           {
             id: "sewing",
             name: "Sewing Line 14",
-            icon: "🪡",
+            icon: "🧵",
             expected: "600 pcs shift goal",
             complete: "420 pcs completed",
             percent: 70,
@@ -210,7 +383,7 @@
           {
             id: "packing",
             name: "Carton Packing & Dispatch",
-            icon: "📦",
+            icon: "📋",
             expected: "50 Boxes (Ratio)",
             complete: "35 Boxes sealed",
             percent: 70,
@@ -219,23 +392,19 @@
             issue: null
           }
         ];
-
         const grid = document.getElementById("scorecard-grid");
         grid.innerHTML = "";
-
         zones.forEach(z => {
           let cardClass = "card";
           let statusBg = "#10b981";
           if (z.status === "yellow") { cardClass += " warning"; statusBg = "#f59e0b"; }
           if (z.status === "red") { cardClass += " danger"; statusBg = "#ef4444"; }
-
           let html = `
             <div class="${cardClass}">
               <div class="card-title">
                 <span>${z.icon} ${z.name}</span>
                 <span style="font-size: 14px; background: ${statusBg}; color: white; padding: 5px 10px; border-radius: 6px;">${z.statusText}</span>
               </div>
-              
               <div class="scorecard-metric">
                 <div class="metric-row">
                   <span class="metric-label">Expected Target:</span>
@@ -250,26 +419,101 @@
                 </div>
               </div>
           `;
-
           if (z.issue) {
             html += `<div class="issue-box">${z.issue}</div>`;
           }
-
           if (z.id === "sewing") {
             html += `<a href="/sew01" target="_blank" class="btn">Open Operator Pacing Screen (SEW-01)</a>`;
           }
-
           html += `</div>`;
           grid.innerHTML += html;
         });
-
       } catch (err) {
         console.error("Could not load scorecards", err);
       }
     }
 
-    loadScorecards();
-    setInterval(loadScorecards, 5000);
+    /* --- Drawer & Advisor Logic --- */
+    let conversationHistory = [];
+
+    function toggleDrawer() {
+      const drawer = document.getElementById("chat-drawer");
+      const backdrop = document.getElementById("drawer-backdrop");
+      const isOpen = drawer.classList.contains("open");
+      if (isOpen) {
+        drawer.classList.remove("open");
+        backdrop.classList.remove("active");
+      } else {
+        drawer.classList.add("open");
+        backdrop.classList.add("active");
+        document.getElementById("user-input").focus();
+      }
+    }
+
+    function handleKey(e) {
+      if (e.key === "Enter") sendAgieMessage();
+    }
+
+    async function sendAgieMessage() {
+      const input = document.getElementById("user-input");
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = "";
+      const stream = document.getElementById("chat-stream");
+
+      // Append User Bubble
+      const userDiv = document.createElement("div");
+      userDiv.className = "msg msg-user";
+      userDiv.innerText = text;
+      stream.appendChild(userDiv);
+
+      conversationHistory.push({ role: "user", content: text });
+
+      // Check if user is asking to memoize
+      const isMemoRequest = /remember|make a note|note this|save memo|action item/i.test(text);
+
+      // Loading Placeholder
+      const loadDiv = document.createElement("div");
+      loadDiv.className = "msg msg-agie";
+      loadDiv.innerText = "Analyzing...wait..";
+      stream.appendChild(loadDiv);
+      stream.scrollTop = stream.scrollHeight;
+
+      try {
+        const res = await fetch("/api/v1/agie/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "ADVISOR",
+            messages: conversationHistory
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          loadDiv.innerHTML = data.reply.replace(/\n/g, "<br>");
+          conversationHistory.push({ role: "assistant", content: data.reply });
+
+          // If GM asked to remember, render the Executive Action Memo card
+          if (isMemoRequest) {
+            const memoDiv = document.createElement("div");
+            memoDiv.className = "msg-memo";
+            memoDiv.innerHTML = `
+              <strong>📌 Executive Action Captured (PM-02 Memo)</strong><br>
+              <em>Logged to shift registry. You can inspect or convert this directive during the end-of-day review.</em>
+            `;
+            stream.appendChild(memoDiv);
+          }
+        } else {
+          loadDiv.innerText = "Agie could not connect to edge Qwen core. Operating in air-gapped status.";
+        }
+      } catch (err) {
+        loadDiv.innerText = "Agie advisor unreachable over local edge network.";
+      }
+
+      stream.scrollTop = stream.scrollHeight;
+    }
   </script>
 </body>
 </html>

@@ -60,7 +60,7 @@ func main() {
 	fmt.Println("🤖 AGIE: Autonomous Factory Onboarding & IT Consultant (v1.1-PROD)")
 	fmt.Println("==================================================================")
 
-	speak("Hello! I am Agie, your single-window factory intelligence partner. Totally secured and private, I never take any data out of this factory. My goal is to make blame impossible by making evidence automatic. Enforce quality and compliance by impossibility, not by post-hoc inspection. Let us inspect and configure your shop floor layout and order parameters.")
+	speak("Hello! I am Agie, your factory intelligence partner. Totally secured and private, I never take any data out of your factory. My goal is to make blame impossible by making evidence automatic. Enforce quality and compliance by impossibility. Let us inspect and configure your shop floor layout, capacity, and order parameters.")
 
 	reader := bufio.NewReader(os.Stdin)
 
@@ -83,7 +83,26 @@ func main() {
 	consultantAdvice := queryOllama(advicePrompt)
 	speak(consultantAdvice)
 
-	// Save configuration so the web server and UI update dynamically
+	// Recite Candidate Specs to User
+	fmt.Printf("\n--- AGIE RECONFIRMATION GATE ---")
+	fmt.Printf("\nPlant: %s", plantInput)
+	fmt.Printf("\nLine:  %s", lineInput)
+	fmt.Printf("\nTarget Daily Capacity: 600 pcs")
+	fmt.Printf("\nMachine Class: KANSAI_FLATLOCK (Hemming, Cap: 120/hr)")
+	fmt.Printf("\nAnti-Ghost Dwell Floor: 14.4s (40%% of SAM)\n")
+	speak("Please review the parameters. Do you confirm these settings? Type CONFIRM to apply or EDIT to abort.")
+
+	fmt.Print("\n[Type CONFIRM to apply]: ")
+	confirmInput, _ := reader.ReadString('\n')
+	confirmInput = strings.TrimSpace(confirmInput)
+
+	if confirmInput != "CONFIRM" {
+		speak("Configuration update aborted. No changes were made to production code or database schemas.")
+		fmt.Println("Aborted by user.")
+		return
+	}
+
+	// Build the live config struct
 	config := FactoryConfig{
 		PlantName:    plantInput,
 		UnitCode:     "Unit 002/02",
@@ -94,6 +113,48 @@ func main() {
 		ConfiguredAt: time.Now().UTC().UnixMilli(),
 	}
 
+	// 1. Send configuration payload to plant-edge-os container
+	confirmPayload := map[string]interface{}{
+		"confirmed_by":     "FACTORY_GM",
+		"confirmation_pin": "SIGN_OFF_OK",
+		"candidate_config": map[string]interface{}{
+			"schema_version": "1.0.0",
+			"tenant_id":      "TENANT_DEFAULT",
+			"factory_name":   plantInput,
+			"unit_number":    "Unit 002/02",
+			"lines": []map[string]interface{}{
+				{
+					"line_id":                 "LINE_01",
+					"display_name":            lineInput,
+					"active_stations_count":   14,
+					"target_daily_capacity":   600,
+					"default_cycle_floor_pct": 0.40,
+				},
+			},
+			"machines": []map[string]interface{}{
+				{
+					"machine_id":              "M-01",
+					"line_id":                 "LINE_01",
+					"name":                    "Kansai 01",
+					"canonical_class":         "KANSAI_FLATLOCK",
+					"function":                "Hemming",
+					"capacity_units_per_hour": 120,
+				},
+			},
+		},
+	}
+
+	jsonBytes, err := json.Marshal(confirmPayload)
+	if err == nil {
+		resp, postErr := http.Post("http://localhost:8080/api/v1/agie/confirm", "application/json", bytes.NewBuffer(jsonBytes))
+		if postErr != nil {
+			fmt.Printf("Warning: Failed to reach edge daemon: %v\n", postErr)
+		} else {
+			resp.Body.Close()
+		}
+	}
+
+	// 2. Also write to local static file on disk as backup
 	_ = os.MkdirAll("services/edge-daemon/internal/web/static", 0755)
 	file, err := os.Create("services/edge-daemon/internal/web/static/config.json")
 	if err == nil {
