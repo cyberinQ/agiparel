@@ -28,22 +28,13 @@ type MerkleLedger struct {
 }
 
 func NewMerkleLedger(seedKey string) *MerkleLedger {
-	h := sha256.Sum256([]byte("GENESIS_BLOCK_AGIPAREL_REV11"))
+	seedData := []byte("GENESIS_BLOCK_AGIPAREL_REV11_" + seedKey)
+	sum := sha256.Sum256(seedData)
+	genesisHash := hex.EncodeToString(sum[:])
 	return &MerkleLedger{
 		secretKey:    []byte(seedKey),
 		currentIndex: 0,
-		lastHash:     hex.EncodeToString(h[:]),
-	}
-}
-
-func (l *MerkleLedger) Hydrate(events []AuditEvent) {
-	l.Lock()
-	defer l.Unlock()
-	for _, ev := range events {
-		if ev.Index > l.currentIndex {
-			l.currentIndex = ev.Index
-			l.lastHash = ev.EntryHash
-		}
+		lastHash:     genesisHash,
 	}
 }
 
@@ -78,14 +69,29 @@ func (l *MerkleLedger) AppendEvent(stationID, operatorID, eventType, rawPayload 
 	return event, nil
 }
 
-func (l *MerkleLedger) GetLatestHash() string {
+// Hydrate rebuilds the ledger state from a historical slice of audit events during boot.
+func (l *MerkleLedger) Hydrate(events []AuditEvent) {
 	l.Lock()
 	defer l.Unlock()
-	return l.lastHash
+	for _, ev := range events {
+		if ev.Index > l.currentIndex {
+			l.currentIndex = ev.Index
+		}
+		if ev.EntryHash != "" {
+			l.lastHash = ev.EntryHash
+		}
+	}
 }
 
+// GetCurrentIndex returns the current sequence number of the ledger chain.
 func (l *MerkleLedger) GetCurrentIndex() uint64 {
 	l.Lock()
 	defer l.Unlock()
 	return l.currentIndex
+}
+
+func (l *MerkleLedger) GetLatestHash() string {
+	l.Lock()
+	defer l.Unlock()
+	return l.lastHash
 }

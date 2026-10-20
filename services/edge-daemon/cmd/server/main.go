@@ -14,14 +14,14 @@ import (
 	"time"
 
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/attachment"
-	"github.com/cyberinq/agiparel/services/edge-daemon/internal/cutting"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/crypto"
+	"github.com/cyberinq/agiparel/services/edge-daemon/internal/cutting"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/ocr"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/packing"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/stores"
+	"github.com/cyberinq/agiparel/services/edge-daemon/internal/topology"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/wal"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/web"
-	"github.com/cyberinq/agiparel/services/edge-daemon/internal/topology"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -64,12 +64,10 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-
 	secret := os.Getenv("LEDGER_SECRET")
 	if secret == "" {
 		secret = "DEV_INSECURE_SECRET_REPLACE_IN_PROD"
 	}
-
 	walPath := os.Getenv("WAL_PATH")
 	if walPath == "" {
 		walPath = "./data/wal/events.wal"
@@ -82,7 +80,6 @@ func main() {
 	defer localWAL.Close()
 
 	ledger := crypto.NewMerkleLedger(secret)
-
 	records, err := localWAL.ReplayAll()
 	if err != nil {
 		log.Printf("Warning: failed to replay WAL: %v", err)
@@ -108,7 +105,6 @@ func main() {
 	log.Printf("Active modular engines: %s", enabledMods)
 
 	storesEng := stores.NewStoresEngine()
-	// Pre-seed ground-truth Roll #7 (59m) reserved for Cut 1 of PO MK6574J9
 	storesEng.RegisterRoll(stores.RollStock{
 		RollID:          "ROLL-007",
 		OriginalLengthM: 59.0,
@@ -129,6 +125,7 @@ func main() {
 			db.SetMaxIdleConns(5)
 		}
 	}
+
 	twin := topology.NewSpatialTwin()
 	server := &EdgeServer{
 		modules:        modules,
@@ -145,27 +142,23 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// Base kernel routes
 	mux.HandleFunc("/healthz", server.handleHealth)
 	mux.HandleFunc("/api/v1/modules", server.handleGetModules)
 	mux.HandleFunc("/api/v1/ledger/append", server.handleLedgerAppend)
 	mux.HandleFunc("/api/v1/ledger/latest", server.handleLedgerLatest)
 
-	// mod_stores routes
 	if modules.IsEnabled("mod_stores") {
 		mux.HandleFunc("/api/v1/stores/indent-check", server.handleStoresIndentCheck)
 		mux.HandleFunc("/api/v1/stores/issue-double-witness", server.handleStoresIssueDoubleWitness)
 		log.Println("Mounted endpoints: mod_stores")
 	}
 
-	// mod_cutting routes
 	if modules.IsEnabled("mod_cutting") {
 		mux.HandleFunc("/api/v1/cutting/plan-target", server.handleCuttingPlanTarget)
 		mux.HandleFunc("/api/v1/cutting/lay-roll", server.handleCuttingLayRoll)
 		log.Println("Mounted endpoints: mod_cutting")
 	}
 
-	// mod_sewing routes
 	if modules.IsEnabled("mod_sewing") {
 		mux.HandleFunc("/api/v1/sewing/bind-tag", server.handleSewingBindTag)
 		mux.HandleFunc("/api/v1/sewing/validate-pair", server.handleSewingValidatePair)
@@ -173,7 +166,6 @@ func main() {
 		log.Println("Mounted endpoints: mod_sewing")
 	}
 
-	// mod_packing routes
 	if modules.IsEnabled("mod_packing") {
 		mux.HandleFunc("/api/v1/packing/session/start", server.handlePackingStart)
 		mux.HandleFunc("/api/v1/packing/session/scan", server.handlePackingScan)
@@ -181,7 +173,6 @@ func main() {
 		log.Println("Mounted endpoints: mod_packing")
 	}
 
-	// mod_ocr routes
 	if modules.IsEnabled("mod_ocr") {
 		mux.HandleFunc("/api/v1/ocr/reconcile", server.handleOCRReconcile)
 		mux.HandleFunc("/api/v1/ocr/sign", server.handleOCRSign)
@@ -189,7 +180,6 @@ func main() {
 		log.Println("Mounted endpoints: mod_ocr")
 	}
 
-	// Spatial Factory Twin View
 	mux.HandleFunc("/api/v1/topology/devices", server.handleGetTopologyDevices)
 	mux.HandleFunc("/plant", func(w http.ResponseWriter, r *http.Request) {
 		data, err := web.GetPlantViewHTML()
@@ -202,9 +192,6 @@ func main() {
 	})
 	log.Println("Mounted endpoints: /plant and /api/v1/topology/devices")
 
-
-
-	// Static HMI Files (Compiled into binary via go:embed)
 	mux.Handle("/static/", http.StripPrefix("/static/", web.StaticHandler()))
 	mux.HandleFunc("/sew01", func(w http.ResponseWriter, r *http.Request) {
 		data, err := web.GetSEW01HTML()
@@ -237,6 +224,7 @@ func main() {
 
 	<-stop
 	log.Println("Shutting down plant-edge-os...")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -282,18 +270,17 @@ func (s *EdgeServer) handleLedgerAppend(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
+
 	event, err := s.ledger.AppendEvent(req.StationID, req.OperatorID, req.EventType, req.Payload)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	evBytes, _ := json.Marshal(event)
-	_ = s.wal.Append(wal.Record{
-		Index:     event.Index,
-		Timestamp: event.Timestamp,
-		Type:      "LEDGER_EVENT",
-		Payload:   evBytes,
-	})
+	// Fixed: pass eventType string and json.RawMessage directly to wal.Append
+	_, _ = s.wal.Append("LEDGER_EVENT", evBytes)
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(event)
 }
@@ -319,7 +306,7 @@ func (s *EdgeServer) handleStoresIndentCheck(w http.ResponseWriter, r *http.Requ
 	}
 	var req IndentCheckRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	calc := stores.CalculateNetIndent(req.SKU, req.BOMRequiredQty, req.UnreservedQty)
@@ -343,11 +330,12 @@ func (s *EdgeServer) handleStoresIssueDoubleWitness(w http.ResponseWriter, r *ht
 	}
 	var req DoubleWitnessIssueRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	record, err := s.stores.DoubleWitnessIssue(
-		req.RollID, req.OrderID, req.CutNo, req.IssuedLengthM, req.IssuerID, req.RecipientID, s.secretKey,
+		req.RollID, req.OrderID, req.CutNo, req.IssuedLengthM,
+		req.IssuerID, req.RecipientID, s.secretKey,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
@@ -370,7 +358,7 @@ func (s *EdgeServer) handleCuttingPlanTarget(w http.ResponseWriter, r *http.Requ
 	}
 	var req CutPlanTargetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	target := cutting.CalculateCutTarget(req.OrderID, req.SizeVariant, req.OrderQty)
@@ -394,7 +382,7 @@ func (s *EdgeServer) handleCuttingLayRoll(w http.ResponseWriter, r *http.Request
 	}
 	var req LayRollRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	record, err := cutting.EvaluateEndBitDisposition(
@@ -420,7 +408,7 @@ func (s *EdgeServer) handleSewingBindTag(w http.ResponseWriter, r *http.Request)
 	}
 	var req BindTagRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	s.attachment.BindTag(req.NFCUID, req.Node)
@@ -440,7 +428,7 @@ func (s *EdgeServer) handleSewingValidatePair(w http.ResponseWriter, r *http.Req
 	}
 	var req ValidatePairRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	if err := s.attachment.ValidatePair(req.StyleID, req.SourceNFC, req.TargetNFC); err != nil {
@@ -464,7 +452,7 @@ func (s *EdgeServer) handleSewingRegisterRule(w http.ResponseWriter, r *http.Req
 	}
 	var req RegisterRuleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	s.attachment.RegisterRule(req.StyleID, req.SourcePartID, req.TargetPartID)
@@ -486,7 +474,7 @@ func (s *EdgeServer) handlePackingStart(w http.ResponseWriter, r *http.Request) 
 	}
 	var req StartPackingRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	s.packingMu.Lock()
@@ -509,12 +497,13 @@ func (s *EdgeServer) handlePackingScan(w http.ResponseWriter, r *http.Request) {
 	}
 	var req ScanUPCRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	s.packingMu.Lock()
 	sess, exists := s.activePackings[req.BoxID]
 	s.packingMu.Unlock()
+
 	if !exists {
 		http.Error(w, "Box session not found", http.StatusNotFound)
 		return
@@ -538,12 +527,13 @@ func (s *EdgeServer) handlePackingSeal(w http.ResponseWriter, r *http.Request) {
 	}
 	var req SealBoxRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	s.packingMu.Lock()
 	sess, exists := s.activePackings[req.BoxID]
 	s.packingMu.Unlock()
+
 	if !exists {
 		http.Error(w, "Box session not found", http.StatusNotFound)
 		return
@@ -570,7 +560,7 @@ func (s *EdgeServer) handleOCRReconcile(w http.ResponseWriter, r *http.Request) 
 	}
 	var req ReconcileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 	report, err := ocr.EvaluateConservation(req.OrderID, req.CutNo, req.Breakdown, req.VarianceComment)
@@ -601,18 +591,18 @@ func (s *EdgeServer) handleOCRSign(w http.ResponseWriter, r *http.Request) {
 	}
 	var req SignRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 
 	s.ocrMu.Lock()
 	sess, exists := s.activeOCRSess[req.OrderID]
 	s.ocrMu.Unlock()
+
 	if !exists {
 		http.Error(w, "Reconciliation session not initialized for order", http.StatusNotFound)
 		return
 	}
-
 	if err := sess.Sign(req.Department, req.SignerID); err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -637,18 +627,18 @@ func (s *EdgeServer) handleOCRSeal(w http.ResponseWriter, r *http.Request) {
 	}
 	var req SealRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 
 	s.ocrMu.Lock()
 	sess, exists := s.activeOCRSess[req.OrderID]
 	s.ocrMu.Unlock()
+
 	if !exists {
 		http.Error(w, "Reconciliation session not initialized for order", http.StatusNotFound)
 		return
 	}
-
 	cert, err := sess.Seal()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
@@ -658,7 +648,20 @@ func (s *EdgeServer) handleOCRSeal(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(cert)
 }
+
 func (s *EdgeServer) handleGetTopologyDevices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(s.spatialTwin.GetDevices())
 }
+// Inside main() in services/edge-daemon/cmd/server/main.go
+agieEng := interviewer.NewInterviewerEngine()
+mux.HandleFunc("/api/v1/agie/interview/start", func(w http.ResponseWriter, r *http.Request) {
+    // Initialize interview session for Factory GM or Supervisor
+    sess := interviewer.NewSessionID()
+    w.Header().Set("Content-Type", "application/json")
+    _ = json.NewEncoder(w).Encode(map[string]string{
+        "status":     "STARTED",
+        "session_id": sess,
+        "greeting":   "Hello! I am Agie, your factory onboarding architect. Let's configure your line layout and operation bulletins.",
+    })
+})

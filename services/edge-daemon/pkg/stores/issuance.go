@@ -9,28 +9,6 @@ import (
 	"time"
 )
 
-type IndentCalculation struct {
-	SKU            string  `json:"sku"`
-	BOMRequiredQty float64 `json:"bom_required_qty"`
-	UnreservedQty  float64 `json:"unreserved_qty"`
-	NetIndentQty   float64 `json:"net_indent_qty"`
-	RequiresBlock  bool    `json:"requires_block"`
-}
-
-func CalculateNetIndent(sku string, bomReq, unreserved float64) IndentCalculation {
-	net := bomReq - unreserved
-	if net < 0 {
-		net = 0
-	}
-	return IndentCalculation{
-		SKU:            sku,
-		BOMRequiredQty: bomReq,
-		UnreservedQty:  unreserved,
-		NetIndentQty:   net,
-		RequiresBlock:  unreserved > 0 && net < bomReq,
-	}
-}
-
 type RollStock struct {
 	RollID          string  `json:"roll_id"`
 	OriginalLengthM float64 `json:"original_length_m"`
@@ -41,16 +19,16 @@ type RollStock struct {
 }
 
 type IssuanceRecord struct {
-	IssuanceID        string  `json:"issuance_id"`
-	RollID            string  `json:"roll_id"`
-	OrderID           string  `json:"order_id"`
-	CutNo             int     `json:"cut_no"`
-	IssuedLengthM     float64 `json:"issued_length_m"`
-	IssuerID          string  `json:"issuer_id"`
-	RecipientID       string  `json:"recipient_id"`
-	IssuedAt          int64   `json:"issued_at"`
-	RemainingLengthM  float64 `json:"remaining_length_m"`
-	DigitalSigHash    string  `json:"digital_signature_hash"`
+	IssuanceID       string  `json:"issuance_id"`
+	RollID           string  `json:"roll_id"`
+	OrderID          string  `json:"order_id"`
+	CutNo            int     `json:"cut_no"`
+	IssuedLengthM    float64 `json:"issued_length_m"`
+	IssuerID         string  `json:"issuer_id"`
+	RecipientID      string  `json:"recipient_id"`
+	IssuedAt         int64   `json:"issued_at"`
+	RemainingLengthM float64 `json:"remaining_length_m"`
+	DigitalSigHash   string  `json:"digital_signature_hash"`
 }
 
 type StoresEngine struct {
