@@ -1302,3 +1302,4 @@ Complete conservation balance
 \text{Cut} = \text{Shipped} + \text{Lost} + \text{Left Over}; immutable signed PDF emitted.
 
 
+Core Architectural Principles Moving ForwardZero Hardcoded Garment Limits: Fluid assembly DAGs, flexible part counts, dynamic BOMs, and arbitrary buyer packing specifications stored as queryable JSONB and relational graphs.No "Toy" LLM Stubs: Agie operates as an autonomous ReAct query agent equipped with deterministic tool execution (run_safe_sql, catalog introspection)—no static string stuffing in Go.   Unified Baseline Migrations: Clean DDL migrations, automated via CI/CD, eliminating runtime DDL side-effects.Exact Marvel Screen Fidelity: Stop inventing new UI layouts; map the back-end APIs directly to the wireframe mockups provided by Noble Garments.
