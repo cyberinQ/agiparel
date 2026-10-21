@@ -1,26 +1,27 @@
 package telemetry
 
 import (
+	"errors"
 	"math"
 	"sync"
 	"time"
 )
 
 type ProcessMeasurement struct {
-	StationID             string        `json:"station_id"`
-	OperatorID            string        `json:"operator_id"`
-	BundleID              string        `json:"bundle_id"`
-	CycleDuration         time.Duration `json:"cycle_duration"`
-	InterprocessLatency   time.Duration `json:"interprocess_latency"`
-	FactorySAM            time.Duration `json:"factory_sam"`
-	PaceDeviationPercent  float64       `json:"pace_deviation_percent"`
-	IsBottleneck          bool          `json:"is_bottleneck"`
+	StationID            string        `json:"station_id"`
+	OperatorID           string        `json:"operator_id"`
+	BundleID             string        `json:"bundle_id"`
+	CycleDuration        time.Duration `json:"cycle_duration"`
+	InterprocessLatency  time.Duration `json:"interprocess_latency"`
+	FactorySAM           time.Duration `json:"factory_sam"`
+	PaceDeviationPercent float64       `json:"pace_deviation_percent"`
+	IsBottleneck         bool          `json:"is_bottleneck"`
 }
 
 type ProcessCorrelator struct {
 	mu           sync.Mutex
-	lastSeenTime map[string]time.Time // BundleID -> Timestamp of completion at Station N-1
-	cycleStarts  map[string]time.Time // StationID -> Timestamp of cycle start
+	lastSeenTime map[string]time.Time
+	cycleStarts  map[string]time.Time
 }
 
 func NewProcessCorrelator() *ProcessCorrelator {

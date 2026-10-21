@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/sqlguard"
 )
 
 const AgieExecutivePrompt = `You are AGIE, the Autonomous Executive Plant Partner for the Factory General Manager.
@@ -56,9 +58,14 @@ func NewInterviewerEngine() *InterviewerEngine {
 	}
 }
 
-func FetchLiveGroundTruth(ctx context.Context, db *sql.DB) string {
+func FetchLiveGroundTruth(ctx context.Context, db *sql.DB, tenantID ...string) string {
 	if db == nil {
 		return "DATABASE STATUS: Offline (operating in disconnected air-gapped mode).\n"
+	}
+
+	activeTenant := "TENANT_DEFAULT"
+	if len(tenantID) > 0 && strings.TrimSpace(tenantID[0]) != "" {
+		activeTenant = strings.TrimSpace(tenantID[0])
 	}
 
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
@@ -67,23 +74,21 @@ func FetchLiveGroundTruth(ctx context.Context, db *sql.DB) string {
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx, "SET LOCAL app.current_tenant_id = 'TENANT_DEFAULT'"); err != nil {
+	if _, err := tx.ExecContext(ctx, "SELECT set_config('app.current_tenant_id', $1, true)", activeTenant); err != nil {
 		return fmt.Sprintf("DATABASE ERROR: Failed to set tenant context: %v\n", err)
 	}
 
 	var sb strings.Builder
 
-	// 1. Factory Profile (Tenants Table)
-	var tenantID, tenantName string
-	err = tx.QueryRowContext(ctx, `SELECT id, name FROM tenants WHERE id = 'TENANT_DEFAULT' LIMIT 1;`).Scan(&tenantID, &tenantName)
+	var tID, tenantName string
+	err = tx.QueryRowContext(ctx, `SELECT id, name FROM tenants WHERE id = $1 LIMIT 1;`, activeTenant).Scan(&tID, &tenantName)
 	if err == nil {
-		sb.WriteString(fmt.Sprintf("FACTORY TENANT: %s (ID: %s)\n", tenantName, tenantID))
+		sb.WriteString(fmt.Sprintf("FACTORY TENANT: %s (ID: %s)\n", tenantName, tID))
 	} else {
-		sb.WriteString("FACTORY TENANT: No tenant record found in database.\n")
+		sb.WriteString("FACTORY TENANT: Not yet onboarded. Please upload the Pre-Boarding Workbook.\n")
 	}
 
-	// 2. Active Work Orders & Styles
-	rowsWO, err := db.QueryContext(ctx, `
+	rowsWO, err := tx.QueryContext(ctx, `
 		SELECT dwo.po_number, sm.style_code, sm.category, dwo.line_id, dwo.ordered_qty, dwo.status
 		FROM dynamic_work_orders dwo
 		JOIN styles_master sm ON dwo.style_id = sm.id
@@ -104,12 +109,9 @@ func FetchLiveGroundTruth(ctx context.Context, db *sql.DB) string {
 		if activeCount == 0 {
 			sb.WriteString("ACTIVE WORK ORDER: Zero work orders currently in progress.\n")
 		}
-	} else {
-		sb.WriteString("ACTIVE WORK ORDER: Query failed or dynamic_work_orders table empty.\n")
 	}
 
-	// 3. Attendance Today
-	rowsAtt, err := db.QueryContext(ctx, `
+	rowsAtt, err := tx.QueryContext(ctx, `
 		SELECT w.name, COALESCE(a.assigned_station_id, 'UNASSIGNED'), a.status
 		FROM attendance_register a
 		JOIN workers w ON a.worker_id = w.id
@@ -136,12 +138,9 @@ func FetchLiveGroundTruth(ctx context.Context, db *sql.DB) string {
 		if absentCount > 0 {
 			sb.WriteString(fmt.Sprintf("ABSENT WORKERS: %s\n", strings.Join(absentList, ", ")))
 		}
-	} else {
-		sb.WriteString("ATTENDANCE TODAY: No attendance records for today.\n")
 	}
 
-	// 4. Machine Roster
-	rowsM, err := db.QueryContext(ctx, `
+	rowsM, err := tx.QueryContext(ctx, `
 		SELECT name, line_id, canonical_class, rated_capacity_uph, status
 		FROM machine_roster;
 	`)
@@ -167,13 +166,10 @@ func FetchLiveGroundTruth(ctx context.Context, db *sql.DB) string {
 		} else {
 			sb.WriteString("MACHINE DOWNTIME: None. All machines nominal.\n")
 		}
-	} else {
-		sb.WriteString("MACHINE ROSTER: No machines registered in database.\n")
 	}
 
-	// 5. Hourly Production
 	var actualUnits, defectUnits, andonMinutes int
-	err = db.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		SELECT COALESCE(SUM(actual_units), 0), COALESCE(SUM(defect_units), 0), COALESCE(SUM(andon_downtime_minutes), 0)
 		FROM hourly_line_metrics
 		WHERE shift_date = CURRENT_DATE;
@@ -187,11 +183,7 @@ func FetchLiveGroundTruth(ctx context.Context, db *sql.DB) string {
 			actualUnits, defectUnits, dhu, andonMinutes))
 	}
 
-// Inside FetchLiveGroundTruth(ctx context.Context, db *sql.DB):
-// Append this query block after Step 5 (Hourly Production):
-
-	// 6. Active Floor Issues Ground Truth (Domain 7 / PM-02)
-	iRows, err := db.QueryContext(ctx, `
+	iRows, err := tx.QueryContext(ctx, `
 		SELECT id, line_id, COALESCE(station_id, 'LINE'), issue_type, severity, title, owner_id, status
 		FROM floor_issues
 		WHERE status IN ('open', 'in_progress')
@@ -212,16 +204,14 @@ func FetchLiveGroundTruth(ctx context.Context, db *sql.DB) string {
 		} else {
 			sb.WriteString("ACTIVE FLOOR ISSUES: None logged. Zero active floor issues.\n")
 		}
-	} else {
-		sb.WriteString("ACTIVE FLOOR ISSUES: Query failed or floor_issues table empty.\n")
 	}
 
 	return sb.String()
 }
 
-func (e *InterviewerEngine) Chat(ctx context.Context, db *sql.DB, messages []LLMMessage) (string, error) {
+func (e *InterviewerEngine) Chat(ctx context.Context, db *sql.DB, messages []LLMMessage, tenantID ...string) (string, error) {
 	url := fmt.Sprintf("%s/api/chat", e.ollamaHost)
-	groundTruth := FetchLiveGroundTruth(ctx, db)
+	groundTruth := FetchLiveGroundTruth(ctx, db, tenantID...)
 	systemPrompt := fmt.Sprintf("%s\n\n=== LIVE FACTORY GROUND TRUTH ===\n%s=================================", AgieExecutivePrompt, groundTruth)
 
 	fullMessages := []LLMMessage{{Role: "system", Content: systemPrompt}}

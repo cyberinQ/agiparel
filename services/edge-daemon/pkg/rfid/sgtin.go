@@ -23,10 +23,6 @@ func EncodeSGTIN96(companyPrefix string, itemRef int, serialNumber int64) (strin
 		return "", fmt.Errorf("ERR_INVALID_SERIAL: serial number must fit in 38 unsigned bits (got %d)", serialNumber)
 	}
 
-	// SGTIN-96 Bit Layout (96 bits = 12 bytes):
-	// [8b Header=0x30][3b Filter=1][3b Partition=5][24b Prefix][20b ItemRef][38b Serial]
-	// Upper 64 bits: 8 + 3 + 3 + 24 + 20 + top 6 bits of Serial = 64 bits
-	// Lower 32 bits: bottom 32 bits of Serial
 	var upper64 uint64 = 0x30
 	upper64 = (upper64 << 3) | 0x01
 	upper64 = (upper64 << 3) | 0x05
@@ -40,11 +36,7 @@ func EncodeSGTIN96(companyPrefix string, itemRef int, serialNumber int64) (strin
 	binary.BigEndian.PutUint64(buf[0:8], upper64)
 	binary.BigEndian.PutUint32(buf[8:12], lower32)
 
-	return strings.ToUpperHex(buf[:]), nil
-}
-
-func stringsToUpperHex(b []byte) string {
-	return fmt.Sprintf("%024X", b)
+	return fmt.Sprintf("%024X", buf[:]), nil
 }
 
 func ValidatePermanentInlayRead(epcHex string) bool {
@@ -52,5 +44,5 @@ func ValidatePermanentInlayRead(epcHex string) bool {
 	if err != nil || len(raw) != 12 {
 		return false
 	}
-	return raw[0] == 0x30 // Standard EPC Header for SGTIN-96
+	return raw[0] == 0x30
 }
