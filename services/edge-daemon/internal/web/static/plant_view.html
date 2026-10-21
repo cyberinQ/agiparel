@@ -207,9 +207,11 @@
       font-weight: 700;
       padding: 2px 6px;
       border-radius: 4px;
-      background: #FEE2E2;
-      color: var(--crit);
+      text-transform: uppercase;
     }
+    .issue-tag.crit { background: #FEE2E2; color: var(--crit); }
+    .issue-tag.warn { background: #FEF3C7; color: var(--warn); }
+    .issue-tag.info { background: #E0E7FF; color: var(--info); }
 
     /* Slide-Out Drawer for Agie */
     .drawer-overlay {
@@ -499,6 +501,60 @@
       }
       stream.scrollTop = stream.scrollHeight;
     }
+    async function loadFloorIssues() {
+      const res = await fetch('/api/v1/issues');
+      const issues = await res.json();
+      const container = document.getElementById("issue-list");
+      container.innerHTML = issues.map(iss => `
+        <div class="issue-item">
+          <div class="issue-header">
+            <strong>${iss.line_id} · ${iss.station_id}</strong>
+            <span class="issue-tag ${iss.severity}">${iss.severity.toUpperCase()}</span>
+          </div>
+          <div>${iss.title}</div>
+        </div>
+      `).join('');
+    }
+    async function loadFloorIssues() {
+      try {
+        const res = await fetch("/api/v1/issues");
+        if (!res.ok) return;
+        const issues = await res.json();
+
+        // Update KPI Counter Card
+        const kpiVal = document.getElementById("kpi-issues");
+        if (kpiVal) kpiVal.innerText = issues.length;
+
+        // Render Issue List
+        const container = document.getElementById("issue-list");
+        if (!container) return;
+
+        if (issues.length === 0) {
+          container.innerHTML = '<div style="color: var(--muted); font-size: 13px; padding: 12px 0;">Zero active issues on floor. Operations nominal.</div>';
+          return;
+        }
+
+        container.innerHTML = issues.map(iss => {
+          const sevClass = iss.severity === 'critical' ? 'crit' : (iss.severity === 'attention' ? 'warn' : 'info');
+          const loc = iss.station_id ? `${iss.line_id} · ${iss.station_id}` : iss.line_id;
+          return `
+            <div class="issue-item">
+              <div class="issue-header">
+                <strong>${loc}</strong>
+                <span class="issue-tag ${sevClass}">${iss.severity}</span>
+              </div>
+              <div>${iss.title}</div>
+              <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">Owner: ${iss.owner_id} · Status: ${iss.status}</div>
+            </div>
+          `;
+        }).join("");
+      } catch (e) {
+        console.error("Failed to load floor issues", e);
+      }
+    }
+
+    loadFloorIssues();
+    setInterval(loadFloorIssues, 5000);
   </script>
 </body>
 </html>

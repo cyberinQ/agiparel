@@ -1,39 +1,40 @@
--- ============================================================================
--- AGIPAREL OS: CONSOLIDATED RLS POLICIES (0002_rls_policies.sql)
--- ============================================================================
+BEGIN;
 
--- Helper Macro Loop for Enabling RLS and Setting Uniform Tenant Isolation
-DO $$
-DECLARE
-    tbl text;
-    tables text[] := ARRAY[
-        'store_rolls',
-        'store_issuances',
-        'cut_lay_rolls',
-        'bundle_registry',
-        'hangtag_binds',
-        'carton_pack_manifests',
-        'ocr_records',
-        'floor_issues',
-        'workers',
-        'attendance_register',
-        'machine_roster',
-        'hourly_line_metrics',
-        'styles_master',
-        'style_parts',
-        'style_assembly_dag',
-        'dynamic_work_orders'
-    ];
-BEGIN
-    FOREACH tbl IN ARRAY tables LOOP
-        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', tbl);
-        EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY;', tbl);
-        EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_%I ON %I;', tbl, tbl);
-        EXECUTE format(
-            'CREATE POLICY tenant_isolation_%I ON %I FOR ALL TO PUBLIC ' ||
-            'USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')) ' ||
-            'WITH CHECK (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), ''''));',
-            tbl, tbl
-        );
-    END LOOP;
-END $$;
+ALTER TABLE store_rolls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bundle_registry ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cut_lay_rolls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE carton_pack_manifests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ocr_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE floor_issues ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation_store_rolls ON store_rolls
+    AS RESTRICTIVE
+    USING (tenant_id = NULLIF(CURRENT_SETTING('app.current_tenant_id', true), ''))
+    WITH CHECK (tenant_id = NULLIF(CURRENT_SETTING('app.current_tenant_id', true), ''));
+
+CREATE POLICY tenant_isolation_bundle_registry ON bundle_registry
+    AS RESTRICTIVE
+    USING (tenant_id = NULLIF(CURRENT_SETTING('app.current_tenant_id', true), ''))
+    WITH CHECK (tenant_id = NULLIF(CURRENT_SETTING('app.current_tenant_id', true), ''));
+
+CREATE POLICY tenant_isolation_cut_lay_rolls ON cut_lay_rolls
+    AS RESTRICTIVE
+    USING (tenant_id = NULLIF(CURRENT_SETTING('app.current_tenant_id', true), ''))
+    WITH CHECK (tenant_id = NULLIF(CURRENT_SETTING('app.current_tenant_id', true), ''));
+
+CREATE POLICY tenant_isolation_carton_pack_manifests ON carton_pack_manifests
+    AS RESTRICTIVE
+    USING (tenant_id = NULLIF(CURRENT_SETTING('app.current_tenant_id', true), ''))
+    WITH CHECK (tenant_id = NULLIF(CURRENT_SETTING('app.current_tenant_id', true), ''));
+
+CREATE POLICY tenant_isolation_ocr_records ON ocr_records
+    AS RESTRICTIVE
+    USING (tenant_id = NULLIF(CURRENT_SETTING('app.current_tenant_id', true), ''))
+    WITH CHECK (tenant_id = NULLIF(CURRENT_SETTING('app.current_tenant_id', true), ''));
+
+CREATE POLICY tenant_isolation_floor_issues ON floor_issues
+    AS RESTRICTIVE
+    USING (tenant_id = NULLIF(CURRENT_SETTING('app.current_tenant_id', true), ''))
+    WITH CHECK (tenant_id = NULLIF(CURRENT_SETTING('app.current_tenant_id', true), ''));
+
+COMMIT;

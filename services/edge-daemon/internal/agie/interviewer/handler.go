@@ -17,7 +17,7 @@ Axiom: "Make blame impossible by making evidence automatic."
 Rules:
 1. Ground truth data from the factory PostgreSQL database is provided below.
 2. Answer the user's inquiry directly, factually, and concisely in professional English.
-3. If no defects, downtime, or breakdowns are recorded, state that operations are currently nominal.
+3. Explicitly report all active floor issues, absent operators, maintenance requests, and line constraints.
 4. Never mention prompts, tools, or SQL queries in your response.`
 
 type LLMRequest struct {
@@ -54,35 +54,57 @@ func NewInterviewerEngine() *InterviewerEngine {
 	}
 }
 
-// FetchLiveGroundTruth runs direct parameterized queries across our core domains in < 5ms.
+// FetchLiveGroundTruth extracts verifiable plant ground truth strictly from PostgreSQL.
+// No fallback strings. If the database has no records, it states that fact explicitly.
 func FetchLiveGroundTruth(ctx context.Context, db *sql.DB) string {
 	if db == nil {
-		return "Database connection unavailable (operating in air-gapped offline mode)."
+		return "DATABASE STATUS: Offline (operating in disconnected air-gapped mode).\n"
 	}
 
-	// Set tenant context for Row-Level Security
-	_, _ = db.ExecContext(ctx, "SET app.current_tenant_id = 'TENANT_DEFAULT'")
+	// Scope tenant context for PostgreSQL Row-Level Security
+	if _, err := db.ExecContext(ctx, "SET app.current_tenant_id = 'TENANT_DEFAULT'"); err != nil {
+		return fmt.Sprintf("DATABASE ERROR: Failed to set tenant context: %v\n", err)
+	}
 
 	var sb strings.Builder
 
-	// 1. Work Orders Ground Truth
-	var po, style, line, status string
-	var orderedQty int
-	err := db.QueryRowContext(ctx, `
-		SELECT dwo.po_number, sm.style_code, dwo.line_id, dwo.ordered_qty, dwo.status
-		FROM dynamic_work_orders dwo
-		JOIN styles_master sm ON dwo.style_id = sm.id
-		WHERE dwo.status = 'IN_PROGRESS'
-		LIMIT 1;
-	`).Scan(&po, &style, &line, &orderedQty, &status)
+	// 1. Factory Profile (Tenants Table)
+	var tenantID, tenantName string
+	err := db.QueryRowContext(ctx, `SELECT id, name FROM tenants LIMIT 1;`).Scan(&tenantID, &tenantName)
 	if err == nil {
-		sb.WriteString(fmt.Sprintf("ACTIVE WORK ORDER: PO #%s | Style: %s | Line: %s | Target Qty: %d units | Status: %s\n", po, style, line, orderedQty, status))
+		sb.WriteString(fmt.Sprintf("FACTORY TENANT: %s (ID: %s)\n", tenantName, tenantID))
 	} else {
-		sb.WriteString("ACTIVE WORK ORDER: None currently active.\n")
+		sb.WriteString("FACTORY TENANT: No tenant record found in database.\n")
 	}
 
-	// 2. Attendance & Absenteeism Ground Truth
-	rows, err := db.QueryContext(ctx, `
+	// 2. Active Work Orders & Styles
+	rowsWO, err := db.QueryContext(ctx, `
+		SELECT dwo.po_number, sm.style_code, sm.category, dwo.line_id, dwo.ordered_qty, dwo.status
+		FROM dynamic_work_orders dwo
+		JOIN styles_master sm ON dwo.style_id = sm.id
+		WHERE dwo.status = 'IN_PROGRESS';
+	`)
+	if err == nil {
+		activeCount := 0
+		for rowsWO.Next() {
+			activeCount++
+			var po, style, category, line, status string
+			var qty int
+			if err := rowsWO.Scan(&po, &style, &category, &line, &qty, &status); err == nil {
+				sb.WriteString(fmt.Sprintf("ACTIVE WORK ORDER: PO #%s | Style: %s (%s) | Line: %s | Target: %d units | Status: %s\n",
+					po, style, category, line, qty, status))
+			}
+		}
+		rowsWO.Close()
+		if activeCount == 0 {
+			sb.WriteString("ACTIVE WORK ORDER: Zero work orders currently in progress.\n")
+		}
+	} else {
+		sb.WriteString("ACTIVE WORK ORDER: Query failed or dynamic_work_orders table empty.\n")
+	}
+
+	// 3. Attendance Today
+	rowsAtt, err := db.QueryContext(ctx, `
 		SELECT w.name, COALESCE(a.assigned_station_id, 'UNASSIGNED'), a.status
 		FROM attendance_register a
 		JOIN workers w ON a.worker_id = w.id
@@ -91,57 +113,60 @@ func FetchLiveGroundTruth(ctx context.Context, db *sql.DB) string {
 	if err == nil {
 		presentCount := 0
 		absentCount := 0
-		var absentDetails []string
-		for rows.Next() {
+		var absentList []string
+		for rowsAtt.Next() {
 			var name, station, st string
-			if err := rows.Scan(&name, &station, &st); err == nil {
+			if err := rowsAtt.Scan(&name, &station, &st); err == nil {
 				if st == "ABSENT" {
 					absentCount++
-					absentDetails = append(absentDetails, fmt.Sprintf("%s (Station: %s)", name, station))
+					absentList = append(absentList, fmt.Sprintf("%s (%s)", name, station))
 				} else {
 					presentCount++
 				}
 			}
 		}
-		rows.Close()
-		sb.WriteString(fmt.Sprintf("ATTENDANCE TODAY: %d Present, %d Absent.\n", presentCount, absentCount))
+		rowsAtt.Close()
+		sb.WriteString(fmt.Sprintf("ATTENDANCE TODAY: %d Present, %d Absent (Total Registered: %d).\n",
+			presentCount, absentCount, presentCount+absentCount))
 		if absentCount > 0 {
-			sb.WriteString(fmt.Sprintf("ABSENT WORKERS: %s\n", strings.Join(absentDetails, ", ")))
-		} else {
-			sb.WriteString("ABSENT WORKERS: None. Full attendance on floor.\n")
+			sb.WriteString(fmt.Sprintf("ABSENT WORKERS: %s\n", strings.Join(absentList, ", ")))
 		}
+	} else {
+		sb.WriteString("ATTENDANCE TODAY: No attendance records for today.\n")
 	}
 
-	// 3. Machines & Maintenance Ground Truth
-	mRows, err := db.QueryContext(ctx, `
-		SELECT name, line_id, station_id, canonical_class, rated_capacity_uph, status
+	// 4. Machine Roster
+	rowsM, err := db.QueryContext(ctx, `
+		SELECT name, line_id, canonical_class, rated_capacity_uph, status
 		FROM machine_roster;
 	`)
 	if err == nil {
+		machineCount := 0
 		totalCapacity := 0
-		breakdowns := 0
-		var breakdownDetails []string
-		for mRows.Next() {
-			var name, lineID, stationID, class, st string
+		var breakdownList []string
+		for rowsM.Next() {
+			machineCount++
+			var name, line, class, st string
 			var cap int
-			if err := mRows.Scan(&name, &lineID, &stationID, &class, &cap, &st); err == nil {
+			if err := rowsM.Scan(&name, &line, &class, &cap, &st); err == nil {
 				totalCapacity += cap
 				if st == "BREAKDOWN" || st == "MAINTENANCE" {
-					breakdowns++
-					breakdownDetails = append(breakdownDetails, fmt.Sprintf("%s on %s (%s)", name, lineID, st))
+					breakdownList = append(breakdownList, fmt.Sprintf("%s on %s (%s)", name, line, st))
 				}
 			}
 		}
-		mRows.Close()
-		sb.WriteString(fmt.Sprintf("MACHINE CAPACITY: Total Rated Capacity = %d pcs/hr.\n", totalCapacity))
-		if breakdowns > 0 {
-			sb.WriteString(fmt.Sprintf("MACHINE ISSUES: %d machines down: %s\n", breakdowns, strings.Join(breakdownDetails, ", ")))
+		rowsM.Close()
+		sb.WriteString(fmt.Sprintf("MACHINE ROSTER: %d machines registered | Total Capacity: %d uph\n", machineCount, totalCapacity))
+		if len(breakdownList) > 0 {
+			sb.WriteString(fmt.Sprintf("MACHINE DOWNTIME: %s\n", strings.Join(breakdownList, ", ")))
 		} else {
-			sb.WriteString("MACHINE ISSUES: Zero breakdowns or maintenance holds. All machines nominal.\n")
+			sb.WriteString("MACHINE DOWNTIME: None. All machines nominal.\n")
 		}
+	} else {
+		sb.WriteString("MACHINE ROSTER: No machines registered in database.\n")
 	}
 
-	// 4. Hourly Production Metrics Ground Truth
+	// 5. Hourly Production
 	var actualUnits, defectUnits, andonMinutes int
 	err = db.QueryRowContext(ctx, `
 		SELECT COALESCE(SUM(actual_units), 0), COALESCE(SUM(defect_units), 0), COALESCE(SUM(andon_downtime_minutes), 0)
@@ -151,23 +176,49 @@ func FetchLiveGroundTruth(ctx context.Context, db *sql.DB) string {
 	if err == nil {
 		dhu := 0.0
 		if actualUnits > 0 {
-			dhu = (float64(defectUnits) / float64(actualUnits)) * 100
+			dhu = (float64(defectUnits) / float64(actualUnits)) * 100.0
 		}
-		sb.WriteString(fmt.Sprintf("PRODUCTION VELOCITY TODAY: Actual Output = %d pcs | Defects = %d pcs (DHU: %.2f%%) | Downtime = %d mins\n",
+		sb.WriteString(fmt.Sprintf("PRODUCTION VELOCITY TODAY: Output = %d pcs | Defects = %d pcs (DHU: %.2f%%) | Downtime = %d mins\n",
 			actualUnits, defectUnits, dhu, andonMinutes))
+	}
+
+// Inside FetchLiveGroundTruth(ctx context.Context, db *sql.DB):
+// Append this query block after Step 5 (Hourly Production):
+
+	// 6. Active Floor Issues Ground Truth (Domain 7 / PM-02)
+	iRows, err := db.QueryContext(ctx, `
+		SELECT id, line_id, COALESCE(station_id, 'LINE'), issue_type, severity, title, owner_id, status
+		FROM floor_issues
+		WHERE status IN ('open', 'in_progress')
+		ORDER BY started_at DESC;
+	`)
+	if err == nil {
+		var issueList []string
+		for iRows.Next() {
+			var id, line, station, itype, sev, title, owner, st string
+			if err := iRows.Scan(&id, &line, &station, &itype, &sev, &title, &owner, &st); err == nil {
+				issueList = append(issueList, fmt.Sprintf("- [%s] Issue %s on %s (%s): %s | Type: %s | Assigned Owner: %s",
+					strings.ToUpper(sev), id, line, station, title, itype, owner))
+			}
+		}
+		iRows.Close()
+		if len(issueList) > 0 {
+			sb.WriteString(fmt.Sprintf("ACTIVE FLOOR ISSUES (%d):\n%s\n", len(issueList), strings.Join(issueList, "\n")))
+		} else {
+			sb.WriteString("ACTIVE FLOOR ISSUES: None logged. Zero active floor issues.\n")
+		}
+	} else {
+		sb.WriteString("ACTIVE FLOOR ISSUES: Query failed or floor_issues table empty.\n")
 	}
 
 	return sb.String()
 }
 
-// Chat performs direct-inferred executive reasoning backed by live ground truth.
 func (e *InterviewerEngine) Chat(ctx context.Context, db *sql.DB, messages []LLMMessage) (string, error) {
 	url := fmt.Sprintf("%s/api/chat", e.ollamaHost)
-
-	// Fetch live ground truth directly from the database in < 5ms
 	groundTruth := FetchLiveGroundTruth(ctx, db)
-
-	systemPrompt := fmt.Sprintf("%s\n\n=== LIVE FACTORY GROUND TRUTH ===\n%s=================================", AgieExecutivePrompt, groundTruth)
+	systemPrompt := fmt.Sprintf("%s\n\n=== LIVE FACTORY GROUND TRUTH ===\n%s=================================",
+		AgieExecutivePrompt, groundTruth)
 
 	fullMessages := []LLMMessage{{Role: "system", Content: systemPrompt}}
 	fullMessages = append(fullMessages, messages...)

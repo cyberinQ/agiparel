@@ -9,6 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ----------------------------------------------------------------------------
 -- DOMAIN 0: TENANTS & SYSTEM ROLES
 -- ----------------------------------------------------------------------------
+-- Replace lines 12-25 with properly closed DDL:
 CREATE TABLE IF NOT EXISTS tenants (
     id VARCHAR(64) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -23,9 +24,6 @@ CREATE TABLE IF NOT EXISTS operation_master (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- ----------------------------------------------------------------------------
--- DOMAIN 1: STORES & RAW MATERIAL INVENTORY (mod_stores)
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS store_rolls (
     id VARCHAR(64) PRIMARY KEY,
     tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
@@ -41,7 +39,6 @@ CREATE TABLE IF NOT EXISTS store_rolls (
     reserved_cut_no INT CHECK (reserved_cut_no IS NULL OR reserved_cut_no > 0),
     last_rfid_sync TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE INDEX IF NOT EXISTS idx_store_rolls_tenant_status ON store_rolls(tenant_id, status);
 
 CREATE TABLE IF NOT EXISTS store_issuances (
@@ -57,9 +54,6 @@ CREATE TABLE IF NOT EXISTS store_issuances (
     digital_signature_hash VARCHAR(256) NOT NULL
 );
 
--- ----------------------------------------------------------------------------
--- DOMAIN 2 & 3: CUTTING, SPREADING & SEQUENTIAL BUNDLES (mod_cutting)
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS cut_lay_rolls (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
@@ -75,7 +69,7 @@ CREATE TABLE IF NOT EXISTS cut_lay_rolls (
 );
 
 CREATE TABLE IF NOT EXISTS bundle_registry (
-    id VARCHAR(64) PRIMARY KEY, -- PO-Cut-Sequential
+    id VARCHAR(64) PRIMARY KEY,
     tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
     order_id VARCHAR(64) NOT NULL,
     cut_no INT NOT NULL CHECK (cut_no > 0),
@@ -94,12 +88,8 @@ CREATE TABLE IF NOT EXISTS bundle_registry (
     mapped_at TIMESTAMPTZ,
     status VARCHAR(32) NOT NULL CHECK (status IN ('PENDING_MAP', 'IN_SEWING', 'COMPLETED', 'SCRAPPED'))
 );
-
 CREATE INDEX IF NOT EXISTS idx_bundle_active_nfc ON bundle_registry(active_nfc_uid);
 
--- ----------------------------------------------------------------------------
--- DOMAIN 4 & 5: FINISHING, HANGTAGS & PACKING (mod_finishing, mod_packing)
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS hangtag_binds (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
@@ -126,9 +116,6 @@ CREATE TABLE IF NOT EXISTS carton_pack_manifests (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- ----------------------------------------------------------------------------
--- DOMAIN 6 & 7: OCR RECONCILIATION & FLOOR ISSUES (mod_ocr, Andon)
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ocr_records (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
@@ -160,9 +147,6 @@ CREATE TABLE IF NOT EXISTS floor_issues (
     status VARCHAR(32) NOT NULL CHECK (status IN ('open', 'in_progress', 'resolved'))
 );
 
--- ----------------------------------------------------------------------------
--- DOMAIN 8 & 9: WORKFORCE, ATTENDANCE & MACHINE ROSTER
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS workers (
     id VARCHAR(64) PRIMARY KEY,
     tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
@@ -198,15 +182,12 @@ CREATE TABLE IF NOT EXISTS machine_roster (
     active_operator_id VARCHAR(64) REFERENCES workers(id)
 );
 
--- ----------------------------------------------------------------------------
--- DOMAIN 10: HOURLY PRODUCTION VELOCITY
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS hourly_line_metrics (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
     line_id VARCHAR(64) NOT NULL,
     shift_date DATE NOT NULL,
-    hour_window INT NOT NULL CHECK (hour_window BETWEEN 1 AND 12),
+    hour_window INT NOT NULL CHECK (hour_window BETWEEN 1 AND 16),
     target_units INT NOT NULL CHECK (target_units >= 0),
     actual_units INT NOT NULL DEFAULT 0 CHECK (actual_units >= 0),
     defect_units INT NOT NULL DEFAULT 0 CHECK (defect_units >= 0),
@@ -218,9 +199,6 @@ CREATE TABLE IF NOT EXISTS hourly_line_metrics (
     CONSTRAINT uq_line_hour UNIQUE (tenant_id, line_id, shift_date, hour_window)
 );
 
--- ----------------------------------------------------------------------------
--- DOMAIN 11: FLUID GARMENT TAXONOMY, ASSEMBLY DAG & WORK ORDERS
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS styles_master (
     id VARCHAR(64) PRIMARY KEY,
     tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
@@ -294,7 +272,7 @@ JOIN styles_master sm ON dwo.style_id = sm.id;
 -- ----------------------------------------------------------------------------
 -- SEED DATA: NOBLE GARMENTS OKHLA UNIT 002/02 GROUND TRUTH
 -- ----------------------------------------------------------------------------
-INSERT INTO tenants (id, name) VALUES ('TENANT_DEFAULT', 'Noble Garments Okhla Unit 002') ON CONFLICT DO NOTHING;
+INSERT INTO tenants (id, name) VALUES ('TENANT_DEFAULT', 'Noble Garments Okhla Unit 002/02') ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
 INSERT INTO workers (id, tenant_id, name, employee_code, primary_skill, skill_grade) VALUES
 ('W-01', 'TENANT_DEFAULT', 'Ram Kumar', 'EMP_SUPV_01', 'LINE_SUPERVISOR', 'A'),
@@ -302,6 +280,14 @@ INSERT INTO workers (id, tenant_id, name, employee_code, primary_skill, skill_gr
 ('W-03', 'TENANT_DEFAULT', 'Sunita Sharma', 'EMP_A813', 'KANSAI_HEMMING', 'B'),
 ('W-04', 'TENANT_DEFAULT', 'Mohan Lal', 'EMP_A814', 'SNLS_BACK_RISE', 'A'),
 ('W-05', 'TENANT_DEFAULT', 'Ramesh Chand', 'EMP_MECH_01', 'LINE_MECHANIC', 'A')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO machine_roster (id, tenant_id, line_id, station_id, name, canonical_class, rated_capacity_uph, status, active_operator_id) VALUES
+('M-01', 'TENANT_DEFAULT', 'Line 14', 'SUPERVISOR_DESK', 'Supervisor Terminal', 'TERMINAL', 150, 'ACTIVE', 'W-01'),
+('M-02', 'TENANT_DEFAULT', 'Line 14', 'ST-02', 'Pegasus 4-Thread Overlock', '4-OL_SERGING', 120, 'ACTIVE', 'W-02'),
+('M-03', 'TENANT_DEFAULT', 'Line 14', 'ST-03', 'Kansai Special Flatlock', 'KANSAI_FLATLOCK', 110, 'ACTIVE', 'W-03'),
+('M-04', 'TENANT_DEFAULT', 'Line 14', 'ST-04', 'Juki DDL-9000C Lockstitch', 'SNLS_LOCKSTITCH', 100, 'ACTIVE', 'W-04'),
+('M-05', 'TENANT_DEFAULT', 'Line 14', 'MAINT_BENCH', 'Maintenance Service Station', 'WORKBENCH', 60, 'ACTIVE', 'W-05')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO styles_master (id, tenant_id, style_code, category, fit_profile, target_sam, metadata) VALUES
@@ -319,3 +305,20 @@ INSERT INTO attendance_register (tenant_id, worker_id, shift_date, clock_in_time
 ('TENANT_DEFAULT', 'W-04', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '4 hours', 'PRESENT', 'Line 14', 'ST-04'),
 ('TENANT_DEFAULT', 'W-05', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '5 hours', 'PRESENT', 'Line 14', 'MECHANIC_FLOOR')
 ON CONFLICT DO NOTHING;
+
+INSERT INTO floor_issues (id, tenant_id, issue_type, severity, plant_id, line_id, station_id, operator_id, title, owner_id, status)
+VALUES 
+('ISS-1401', 'TENANT_DEFAULT', 'workforce', 'attention', 'Noble Garments', 'Line 14', 'ST-03', 'W-03', 'Sunita Sharma absent; station hem bottlenecking pace', 'W-01', 'open'),
+('ISS-0201', 'TENANT_DEFAULT', 'maintenance', 'critical', 'Noble Garments', 'Line 02', 'ST-08', NULL, 'Needle timing slippage on Kansai flatlock', 'W-05', 'open')
+ON CONFLICT (id) DO NOTHING;
+-- ----------------------------------------------------------------------------
+-- SEED DATA: LIVE FLOOR ISSUES (DOMAIN 7 / PM-02)
+-- ----------------------------------------------------------------------------
+INSERT INTO floor_issues (id, tenant_id, issue_type, severity, plant_id, line_id, station_id, operator_id, title, started_at, owner_id, status)
+VALUES 
+('ISS-1401', 'TENANT_DEFAULT', 'workforce', 'attention', 'Noble Garments', 'Line 14', 'ST-03', 'W-03', 'Sunita Sharma absent; station hem bottlenecking pace', CURRENT_TIMESTAMP - INTERVAL '2 hours', 'W-01', 'open'),
+('ISS-0201', 'TENANT_DEFAULT', 'maintenance', 'critical', 'Noble Garments', 'Line 02', 'ST-08', NULL, 'Needle timing slippage on Kansai flatlock', CURRENT_TIMESTAMP - INTERVAL '45 minutes', 'W-05', 'open')
+ON CONFLICT (id) DO UPDATE SET 
+    title = EXCLUDED.title,
+    severity = EXCLUDED.severity,
+    status = EXCLUDED.status;

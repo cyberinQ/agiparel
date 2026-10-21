@@ -90,7 +90,7 @@ func main() {
 	}
 	defer localWAL.Close()
 
-	ledger := crypto.NewMerkleLedger(secret)
+	ledger := crypto.NewMerkleLedger([]byte(secret))
 	records, err := localWAL.ReplayAll()
 	if err != nil {
 		log.Printf("Warning: failed to replay WAL: %v", err)
@@ -149,10 +149,11 @@ func main() {
 		"configured_at": time.Now().UTC().UnixMilli(),
 	}
 
+	modbusRelay := os.Getenv("MODBUS_RELAY_ADDR")
 	server := &EdgeServer{
 		modules:        modules,
 		ledger:         ledger,
-		attachment:     attachment.NewAttachmentEngine(),
+		attachment:     attachment.NewAttachmentEngine(modbusRelay),
 		stores:         storesEng,
 		spatialTwin:    twin,
 		wal:            localWAL,
@@ -172,6 +173,7 @@ func main() {
 	mux.HandleFunc("/api/v1/ledger/verify", server.handleLedgerVerify)
 	mux.HandleFunc("/api/v1/agie/chat", server.handleAgieChat)
 	mux.HandleFunc("/api/v1/agie/confirm", server.handleAgieConfirm)
+	mux.HandleFunc("/api/v1/issues", server.handleGetIssues)
 	mux.HandleFunc("/api/v1/config", server.handleGetConfig)
 
 	if modules.IsEnabled("mod_stores") {
@@ -299,6 +301,8 @@ func (s *EdgeServer) handleLedgerAppend(w http.ResponseWriter, r *http.Request) 
 		hourWindow := (currHour - 8) + 1
 		if hourWindow < 1 {
 			hourWindow = 1
+		} else if hourWindow > 16 {
+			hourWindow = 16 // Clamped to valid shift boundary
 		}
 
 		colToIncrement := "actual_units = hourly_line_metrics.actual_units + 1"
@@ -331,7 +335,7 @@ func (s *EdgeServer) handleLedgerVerify(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	tempLedger := crypto.NewMerkleLedger(s.secretKey)
+	tempLedger := crypto.NewMerkleLedger([]byte(s.secretKey))
 	var auditEvents []crypto.AuditEvent
 	for _, rec := range records {
 		if rec.Type == "LEDGER_EVENT" {
@@ -838,4 +842,65 @@ func (s *EdgeServer) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	defer s.cfgMu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(s.activeConfig)
+}
+type FloorIssueResponse struct {
+	ID         string     `json:"id"`
+	TenantID   string     `json:"tenant_id"`
+	IssueType  string     `json:"issue_type"`
+	Severity   string     `json:"severity"`
+	PlantID    string     `json:"plant_id"`
+	LineID     string     `json:"line_id"`
+	StationID  string     `json:"station_id,omitempty"`
+	MachineID  string     `json:"machine_id,omitempty"`
+	OperatorID string     `json:"operator_id,omitempty"`
+	Title      string     `json:"title"`
+	StartedAt  time.Time  `json:"started_at"`
+	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
+	OwnerID    string     `json:"owner_id"`
+	Status     string     `json:"status"`
+}
+
+func (s *EdgeServer) handleGetIssues(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if s.db == nil {
+		_ = json.NewEncoder(w).Encode([]FloorIssueResponse{})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	_, _ = s.db.ExecContext(ctx, "SET app.current_tenant_id = 'TENANT_DEFAULT'")
+
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, tenant_id, issue_type, severity, plant_id, line_id, 
+		       COALESCE(station_id, ''), COALESCE(machine_id, ''), COALESCE(operator_id, ''), 
+		       title, started_at, resolved_at, owner_id, status
+		FROM floor_issues
+		WHERE status IN ('open', 'in_progress')
+		ORDER BY started_at DESC;
+	`)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to query floor issues: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	issues := make([]FloorIssueResponse, 0)
+	for rows.Next() {
+		var iss FloorIssueResponse
+		var resolvedAt sql.NullTime
+		if err := rows.Scan(
+			&iss.ID, &iss.TenantID, &iss.IssueType, &iss.Severity, &iss.PlantID, &iss.LineID,
+			&iss.StationID, &iss.MachineID, &iss.OperatorID,
+			&iss.Title, &iss.StartedAt, &resolvedAt, &iss.OwnerID, &iss.Status,
+		); err == nil {
+			if resolvedAt.Valid {
+				iss.ResolvedAt = &resolvedAt.Time
+			}
+			issues = append(issues, iss)
+		}
+	}
+
+	_ = json.NewEncoder(w).Encode(issues)
 }

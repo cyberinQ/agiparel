@@ -1,91 +1,47 @@
 package attachment
 
 import (
-	"context"
-	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"sync"
+	"time"
+)
+
+var (
+	ErrShadeMismatch   = errors.New("ERR_SHADE_MISMATCH: Cross-pant attachment violation")
+	ErrCutMismatch     = errors.New("ERR_CUT_MISMATCH: Cross-cut attachment violation")
+	ErrInvalidSequence = errors.New("ERR_INVALID_SEQUENCE: Operation pairing not in DAG")
 )
 
 type SubBundleNode struct {
-	SequentialID       int    `json:"sequential_id"`
-	CutNo              int    `json:"cut_no"`
-	PantPosition       int    `json:"pant_position"`
-	PartCode           string `json:"part_code"`
-	PartName           string `json:"part_name"`
-	GarmentSerialStart int    `json:"garment_serial_start"`
-	GarmentSerialEnd   int    `json:"garment_serial_end"`
-	PlyStart           int    `json:"ply_start"`
-	PlyEnd             int    `json:"ply_end"`
-}
-
-type AssemblyEdge struct {
-	ParentPartCode string
-	ChildPartCode  string
-	OperationID    string
-	MachineType    string
+	SequentialID int    `json:"sequential_id"`
+	CutNo        int    `json:"cut_no"`
+	PantPosition int    `json:"pant_position"`
+	PartCode     string `json:"part_code"`
+	PartName     string `json:"part_name"`
+	PlyStart     int    `json:"ply_start"`
+	PlyEnd       int    `json:"ply_end"`
 }
 
 type AttachmentEngine struct {
 	sync.RWMutex
-	validEdges   map[string]map[string]map[string]bool // Style -> ParentPart -> ChildPart -> true
-	bundleLookup map[string]SubBundleNode              // NFC_UID -> Node
+	// Style -> ParentPartCode -> ChildPartCode -> Allowed
+	validRules   map[string]map[string]map[string]bool
+	bundleLookup map[string]SubBundleNode
+	modbusAddr   string
 }
 
-func NewAttachmentEngine() *AttachmentEngine {
+func NewAttachmentEngine(modbusAddr ...string) *AttachmentEngine {
+	addr := ""
+	if len(modbusAddr) > 0 {
+		addr = modbusAddr[0]
+	}
 	return &AttachmentEngine{
-		validEdges:   make(map[string]map[string]map[string]bool),
+		validRules:   make(map[string]map[string]map[string]bool),
 		bundleLookup: make(map[string]SubBundleNode),
+		modbusAddr:   addr,
 	}
-}
-
-// HydrateFromDB compiles dynamic garment assembly DAG edges from PostgreSQL.
-func (e *AttachmentEngine) HydrateFromDB(ctx context.Context, db *sql.DB, tenantID, styleCode string) error {
-	e.Lock()
-	defer e.Unlock()
-
-	query := `
-		SELECT sp1.part_code, sp2.part_code
-		FROM style_assembly_dag dag
-		JOIN styles_master sm ON dag.style_id = sm.id
-		JOIN style_parts sp1 ON dag.parent_part_id = sp1.id
-		JOIN style_parts sp2 ON dag.child_part_id = sp2.id
-		WHERE dag.tenant_id = $1 AND sm.style_code = $2;
-	`
-	rows, err := db.QueryContext(ctx, query, tenantID, styleCode)
-	if err != nil {
-		return fmt.Errorf("failed to load assembly DAG: %w", err)
-	}
-	defer rows.Close()
-
-	if e.validEdges[styleCode] == nil {
-		e.validEdges[styleCode] = make(map[string]map[string]bool)
-	}
-
-	for rows.Next() {
-		var parent, child string
-		if err := rows.Scan(&parent, &child); err != nil {
-			return err
-		}
-		if e.validEdges[styleCode][parent] == nil {
-			e.validEdges[styleCode][parent] = make(map[string]bool)
-		}
-		e.validEdges[styleCode][parent][child] = true
-	}
-	return nil
-}
-
-func (e *AttachmentEngine) RegisterRule(styleID, parentPartCode, childPartCode string) {
-	e.Lock()
-	defer e.Unlock()
-	if _, exists := e.validEdges[styleID]; !exists {
-		e.validEdges[styleID] = make(map[string]map[string]bool)
-	}
-	if _, exists := e.validEdges[styleID][parentPartCode]; !exists {
-		e.validEdges[styleID][parentPartCode] = make(map[string]bool)
-	}
-	e.validEdges[styleID][parentPartCode][childPartCode] = true
 }
 
 func (e *AttachmentEngine) BindTag(nfcUID string, node SubBundleNode) {
@@ -94,56 +50,81 @@ func (e *AttachmentEngine) BindTag(nfcUID string, node SubBundleNode) {
 	e.bundleLookup[nfcUID] = node
 }
 
-func (e *AttachmentEngine) UnbindTag(nfcUID string) {
+func (e *AttachmentEngine) RegisterRule(styleID, parentPartCode, childPartCode string) {
 	e.Lock()
 	defer e.Unlock()
-	delete(e.bundleLookup, nfcUID)
-}
-
-func (e *AttachmentEngine) ResetTags() {
-	e.Lock()
-	defer e.Unlock()
-	e.bundleLookup = make(map[string]SubBundleNode)
+	if e.validRules[styleID] == nil {
+		e.validRules[styleID] = make(map[string]map[string]bool)
+	}
+	if e.validRules[styleID][parentPartCode] == nil {
+		e.validRules[styleID][parentPartCode] = make(map[string]bool)
+	}
+	e.validRules[styleID][parentPartCode][childPartCode] = true
 }
 
 func (e *AttachmentEngine) ValidatePair(styleID, sourceNFC, targetNFC string) error {
 	e.RLock()
-	defer e.RUnlock()
-
 	src, okSrc := e.bundleLookup[sourceNFC]
 	tgt, okTgt := e.bundleLookup[targetNFC]
+	allowed := false
+	if e.validRules[styleID] != nil && e.validRules[styleID][src.PartCode] != nil {
+		allowed = e.validRules[styleID][src.PartCode][tgt.PartCode]
+	}
+	e.RUnlock()
+
 	if !okSrc || !okTgt {
 		return errors.New("ERR_UNREGISTERED_TAG: Tag missing from active floor pool")
 	}
 
-	// Invariant 1: Cross-cut assembly is strictly prohibited
+	// Invariant: Cross-cut assembly prohibited
 	if src.CutNo != tgt.CutNo {
-		return fmt.Errorf("ERR_CROSS_CUT: Cannot attach Cut %d to Cut %d", src.CutNo, tgt.CutNo)
+		e.TripModbus()
+		return fmt.Errorf("%w: Cut %d cannot marry Cut %d", ErrCutMismatch, src.CutNo, tgt.CutNo)
 	}
 
-	// Invariant 2: Cross-pant assembly (shade-mix) is strictly prohibited
+	// Invariant: Cross-pant assembly (shade-mix) prohibited
 	if src.PantPosition != tgt.PantPosition {
-		return fmt.Errorf("ERR_SHADE_MISMATCH: Bundle %d (Pant %d) cannot marry Bundle %d (Pant %d)",
-			src.SequentialID, src.PantPosition, tgt.SequentialID, tgt.PantPosition)
+		e.TripModbus()
+		return fmt.Errorf("%w: Pant %d cannot marry Pant %d", ErrShadeMismatch, src.PantPosition, tgt.PantPosition)
 	}
 
-	// Invariant 3: Exact ply-group alignment required
+	// Invariant: Ply-group boundary alignment
 	if src.PlyStart != tgt.PlyStart || src.PlyEnd != tgt.PlyEnd {
+		e.TripModbus()
 		return fmt.Errorf("ERR_PLY_MISMATCH: Ply group mismatch [%d-%d] vs [%d-%d]",
 			src.PlyStart, src.PlyEnd, tgt.PlyStart, tgt.PlyEnd)
 	}
 
-	// Invariant 4: Directed topological edge validation
-	styleEdges, styleExists := e.validEdges[styleID]
-	if !styleExists {
-		return fmt.Errorf("ERR_INVALID_STYLE: Style %s has no registered attachment rules", styleID)
-	}
-
-	targets, sourceExists := styleEdges[src.PartCode]
-	if !sourceExists || !targets[tgt.PartCode] {
-		return fmt.Errorf("ERR_INVALID_ATTACHMENT: Part %s (%s) cannot attach to Part %s (%s)",
-			src.PartName, src.PartCode, tgt.PartName, tgt.PartCode)
+	// Invariant: Directed DAG edge validation
+	if !allowed {
+		e.TripModbus()
+		return fmt.Errorf("%w: Part %s cannot attach to Part %s for style %s",
+			ErrInvalidSequence, src.PartCode, tgt.PartCode, styleID)
 	}
 
 	return nil
+}
+
+func (e *AttachmentEngine) TripModbus() {
+	if e.modbusAddr == "" {
+		return
+	}
+	go func() {
+		conn, err := net.DialTimeout("tcp", e.modbusAddr, 25*time.Millisecond)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		req := []byte{
+			0x00, 0x01, // Transaction ID
+			0x00, 0x00, // Protocol ID
+			0x00, 0x06, // Length
+			0x01,       // Unit ID
+			0x05,       // Write Single Coil
+			0x00, 0x01, // Coil Address 1
+			0xFF, 0x00, // Force Coil ON (Trip Relay)
+		}
+		_, _ = conn.Write(req)
+	}()
 }

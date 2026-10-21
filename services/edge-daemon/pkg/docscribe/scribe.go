@@ -6,12 +6,12 @@ import (
 )
 
 type OperatorManual struct {
-	StationID    string   `json:"station_id"`
-	OperationName string  `json:"operation_name"`
-	Language     string   `json:"language"`
-	ReadingLevel string   `json:"reading_level"`
-	Steps        []string `json:"steps"`
-	AudioScript  string   `json:"audio_script"`
+	StationID     string   `json:"station_id"`
+	OperationName string   `json:"operation_name"`
+	Language      string   `json:"language"`
+	ReadingLevel  string   `json:"reading_level"`
+	Steps         []string `json:"steps"`
+	AudioScript   string   `json:"audio_script"`
 }
 
 type DocScribeEngine struct {
@@ -22,11 +22,10 @@ func NewDocScribeEngine(tenantID string) *DocScribeEngine {
 	return &DocScribeEngine{tenantID: tenantID}
 }
 
-// GeneratePlainEnglishManual compiles 5th-grade instructions and audio prompts for shop floor operators.
 func (s *DocScribeEngine) GeneratePlainEnglishManual(stationID, opName, language string) (OperatorManual, error) {
 	lang := strings.ToUpper(language)
 	if lang != "EN" && lang != "HI" && lang != "BN" && lang != "TA" {
-		return OperatorManual{}, fmt.Errorf("ERR_UNSUPPORTED_LANGUAGE: Language %s not supported for audio prompt generation", language)
+		return OperatorManual{}, fmt.Errorf("ERR_UNSUPPORTED_LANGUAGE: Language %s not supported", language)
 	}
 
 	steps := []string{
@@ -38,9 +37,9 @@ func (s *DocScribeEngine) GeneratePlainEnglishManual(stationID, opName, language
 
 	audioScript := "Please scan your bundle and press the green button when done."
 	if lang == "HI" {
-		audioScript = "कृपया अपना बंडल स्कैन करें और काम पूरा होने पर हरा बटन दबाएं।"
+		audioScript = "कृपया अपना बंडल स्कैन करें और समाप्त होने पर हरा बटन दबाएं।"
 	} else if lang == "BN" {
-		audioScript = "দয়া করে আপনার বান্ডিল স্ক্যান করুন এবং কাজ শেষ হলে সবুজ বোতাম টিপুন।"
+		audioScript = "অনুগ্রহ করে আপনার বান্ডিল স্ক্যান করুন এবং শেষ হলে সবুজ বোতাম টিপুন।"
 	}
 
 	return OperatorManual{
