@@ -111,42 +111,69 @@ type WorkOrderRow struct {
 
 // GenerateTemplateCSV returns a pre-boarding spreadsheet with example rows in every section.
 func GenerateTemplateCSV() string {
-	return `# AGIPAREL OS - FACTORY PRE-BOARDING CONFIGURATION WORKBOOK
-# Instructions: Replace the example rows below with your factory's actual lines, machines, workers, styles, parts, operations, rolls, and orders.
-# Lines starting with '#' are comments and ignored during import. Keep RECORD_TYPE in Column A.
+	return `# ==============================================================================
+# AGIPAREL OS - EASY FACTORY SETUP WORKBOOK
+# ==============================================================================
+# FRIENDLY TIP: Do your best to fill out what you know! If you are missing any
+# details or feel unsure, do not get stuck. Leave non-critical rows blank or
+# use rough estimates. We can easily collect and update any missing info later in
+# second and future rounds.
+#
+# Instructions:
+# - Keep RECORD_TYPE in Column A.
+# - Lines starting with '#' are comments and are ignored when importing.
+# ==============================================================================
 RECORD_TYPE,COL_1,COL_2,COL_3,COL_4,COL_5,COL_6,COL_7,COL_8,COL_9
-# [1] FACTORY_PROFILE: TENANT_ID, FACTORY_NAME, UNIT_CODE, SHIFT_START_HOUR(0-23), DEFAULT_BUNDLE_SIZE
+
+# [1] FACTORY_PROFILE: Tell us your system ID, factory name, unit, shift start hour, and default bundle size.
+# Format: FACTORY_PROFILE, Tenant ID, Factory Name, Unit Location, Shift Start Hour (0-23), Default Bundle Size
 FACTORY_PROFILE,TENANT_DEFAULT,Noble Garments,OKHLA Unit 002/02,8,20
-# [2] LINE_ROSTER: LINE_ID, DISPLAY_NAME, STATIONS_COUNT, TARGET_DAILY_CAPACITY, DWELL_FLOOR_PCT
+
+# [2] LINE_ROSTER: List your production assembly lines and how many workstations they have.
+# Format: LINE_ROSTER, Line ID, Display Name, Number of Stations, Target Daily Capacity, Cycle Dwell Floor %
 LINE_ROSTER,Line 14,Line 14 - Denim Trouser Assembly,14,600,0.40
 LINE_ROSTER,Line 02,Line 02 - Knit Polo Line,12,500,0.40
-# [3] MACHINE_ROSTER: MACHINE_ID, LINE_ID, STATION_ID, MACHINE_NAME, CANONICAL_CLASS, CAPACITY_UPH, STATUS(ACTIVE/IDLE/BREAKDOWN/MAINTENANCE)
+
+# [3] MACHINE_ROSTER: List the sewing and workshop machines assigned to your lines.
+# Format: MACHINE_ROSTER, Machine ID, Line ID, Station ID, Machine Name, Machine Type Class, Capacity (Units/Hour), Status (ACTIVE/IDLE/BREAKDOWN/MAINTENANCE)
 MACHINE_ROSTER,M-01,Line 14,SUPERVISOR_DESK,Supervisor Terminal,TERMINAL,150,ACTIVE
 MACHINE_ROSTER,M-02,Line 14,ST-02,Pegasus 4-Thread Overlock,4-OL_SERGING,120,ACTIVE
 MACHINE_ROSTER,M-03,Line 14,ST-03,Kansai Special Flatlock,KANSAI_FLATLOCK,110,ACTIVE
 MACHINE_ROSTER,M-04,Line 14,ST-04,Juki DDL-9000C Lockstitch,SNLS_LOCKSTITCH,100,ACTIVE
 MACHINE_ROSTER,M-05,Line 14,MAINT_BENCH,Maintenance Service Station,WORKBENCH,60,ACTIVE
-# [4] WORKER_ROSTER: WORKER_ID, EMPLOYEE_CODE, FULL_NAME, PRIMARY_SKILL, SKILL_GRADE(A/B/C/TRAINEE), HOURLY_RATE_INR, ATTENDANCE_TODAY(PRESENT/ABSENT/LATE/ON_LEAVE), ASSIGNED_LINE_ID, ASSIGNED_STATION_ID
+
+# [4] WORKER_ROSTER: List your workers, employee codes, skills, grade, hourly wage, and today's attendance status.
+# Format: WORKER_ROSTER, Worker ID, Employee Code, Full Name, Primary Skill, Skill Grade (A/B/C/TRAINEE), Hourly Rate (INR), Attendance Today (PRESENT/ABSENT/LATE/ON_LEAVE), Assigned Line ID, Assigned Station ID
 WORKER_ROSTER,W-01,EMP_SUPV_01,Ram Kumar,LINE_SUPERVISOR,A,180.00,PRESENT,Line 14,SUPERVISOR_DESK
 WORKER_ROSTER,W-02,EMP_A812,Sita Devi,4-OL_SERGING,A,125.00,PRESENT,Line 14,ST-02
 WORKER_ROSTER,W-03,EMP_A813,Sunita Sharma,KANSAI_HEMMING,B,115.00,ABSENT,Line 14,ST-03
 WORKER_ROSTER,W-04,EMP_A814,Mohan Lal,SNLS_BACK_RISE,A,130.00,PRESENT,Line 14,ST-04
 WORKER_ROSTER,W-05,EMP_MECH_01,Ramesh Chand,LINE_MECHANIC,A,160.00,PRESENT,Line 14,MAINT_BENCH
-# [5] STYLE_MASTER: STYLE_ID, STYLE_CODE, CATEGORY, FIT_PROFILE, TARGET_SAM_MIN, FABRIC_SKU
+
+# [5] STYLE_MASTER: Define the garment styles you manufacture.
+# Format: STYLE_MASTER, Style ID, Style Code, Category, Fit Profile, Target Sewing Minutes (SAM), Fabric SKU
 STYLE_MASTER,STYLE_KK524867,KK524867,WOVEN_TROUSER,REGULAR_FIT,0.60,DENIM-STRETCH-12OZ
-# [6] STYLE_PARTS: STYLE_CODE, PART_CODE, PART_NAME, SUB_BUNDLE_ORDER(1..N), MATERIAL_SKU
+
+# [6] STYLE_PARTS: List the component parts that make up each garment style.
+# Format: STYLE_PARTS, Style Code, Part Code, Part Name, Assembly Order (1..N), Material SKU
 STYLE_PARTS,KK524867,101,Left Pocket,1,POCKETING-TWILL-WHITE
 STYLE_PARTS,KK524867,102,Front Panel,2,DENIM-STRETCH-12OZ
 STYLE_PARTS,KK524867,103,Back Panel,3,DENIM-STRETCH-12OZ
 STYLE_PARTS,KK524867,104,Waistband,4,DENIM-STRETCH-12OZ
-# [7] OPERATION_DAG: STYLE_CODE, OPERATION_ID, OPERATION_NAME, SAM_MINUTES, MACHINE_TYPE, SOURCE_PART_CODE, TARGET_PART_CODE
+
+# [7] OPERATION_DAG: Define the step-by-step sewing operations and part assembly links.
+# Format: OPERATION_DAG, Style Code, Operation ID, Operation Name, Time in Minutes (SAM), Machine Type Needed, Source Part Code, Target Part Code
 OPERATION_DAG,KK524867,OP-101,Attach Left Pocket to Front Panel,0.50,SNLS_LOCKSTITCH,101,102
 OPERATION_DAG,KK524867,OP-102,Back Rise & Panel Join,0.60,4-OL_SERGING,103,102
 OPERATION_DAG,KK524867,OP-103,Waistband Attach,0.65,KANSAI_FLATLOCK,104,102
-# [8] STORE_ROLLS: ROLL_ID, FACTORY_SKU, LENGTH_M, WIDTH_CM, SHADE_BAND, BIN_LOCATION, STATUS(AVAILABLE/RESERVED/ISSUED/DEPLETED), RESERVED_PO, RESERVED_CUT_NO
+
+# [8] STORE_ROLLS: Record fabric rolls available in your store/warehouse.
+# Format: STORE_ROLLS, Roll ID, Fabric SKU, Length in Meters, Width in Centimeters, Shade Band, Bin Location, Status (AVAILABLE/RESERVED/ISSUED/DEPLETED), Reserved PO Number, Reserved Cut Number
 STORE_ROLLS,ROLL-007,DENIM-STRETCH-12OZ,59.0,148.0,A,BIN-A01,RESERVED,MK6574J9,1
 STORE_ROLLS,ROLL-008,POCKETING-TWILL-WHITE,120.0,150.0,W1,BIN-B02,AVAILABLE,,0
-# [9] WORK_ORDERS: WORK_ORDER_ID, PO_NUMBER, STYLE_CODE, LINE_ID, SUPERVISOR_WORKER_ID, ORDERED_QTY, COLOR_MATRIX_JSON, SIZE_MATRIX_JSON, STATUS(PLANNED/IN_PROGRESS/COMPLETED/HOLD)
+
+# [9] WORK_ORDERS: Enter active customer purchase orders and production quantities.
+# Format: WORK_ORDERS, Work Order ID, PO Number, Style Code, Line ID, Supervisor Worker ID, Ordered Quantity, Color Breakdown (JSON), Size Breakdown (JSON), Status (PLANNED/IN_PROGRESS/COMPLETED/HOLD)
 WORK_ORDERS,WO-MK6574J9-01,MK6574J9,KK524867,Line 14,W-01,600,"{""BLK"":150,""BLU"":250,""GRN"":200}","{""29/30"":600}",IN_PROGRESS
 `
 }
@@ -364,7 +391,7 @@ func ApplyToDatabase(ctx context.Context, db *sql.DB, wb *FactoryWorkbook) error
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx, "SELECT set_config('app.current_tenant_id', $1, true)", wb.TenantID); err != nil {
+	if _, err := tx.ExecContext(ctx, "SELECT set_config('app.current_tenant_id', $1, false)", wb.TenantID); err != nil {
 		return fmt.Errorf("failed to set tenant context: %w", err)
 	}
 

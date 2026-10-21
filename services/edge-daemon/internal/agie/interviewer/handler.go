@@ -272,12 +272,15 @@ func (e *InterviewerEngine) Chat(ctx context.Context, db *sql.DB, messages []LLM
 				} else {
 					toolOut = out
 				}
+			// In services/edge-daemon/internal/agie/interviewer/handler.go
 			case "run_safe_sql":
 				var args struct {
 					Query string `json:"query"`
 				}
 				_ = json.Unmarshal(tc.Function.Arguments, &args)
-				out, err := inspector.ExecuteSafeSQL(ctx, args.Query)
+				// Map outdated table references dynamically if needed
+				fixedQuery := strings.ReplaceAll(args.Query, "active_floor_issues", "floor_issues")
+				out, err := inspector.ExecuteSafeSQL(ctx, fixedQuery)
 				if err != nil {
 					toolOut = fmt.Sprintf(`{"error": %q}`, err.Error())
 				} else {

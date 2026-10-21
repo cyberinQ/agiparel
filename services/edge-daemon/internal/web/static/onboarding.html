@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agiparel OS · Enterprise Multi-Line Factory Onboarding</title>
+  <style>
+    :root {
+      --bg: #F1F4F8; --surface: #FFFFFF; --brand: #1E3A8A; --text: #0F172A;
+      --muted: #64748B; --line: #E2E8F0; --ok: #10B981; --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 32px; }
+    .container { max-width: 950px; margin: 0 auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+    h1 { color: var(--brand); font-size: 26px; margin-bottom: 6px; }
+    .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+    input, select { width: 100%; padding: 11px 14px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .btn { background: var(--brand); color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px; }
+    .btn:hover { background: #172e6e; }
+    .btn-secondary { background: var(--line); color: var(--text); }
+    .ai-box { background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 8px; padding: 14px; font-size: 13px; color: #3730A3; margin-bottom: 20px; }
+    .csv-card { border: 2px dashed var(--line); padding: 20px; text-align: center; border-radius: 8px; background: #FAFAFA; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid var(--line); padding: 10px; font-size: 13px; text-align: left; }
+    th { background: #F8FAFC; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Enterprise Multi-Line Factory Onboarding</h1>
+    <p class="subtitle">Configure multiple assembly lines, machine rosters, supervisory staff, and active POs.</p>
+
+    <!-- CSV Bulk Option Header -->
+    <div class="csv-card">
+      <p style="margin-bottom: 8px; font-weight: 600;">Have a full factory Excel or CSV sheet?</p>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <a href="/api/v1/onboarding/template.csv" class="btn btn-secondary" style="text-decoration:none; display:inline-block;">⬇ Download CSV Template</a>
+        <label class="btn" style="cursor: pointer; display: inline-block;">
+          ⬆ Upload Filled CSV Workbook
+          <input type="file" accept=".csv" style="display:none;" onchange="uploadCSV(this)">
+        </label>
+      </div>
+    </div>
+
+    <form id="enterprise-form" onsubmit="submitEnterpriseWizard(event)">
+      <div class="ai-box">🤖 <strong>Enterprise Setup:</strong> Define your factory parameters below. This will provision all lines (e.g., Lines 1 to 14), machine rosters, and active work orders into PostgreSQL with RLS enabled.</div>
+      
+      <div class="row">
+        <div class="form-group">
+          <label>Tenant ID</label>
+          <input type="text" id="tenant_id" value="TENANT_DEFAULT" required>
+        </div>
+        <div class="form-group">
+          <label>Factory Name</label>
+          <input type="text" id="factory_name" value="Noble Garments" required>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label>Unit Code / Location</label>
+          <input type="text" id="unit_code" value="OKHLA Unit 002/02" required>
+        </div>
+        <div class="form-group">
+          <label>Number of Active Assembly Lines</label>
+          <input type="number" id="num_lines" value="14" min="1" max="50" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Pilot Style Code & PO Number</label>
+        <div class="row">
+          <input type="text" id="style_code" value="KK524867" placeholder="Style Code" required>
+          <input type="text" id="po_number" value="MK6574J9" placeholder="PO Number" required>
+        </div>
+      </div>
+
+      <div style="margin-top: 24px; text-align: right;">
+        <button type="submit" class="btn" style="background: var(--ok); font-size: 16px; padding: 14px 28px;">🚀 Provision Entire Factory & Launch Operations Room</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    async function uploadCSV(input) {
+      if (!input.files || !input.files[0]) return;
+      const text = await input.files[0].text();
+      const res = await fetch("/api/v1/onboarding/upload", { method: "POST", headers: { "Content-Type": "text/csv" }, body: text });
+      if (res.ok) {
+        alert("Factory successfully provisioned via CSV! Navigating to operations dashboard...");
+        window.location.href = "/plant";
+      } else {
+        alert("Onboarding Error: " + await res.text());
+      }
+    }
+
+    async function submitEnterpriseWizard(e) {
+      e.preventDefault();
+      const tenant = document.getElementById('tenant_id').value;
+      const fname = document.getElementById('factory_name').value;
+      const unit = document.getElementById('unit_code').value;
+      const lineCount = parseInt(document.getElementById('num_lines').value) || 14;
+      const style = document.getElementById('style_code').value;
+      const po = document.getElementById('po_number').value;
+
+      let csvRows = [
+        "RECORD_TYPE,COL_1,COL_2,COL_3,COL_4,COL_5,COL_6,COL_7,COL_8,COL_9",
+        `FACTORY_PROFILE,${tenant},${fname},${unit},8,20`
+      ];
+
+      for (let i = 1; i <= lineCount; i++) {
+        const lineID = `Line ${i < 10 ? '0' + i : i}`;
+        csvRows.push(`LINE_ROSTER,${lineID},${lineID} - Assembly Section,14,600,0.40`);
+        csvRows.push(`MACHINE_ROSTER,M-${i}-01,${lineID},SUPERVISOR_DESK,Supervisor Terminal,TERMINAL,150,ACTIVE`);
+        csvRows.push(`MACHINE_ROSTER,M-${i}-02,${lineID},ST-02,Pegasus Overlock,4-OL_SERGING,120,ACTIVE`);
+        csvRows.push(`WORKER_ROSTER,W-${i},EMP_SUPV_${i},Supervisor ${i},LINE_SUPERVISOR,A,180.00,PRESENT,${lineID},SUPERVISOR_DESK`);
+        csvRows.push(`WORK_ORDERS,WO-${po}-${i},${po},${style},${lineID},W-${i},600,"{""DEFAULT"":600}","{""DEFAULT"":600}",IN_PROGRESS`);
+      }
+
+      csvRows.push(`STYLE_MASTER,STYLE_${style},${style},WOVEN_TROUSER,REGULAR_FIT,0.60,DENIM-STRETCH-12OZ`);
+      csvRows.push(`STYLE_PARTS,${style},101,Left Pocket,1,POCKETING-TWILL-WHITE`);
+      csvRows.push(`OPERATION_DAG,${style},OP-101,Attach Pocket,0.50,SNLS_LOCKSTITCH,101,102`);
+      csvRows.push(`STORE_ROLLS,ROLL-007,DENIM-STRETCH-12OZ,59.0,148.0,A,BIN-A01,RESERVED,${po},1`);
+
+      const csvContent = csvRows.join("\n");
+
+      const res = await fetch("/api/v1/onboarding/upload", { method: "POST", headers: { "Content-Type": "text/csv" }, body: csvContent });
+      if (res.ok) {
+        alert(`Successfully provisioned ${lineCount} lines and enterprise roster! Navigating to dashboard...`);
+        window.location.href = "/plant";
+      } else {
+        alert("Provisioning Error: " + await res.text());
+      }
+    }
+  </script>
+</body>
+</html>

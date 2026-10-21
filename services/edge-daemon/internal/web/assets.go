@@ -24,3 +24,6 @@ func GetSEW01HTML() ([]byte, error) {
 func GetPlantViewHTML() ([]byte, error) {
 	return staticFS.ReadFile("static/plant_view.html")
 }
+func GetOnboardingHTML() ([]byte, error) {
+    return staticFS.ReadFile("static/onboarding.html")
+}

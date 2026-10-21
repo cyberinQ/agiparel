@@ -229,6 +229,16 @@ func main() {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write(data)
 	})
+	
+	mux.HandleFunc("/onboarding", func(w http.ResponseWriter, r *http.Request) {
+		data, err := web.GetOnboardingHTML()
+		if err != nil {
+			http.Error(w, "Onboarding view not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write(data)
+	})
 
 	httpServer := &http.Server{
 		Addr:         ":" + port,
