@@ -1,4 +1,4 @@
-# Operating System files
+# Operating System
 .DS_Store
 .DS_Store?
 ._*
@@ -7,11 +7,23 @@
 ehthumbs.db
 Thumbs.db
 
-# Binaries & build artifacts
+# IDE & History Snapshots
+.history/
+.vscode/
+.idea/
+*.swp
+*~
+
+# Go Build Artifacts & Tests
 bin/
 dist/
+*.test
+*.out
+coverage/
+
+# Runtime Data & WAL
 data/wal/
 *.wal
-
-# Environment files
-.env.local
+compose/pgdata/
+compose/redisdata/
+compose/edge_wal_data/
