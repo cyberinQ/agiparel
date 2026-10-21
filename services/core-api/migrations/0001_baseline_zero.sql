@@ -271,55 +271,8 @@ FROM dynamic_work_orders dwo
 JOIN styles_master sm ON dwo.style_id = sm.id;
 
 -- ----------------------------------------------------------------------------
--- SEED DATA: NOBLE GARMENTS OKHLA UNIT 002/02 GROUND TRUTH
+-- DEFAULT BOOTSTRAP TENANT (Populated via Pre-Boarding Workbook Import)
 -- ----------------------------------------------------------------------------
-INSERT INTO tenants (id, name) VALUES ('TENANT_DEFAULT', 'Noble Garments Okhla Unit 002/02') ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
-
-INSERT INTO workers (id, tenant_id, name, employee_code, primary_skill, skill_grade) VALUES
-('W-01', 'TENANT_DEFAULT', 'Ram Kumar', 'EMP_SUPV_01', 'LINE_SUPERVISOR', 'A'),
-('W-02', 'TENANT_DEFAULT', 'Sita Devi', 'EMP_A812', '4-OL_SERGING', 'A'),
-('W-03', 'TENANT_DEFAULT', 'Sunita Sharma', 'EMP_A813', 'KANSAI_HEMMING', 'B'),
-('W-04', 'TENANT_DEFAULT', 'Mohan Lal', 'EMP_A814', 'SNLS_BACK_RISE', 'A'),
-('W-05', 'TENANT_DEFAULT', 'Ramesh Chand', 'EMP_MECH_01', 'LINE_MECHANIC', 'A')
+INSERT INTO tenants (id, name)
+VALUES ('TENANT_DEFAULT', 'Unconfigured Factory (Upload Pre-Boarding Workbook)')
 ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO machine_roster (id, tenant_id, line_id, station_id, name, canonical_class, rated_capacity_uph, status, active_operator_id) VALUES
-('M-01', 'TENANT_DEFAULT', 'Line 14', 'SUPERVISOR_DESK', 'Supervisor Terminal', 'TERMINAL', 150, 'ACTIVE', 'W-01'),
-('M-02', 'TENANT_DEFAULT', 'Line 14', 'ST-02', 'Pegasus 4-Thread Overlock', '4-OL_SERGING', 120, 'ACTIVE', 'W-02'),
-('M-03', 'TENANT_DEFAULT', 'Line 14', 'ST-03', 'Kansai Special Flatlock', 'KANSAI_FLATLOCK', 110, 'ACTIVE', 'W-03'),
-('M-04', 'TENANT_DEFAULT', 'Line 14', 'ST-04', 'Juki DDL-9000C Lockstitch', 'SNLS_LOCKSTITCH', 100, 'ACTIVE', 'W-04'),
-('M-05', 'TENANT_DEFAULT', 'Line 14', 'MAINT_BENCH', 'Maintenance Service Station', 'WORKBENCH', 60, 'ACTIVE', 'W-05')
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO styles_master (id, tenant_id, style_code, category, fit_profile, target_sam, metadata) VALUES
-('STYLE_KK524867', 'TENANT_DEFAULT', 'KK524867', 'WOVEN_TROUSER', 'REGULAR_FIT', 0.60, '{"fabric": "DENIM-STRETCH-12OZ", "tolerance_cm": 0.5}'::jsonb)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO dynamic_work_orders (id, tenant_id, po_number, style_id, line_id, supervisor_id, ordered_qty, color_matrix, size_matrix, packaging_bulletin, shipping_spec, status) VALUES
-('WO-MK6574J9-01', 'TENANT_DEFAULT', 'MK6574J9', 'STYLE_KK524867', 'Line 14', 'W-01', 600, '{"BLK": 150, "BLU": 250, "GRN": 200}'::jsonb, '{"29/30": 600}'::jsonb, '{"box_type": "RATIO_6PC"}'::jsonb, '{"forwarder": "PERY_LOGISTICS"}'::jsonb, 'IN_PROGRESS')
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO attendance_register (tenant_id, worker_id, shift_date, clock_in_time, status, assigned_line_id, assigned_station_id) VALUES
-('TENANT_DEFAULT', 'W-01', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '4 hours', 'PRESENT', 'Line 14', 'SUPERVISOR_DESK'),
-('TENANT_DEFAULT', 'W-02', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '4 hours', 'PRESENT', 'Line 14', 'ST-02'),
-('TENANT_DEFAULT', 'W-03', CURRENT_DATE, NULL, 'ABSENT', 'Line 14', 'ST-03'),
-('TENANT_DEFAULT', 'W-04', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '4 hours', 'PRESENT', 'Line 14', 'ST-04'),
-('TENANT_DEFAULT', 'W-05', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '5 hours', 'PRESENT', 'Line 14', 'MECHANIC_FLOOR')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO floor_issues (id, tenant_id, issue_type, severity, plant_id, line_id, station_id, operator_id, title, owner_id, status)
-VALUES 
-('ISS-1401', 'TENANT_DEFAULT', 'workforce', 'attention', 'Noble Garments', 'Line 14', 'ST-03', 'W-03', 'Sunita Sharma absent; station hem bottlenecking pace', 'W-01', 'open'),
-('ISS-0201', 'TENANT_DEFAULT', 'maintenance', 'critical', 'Noble Garments', 'Line 02', 'ST-08', NULL, 'Needle timing slippage on Kansai flatlock', 'W-05', 'open')
-ON CONFLICT (id) DO NOTHING;
--- ----------------------------------------------------------------------------
--- SEED DATA: LIVE FLOOR ISSUES (DOMAIN 7 / PM-02)
--- ----------------------------------------------------------------------------
-INSERT INTO floor_issues (id, tenant_id, issue_type, severity, plant_id, line_id, station_id, operator_id, title, started_at, owner_id, status)
-VALUES 
-('ISS-1401', 'TENANT_DEFAULT', 'workforce', 'attention', 'Noble Garments', 'Line 14', 'ST-03', 'W-03', 'Sunita Sharma absent; station hem bottlenecking pace', CURRENT_TIMESTAMP - INTERVAL '2 hours', 'W-01', 'open'),
-('ISS-0201', 'TENANT_DEFAULT', 'maintenance', 'critical', 'Noble Garments', 'Line 02', 'ST-08', NULL, 'Needle timing slippage on Kansai flatlock', CURRENT_TIMESTAMP - INTERVAL '45 minutes', 'W-05', 'open')
-ON CONFLICT (id) DO UPDATE SET 
-    title = EXCLUDED.title,
-    severity = EXCLUDED.severity,
-    status = EXCLUDED.status;

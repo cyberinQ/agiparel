@@ -314,12 +314,19 @@
 
   <header>
     <div class="header-left">
-      <h1>PM-01 · Plant Overview Situation Room</h1>
-      <p>Noble Garments · OKHLA Unit 002/02 · Active Shift</p>
+      <h1 id="plant-header-title">PM-01 · Plant Overview Situation Room</h1>
+      <p id="plant-header-sub">Loading factory profile...</p>
     </div>
     <div class="header-right">
+      <a href="/api/v1/onboarding/template.csv" class="btn-agie-trigger" style="background:#0F172A;text-decoration:none;">
+        ⬇ Pre-Boarding Template (.csv)
+      </a>
+      <label class="btn-agie-trigger" style="background:#10B981;">
+        ⬆ Upload Onboarding Sheet
+        <input type="file" accept=".csv" style="display:none;" onchange="uploadOnboardingSheet(this)">
+      </label>
       <button class="btn-agie-trigger" onclick="toggleAgieDrawer()">
-        🤖 Ask Agie (Executive AI)
+        ✦ Ask Agie (Executive AI)
       </button>
     </div>
   </header>
@@ -410,46 +417,78 @@
   </div>
 
   <script>
-    // Hydrate 14 Lines
-    const lines = [];
-    for (let i = 1; i <= 14; i++) {
-      const isPilot = (i === 14);
-      lines.push({
-        id: i,
-        name: `Line ${i < 10 ? '0' + i : i}`,
-        style: isPilot ? 'KK524867' : 'BAS-POLO-01',
-        achieved: isPilot ? 420 : 380 + Math.floor(Math.random() * 50),
-        target: 600,
-        dhu: isPilot ? 1.2 : (1.0 + Math.random() * 1.5).toFixed(1),
-        status: isPilot ? 'warn' : 'ok'
-      });
+    async function loadPlantOverview() {
+      try {
+        const res = await fetch("/api/v1/plant/overview");
+        if (!res.ok) return;
+        const data = await res.json();
+        const cfg = data.config || {};
+        document.getElementById("plant-header-sub").innerText =
+          `${cfg.plant_name || 'Unconfigured Factory'} · ${cfg.unit_code || ''} · Active Shift`;
+
+        const lines = data.lines || [];
+        const grid = document.getElementById("line-grid-container");
+        if (lines.length === 0) {
+          grid.innerHTML = '<div style="grid-column: 1/-1; padding: 24px; background: #fff; border-radius: 14px; border: 1px solid var(--line);">No active lines configured. Download the <strong>Pre-Boarding Template (.csv)</strong> above, fill in your factory details, and click <strong>Upload Onboarding Sheet</strong>.</div>';
+          return;
+        }
+
+        let totalAchieved = 0, totalTarget = 0;
+        grid.innerHTML = "";
+        lines.forEach(l => {
+          totalAchieved += l.achieved;
+          totalTarget += l.target;
+          const pct = l.target > 0 ? Math.round((l.achieved / l.target) * 100) : 0;
+          const card = document.createElement("div");
+          card.className = `line-card ${l.status}`;
+          card.innerHTML = `
+            <div class="line-header">
+              <span class="line-title">${l.line_id}</span>
+              <span class="status-pill ${l.status === 'ok' ? 'pill-ok' : 'pill-warn'}">${l.status === 'ok' ? 'ON PACE' : 'ATTENTION'}</span>
+            </div>
+            <div class="line-stats">
+              <span style="color: var(--muted);">Style: <strong>${l.style}</strong></span>
+              <span>DHU: <strong>${Number(l.dhu).toFixed(1)}%</strong></span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width: ${Math.min(100, pct)}%; background: ${l.status === 'ok' ? 'var(--ok)' : 'var(--warn)'}"></div>
+            </div>
+            <div class="line-stats" style="margin-bottom: 0;">
+              <span>${l.achieved} / ${l.target} pcs</span>
+              <strong>${pct}%</strong>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+        document.getElementById("kpi-output").innerText = `${totalAchieved} / ${totalTarget}`;
+      } catch (e) {
+        console.error("Failed to load plant overview", e);
+      }
     }
 
-    const grid = document.getElementById("line-grid-container");
-    grid.innerHTML = "";
-    lines.forEach(l => {
-      const pct = Math.round((l.achieved / l.target) * 100);
-      const card = document.createElement("div");
-      card.className = `line-card ${l.status}`;
-      card.innerHTML = `
-        <div class="line-header">
-          <span class="line-title">${l.name}</span>
-          <span class="status-pill ${l.status === 'ok' ? 'pill-ok' : 'pill-warn'}">${l.status === 'ok' ? 'ON PACE' : 'ATTENTION'}</span>
-        </div>
-        <div class="line-stats">
-          <span style="color: var(--muted);">Style: <strong>${l.style}</strong></span>
-          <span>DHU: <strong>${l.dhu}%</strong></span>
-        </div>
-        <div class="progress-bar-bg">
-          <div class="progress-bar-fill" style="width: ${pct}%; background: ${l.status === 'ok' ? 'var(--ok)' : 'var(--warn)'}"></div>
-        </div>
-        <div class="line-stats" style="margin-bottom: 0;">
-          <span>${l.achieved} / ${l.target} pcs</span>
-          <strong>${pct}%</strong>
-        </div>
-      `;
-      grid.appendChild(card);
-    });
+    async function uploadOnboardingSheet(input) {
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
+      const text = await file.text();
+      const res = await fetch("/api/v1/onboarding/upload", {
+        method: "POST",
+        headers: { "Content-Type": "text/csv" },
+        body: text
+      });
+      if (res.ok) {
+        const result = await res.json();
+        alert(`Factory Onboarded: ${result.factory_name} (${result.lines_loaded} lines, ${result.machines_loaded} machines, ${result.workers_loaded} workers, ${result.styles_loaded} styles)`);
+        loadPlantOverview();
+        loadFloorIssues();
+      } else {
+        const errText = await res.text();
+        alert("Onboarding Upload Error: " + errText);
+      }
+      input.value = "";
+    }
+
+    loadPlantOverview();
+    setInterval(loadPlantOverview, 5000);
 
     // Drawer Interaction
     function toggleAgieDrawer() {

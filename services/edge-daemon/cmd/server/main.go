@@ -1,10 +1,9 @@
-package main
-
 import (
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -27,6 +26,8 @@ import (
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/dbsmith"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/docscribe"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/logicweaver"
+	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/onboarding"
+	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/sewing"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -175,6 +176,9 @@ func main() {
 	mux.HandleFunc("/api/v1/agie/confirm", server.handleAgieConfirm)
 	mux.HandleFunc("/api/v1/issues", server.handleGetIssues)
 	mux.HandleFunc("/api/v1/config", server.handleGetConfig)
+	mux.HandleFunc("/api/v1/onboarding/template.csv", server.handleOnboardingTemplate)
+	mux.HandleFunc("/api/v1/onboarding/upload", server.handleOnboardingUpload)
+	mux.HandleFunc("/api/v1/plant/overview", server.handlePlantOverview)
 
 	if modules.IsEnabled("mod_stores") {
 		mux.HandleFunc("/api/v1/stores/indent-check", server.handleStoresIndentCheck)
@@ -688,6 +692,12 @@ func ocrSessionKey(orderID string, cutNo int) string {
 	}
 	return fmt.Sprintf("%s:%d", orderID, cutNo)
 }
+type ReconcileRequest struct {
+	OrderID         string             `json:"order_id"`
+	CutNo           int                `json:"cut_no"`
+	Breakdown       ocr.StageBreakdown `json:"breakdown"`
+	VarianceComment string             `json:"variance_comment"`
+}
 
 func (s *EdgeServer) handleOCRReconcile(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -957,4 +967,172 @@ func (s *EdgeServer) handleGetIssues(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_ = json.NewEncoder(w).Encode(issues)
+}
+func (s *EdgeServer) handleOnboardingTemplate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="agiparel_preboarding_template.csv"`)
+	_, _ = w.Write([]byte(onboarding.GenerateTemplateCSV()))
+}
+
+func (s *EdgeServer) handleOnboardingUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var csvReader io.Reader = r.Body
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			http.Error(w, "Failed to parse multipart form: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		file, _, err := r.FormFile("workbook")
+		if err != nil {
+			http.Error(w, "Missing 'workbook' file field: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+		csvReader = file
+	}
+
+	wb, err := onboarding.ParseWorkbookCSV(csvReader)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := onboarding.ApplyToDatabase(r.Context(), s.db, wb); err != nil {
+		http.Error(w, "Database provisioning failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Hydrate in-memory StoresEngine from workbook rolls
+	for _, r := range wb.StoreRolls {
+		s.stores.RegisterRoll(stores.RollStock{
+			RollID:          r.RollID,
+			OriginalLengthM: r.LengthM,
+			RemainingLength: r.LengthM,
+			ReservedOrderID: r.ReservedOrder,
+			ReservedCutNo:   r.ReservedCutNo,
+			Status:          r.Status,
+		})
+	}
+
+	// Hydrate in-memory AttachmentEngine DAG rules from workbook operations
+	for _, op := range wb.OperationsDAG {
+		if op.SourcePartCode != "" && op.TargetPartCode != "" {
+			s.attachment.RegisterRule(op.StyleCode, op.SourcePartCode, op.TargetPartCode)
+		}
+	}
+
+	pilotLine := "Line 01"
+	targetQty := 0
+	if len(wb.Lines) > 0 {
+		pilotLine = wb.Lines[0].LineID
+		targetQty = wb.Lines[0].TargetDailyCapacity
+	}
+	styleCode := ""
+	if len(wb.Styles) > 0 {
+		styleCode = wb.Styles[0].StyleCode
+	}
+	poNumber := ""
+	if len(wb.WorkOrders) > 0 {
+		poNumber = wb.WorkOrders[0].PONumber
+		if wb.WorkOrders[0].OrderedQty > 0 {
+			targetQty = wb.WorkOrders[0].OrderedQty
+		}
+	}
+
+	s.cfgMu.Lock()
+	s.activeConfig = map[string]interface{}{
+		"tenant_id":     wb.TenantID,
+		"plant_name":    wb.FactoryName,
+		"unit_code":     wb.UnitCode,
+		"pilot_line":    pilotLine,
+		"style_code":    styleCode,
+		"po_number":     poNumber,
+		"target_qty":    targetQty,
+		"lines":         wb.Lines,
+		"configured_at": time.Now().UTC().UnixMilli(),
+	}
+	s.cfgMu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":          "ONBOARDED",
+		"tenant_id":       wb.TenantID,
+		"factory_name":    wb.FactoryName,
+		"unit_code":       wb.UnitCode,
+		"lines_loaded":    len(wb.Lines),
+		"machines_loaded": len(wb.Machines),
+		"workers_loaded":  len(wb.Workers),
+		"styles_loaded":   len(wb.Styles),
+		"parts_loaded":    len(wb.StyleParts),
+		"dag_ops_loaded":  len(wb.OperationsDAG),
+		"rolls_loaded":    len(wb.StoreRolls),
+		"orders_loaded":   len(wb.WorkOrders),
+	})
+}
+
+func (s *EdgeServer) handlePlantOverview(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	s.cfgMu.Lock()
+	cfg := s.activeConfig
+	s.cfgMu.Unlock()
+
+	type LineSummary struct {
+		LineID   string  `json:"line_id"`
+		Style    string  `json:"style"`
+		Achieved int     `json:"achieved"`
+		Target   int     `json:"target"`
+		DHU      float64 `json:"dhu"`
+		Status   string  `json:"status"`
+	}
+
+	var lines []LineSummary
+	if s.db != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+		tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+		if err == nil {
+			defer tx.Rollback()
+			tenantID, _ := cfg["tenant_id"].(string)
+			if tenantID == "" {
+				tenantID = "TENANT_DEFAULT"
+			}
+			_, _ = tx.ExecContext(ctx, "SELECT set_config('app.current_tenant_id', $1, true)", tenantID)
+			rows, qErr := tx.QueryContext(ctx, `
+				SELECT dwo.line_id, sm.style_code, dwo.ordered_qty,
+				       COALESCE((SELECT SUM(actual_units) FROM hourly_line_metrics h WHERE h.line_id = dwo.line_id AND h.shift_date = CURRENT_DATE), 0) AS achieved,
+				       COALESCE((SELECT SUM(defect_units) FROM hourly_line_metrics h WHERE h.line_id = dwo.line_id AND h.shift_date = CURRENT_DATE), 0) AS defects,
+				       (SELECT COUNT(*) FROM floor_issues fi WHERE fi.line_id = dwo.line_id AND fi.status IN ('open', 'in_progress')) AS open_issues
+				FROM dynamic_work_orders dwo
+				JOIN styles_master sm ON dwo.style_id = sm.id
+				WHERE dwo.status IN ('IN_PROGRESS', 'PLANNED')
+				ORDER BY dwo.line_id;
+			`)
+			if qErr == nil {
+				for rows.Next() {
+					var ls LineSummary
+					var defects, openIssues int
+					if err := rows.Scan(&ls.LineID, &ls.Style, &ls.Target, &ls.Achieved, &defects, &openIssues); err == nil {
+						if ls.Achieved > 0 {
+							ls.DHU = float64(defects) / float64(ls.Achieved) * 100.0
+						}
+						ls.Status = "ok"
+						if openIssues > 0 || ls.DHU > 2.5 {
+							ls.Status = "warn"
+						}
+						lines = append(lines, ls)
+					}
+				}
+				rows.Close()
+			}
+		}
+	}
+
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"config": cfg,
+		"lines":  lines,
+	})
 }
