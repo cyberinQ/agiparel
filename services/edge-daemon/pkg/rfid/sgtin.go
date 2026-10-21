@@ -1,40 +1,50 @@
 package rfid
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"strconv"
 )
 
-// EncodeSGTIN96 builds a 96-bit EPC Gen2 binary representation (Filter 3: Item Level, Partition 5)
+// EncodeSGTIN96 builds a 96-bit EPC Gen2 binary representation (Filter 1: POS Item, Partition 5)
 func EncodeSGTIN96(companyPrefix string, itemRef int, serialNumber int64) (string, error) {
 	if len(companyPrefix) != 7 {
-		return "", fmt.Errorf("company prefix must be exactly 7 digits")
+		return "", fmt.Errorf("ERR_INVALID_PREFIX: company prefix must be exactly 7 digits")
 	}
-
 	prefixInt, err := strconv.ParseUint(companyPrefix, 10, 64)
-	if err != nil {
-		return "", err
+	if err != nil || prefixInt > 9999999 {
+		return "", fmt.Errorf("ERR_INVALID_PREFIX: invalid numeric company prefix: %w", err)
+	}
+	if itemRef < 0 || itemRef > 999999 {
+		return "", fmt.Errorf("ERR_INVALID_ITEM_REF: Partition 5 item reference must be 0..999999 (got %d)", itemRef)
+	}
+	if serialNumber < 0 || serialNumber > 0x3FFFFFFFFF {
+		return "", fmt.Errorf("ERR_INVALID_SERIAL: serial number must fit in 38 unsigned bits (got %d)", serialNumber)
 	}
 
-	// SGTIN-96 Bit Layout:
-	// Header: 8 bits (0x30 = 00110000)
-	// Filter: 3 bits (001 = POS Item)
-	// Partition: 3 bits (101 = Partition 5)
-	// Company Prefix: 24 bits
-	// Item Reference: 20 bits
-	// Serial Number: 38 bits
-	var bits uint64 = 0x30
-	bits = (bits << 3) | 0x01
-	bits = (bits << 3) | 0x05
-	bits = (bits << 24) | (prefixInt & 0xFFFFFF)
-	bits = (bits << 20) | (uint64(itemRef) & 0xFFFFF)
+	// SGTIN-96 Bit Layout (96 bits = 12 bytes):
+	// [8b Header=0x30][3b Filter=1][3b Partition=5][24b Prefix][20b ItemRef][38b Serial]
+	// Upper 64 bits: 8 + 3 + 3 + 24 + 20 + top 6 bits of Serial = 64 bits
+	// Lower 32 bits: bottom 32 bits of Serial
+	var upper64 uint64 = 0x30
+	upper64 = (upper64 << 3) | 0x01
+	upper64 = (upper64 << 3) | 0x05
+	upper64 = (upper64 << 24) | (prefixInt & 0xFFFFFF)
+	upper64 = (upper64 << 20) | (uint64(itemRef) & 0xFFFFF)
+	upper64 = (upper64 << 6) | ((uint64(serialNumber) >> 32) & 0x3F)
 
-	upperHex := fmt.Sprintf("%015X", bits)
-	lowerHex := fmt.Sprintf("%010X", uint64(serialNumber)&0x3FFFFFFFFF)
+	lower32 := uint32(uint64(serialNumber) & 0xFFFFFFFF)
 
-	epcHex := upperHex[1:] + lowerHex
-	return epcHex, nil
+	var buf [12]byte
+	binary.BigEndian.PutUint64(buf[0:8], upper64)
+	binary.BigEndian.PutUint32(buf[8:12], lower32)
+
+	return strings.ToUpperHex(buf[:]), nil
+}
+
+func stringsToUpperHex(b []byte) string {
+	return fmt.Sprintf("%024X", b)
 }
 
 func ValidatePermanentInlayRead(epcHex string) bool {

@@ -95,8 +95,11 @@ func (c *CatalogInspector) ExecuteSafeSQL(ctx context.Context, query string) (st
 		return "", fmt.Errorf("SECURITY_ERROR: Only SELECT queries are permitted (received: %s)", cleanQuery)
 	}
 
-	// Strictly block destructive keywords
-	destructiveTokens := []string{"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "TRUNCATE", "GRANT", "REVOKE"}
+	// Strictly block destructive keywords and dangerous system functions
+	destructiveTokens := []string{
+		"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "TRUNCATE", "GRANT", "REVOKE",
+		"PG_SLEEP", "PG_READ_FILE", "PG_STAT_FILE", "LO_IMPORT", "LO_EXPORT", "DBLINK", "SET_CONFIG",
+	}
 	for _, tok := range destructiveTokens {
 		if hasWholeWord(upper, tok) {
 			return "", fmt.Errorf("SECURITY_ERROR: Query contains forbidden token: '%s'", tok)
@@ -108,16 +111,23 @@ func (c *CatalogInspector) ExecuteSafeSQL(ctx context.Context, query string) (st
 		return "", errors.New("SECURITY_ERROR: Stacked queries with ';' are forbidden")
 	}
 
-	// Set tenant context for RLS
-	_, _ = c.db.ExecContext(ctx, "SET app.current_tenant_id = 'TENANT_DEFAULT'")
+	queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tx, err := c.db.BeginTx(queryCtx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return "", fmt.Errorf("SQL_TX_ERROR: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(queryCtx, "SET LOCAL app.current_tenant_id = 'TENANT_DEFAULT'"); err != nil {
+		return "", fmt.Errorf("RLS_CONTEXT_ERROR: %w", err)
+	}
 
 	// Hard limit of 100 rows for edge safety
 	boundedQuery := fmt.Sprintf("SELECT * FROM (%s) AS q LIMIT 100", cleanQuery)
 
-	queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	rows, err := c.db.QueryContext(queryCtx, boundedQuery)
+	rows, err := tx.QueryContext(queryCtx, boundedQuery)
 	if err != nil {
 		return "", fmt.Errorf("SQL_ERROR: %w", err)
 	}

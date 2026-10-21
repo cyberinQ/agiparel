@@ -21,15 +21,17 @@ Rules:
 4. Never mention prompts, tools, or SQL queries in your response.`
 
 type LLMRequest struct {
-	Model       string       `json:"model"`
-	Messages    []LLMMessage `json:"messages"`
-	Temperature float64      `json:"temperature"`
-	Stream      bool         `json:"stream"`
+	Model       string           `json:"model"`
+	Messages    []LLMMessage     `json:"messages"`
+	Tools       []ToolDefinition `json:"tools,omitempty"`
+	Temperature float64          `json:"temperature"`
+	Stream      bool             `json:"stream"`
 }
 
 type LLMMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role      string     `json:"role"`
+	Content   string     `json:"content"`
+	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
 }
 
 type InterviewerEngine struct {
@@ -54,15 +56,18 @@ func NewInterviewerEngine() *InterviewerEngine {
 	}
 }
 
-// FetchLiveGroundTruth extracts verifiable plant ground truth strictly from PostgreSQL.
-// No fallback strings. If the database has no records, it states that fact explicitly.
 func FetchLiveGroundTruth(ctx context.Context, db *sql.DB) string {
 	if db == nil {
 		return "DATABASE STATUS: Offline (operating in disconnected air-gapped mode).\n"
 	}
 
-	// Scope tenant context for PostgreSQL Row-Level Security
-	if _, err := db.ExecContext(ctx, "SET app.current_tenant_id = 'TENANT_DEFAULT'"); err != nil {
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return fmt.Sprintf("DATABASE ERROR: Failed to start transaction: %v\n", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, "SET LOCAL app.current_tenant_id = 'TENANT_DEFAULT'"); err != nil {
 		return fmt.Sprintf("DATABASE ERROR: Failed to set tenant context: %v\n", err)
 	}
 
@@ -70,7 +75,7 @@ func FetchLiveGroundTruth(ctx context.Context, db *sql.DB) string {
 
 	// 1. Factory Profile (Tenants Table)
 	var tenantID, tenantName string
-	err := db.QueryRowContext(ctx, `SELECT id, name FROM tenants LIMIT 1;`).Scan(&tenantID, &tenantName)
+	err = tx.QueryRowContext(ctx, `SELECT id, name FROM tenants WHERE id = 'TENANT_DEFAULT' LIMIT 1;`).Scan(&tenantID, &tenantName)
 	if err == nil {
 		sb.WriteString(fmt.Sprintf("FACTORY TENANT: %s (ID: %s)\n", tenantName, tenantID))
 	} else {
@@ -217,44 +222,86 @@ func FetchLiveGroundTruth(ctx context.Context, db *sql.DB) string {
 func (e *InterviewerEngine) Chat(ctx context.Context, db *sql.DB, messages []LLMMessage) (string, error) {
 	url := fmt.Sprintf("%s/api/chat", e.ollamaHost)
 	groundTruth := FetchLiveGroundTruth(ctx, db)
-	systemPrompt := fmt.Sprintf("%s\n\n=== LIVE FACTORY GROUND TRUTH ===\n%s=================================",
-		AgieExecutivePrompt, groundTruth)
+	systemPrompt := fmt.Sprintf("%s\n\n=== LIVE FACTORY GROUND TRUTH ===\n%s=================================", AgieExecutivePrompt, groundTruth)
 
 	fullMessages := []LLMMessage{{Role: "system", Content: systemPrompt}}
 	fullMessages = append(fullMessages, messages...)
 
-	payload := LLMRequest{
-		Model:       e.modelName,
-		Messages:    fullMessages,
-		Temperature: 0.1,
-		Stream:      false,
+	inspector := sqlguard.NewCatalogInspector(db)
+
+	for step := 0; step < 3; step++ {
+		payload := LLMRequest{
+			Model:       e.modelName,
+			Messages:    fullMessages,
+			Tools:       AgieToolDefinitions,
+			Temperature: 0.1,
+			Stream:      false,
+		}
+
+		bodyBytes, err := json.Marshal(payload)
+		if err != nil {
+			return "", err
+		}
+
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(bodyBytes))
+		if err != nil {
+			return "", err
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
+
+		resp, err := e.client.Do(httpReq)
+		if err != nil {
+			return "Agie Local Fallback: Edge LLM core unreachable. Operating in air-gapped status.", nil
+		}
+
+		var result struct {
+			Message LLMMessage `json:"message"`
+		}
+		decodeErr := json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if decodeErr != nil {
+			return "", fmt.Errorf("failed to decode LLM response: %w", decodeErr)
+		}
+
+		if len(result.Message.ToolCalls) == 0 {
+			return result.Message.Content, nil
+		}
+
+		fullMessages = append(fullMessages, result.Message)
+		for _, tc := range result.Message.ToolCalls {
+			var toolOut string
+			switch tc.Function.Name {
+			case "inspect_db_catalog":
+				var args struct {
+					TableName string `json:"table_name"`
+				}
+				_ = json.Unmarshal(tc.Function.Arguments, &args)
+				out, err := inspector.InspectCatalog(ctx, args.TableName)
+				if err != nil {
+					toolOut = fmt.Sprintf(`{"error": %q}`, err.Error())
+				} else {
+					toolOut = out
+				}
+			case "run_safe_sql":
+				var args struct {
+					Query string `json:"query"`
+				}
+				_ = json.Unmarshal(tc.Function.Arguments, &args)
+				out, err := inspector.ExecuteSafeSQL(ctx, args.Query)
+				if err != nil {
+					toolOut = fmt.Sprintf(`{"error": %q}`, err.Error())
+				} else {
+					toolOut = out
+				}
+			default:
+				toolOut = `{"error": "unknown tool"}`
+			}
+			fullMessages = append(fullMessages, LLMMessage{
+				Role:    "tool",
+				Content: toolOut,
+			})
+		}
 	}
 
-	bodyBytes, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(bodyBytes))
-	if err != nil {
-		return "", err
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := e.client.Do(httpReq)
-	if err != nil {
-		return "Agie Local Fallback: Edge LLM core unreachable. Operating in air-gapped status.", nil
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Message struct {
-			Content string `json:"content"`
-		} `json:"message"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("failed to decode LLM response: %w", err)
-	}
-
-	return result.Message.Content, nil
+	return "Unable to complete diagnostic query within maximum reasoning steps.", nil
 }

@@ -26,8 +26,11 @@ func GenerateOfficialOCRPDF(cert SealCertificatePayload) ([]byte, error) {
 	buf.WriteString(fmt.Sprintf("  • Total Logged Lost    : %d units\n", cert.Breakdown.LostQty))
 	buf.WriteString(fmt.Sprintf("  • Total Surplus Left   : %d units\n", cert.Breakdown.LeftOverQty))
 	accounted := cert.Breakdown.ShippedQty + cert.Breakdown.LostQty + cert.Breakdown.LeftOverQty
-	buf.WriteString(fmt.Sprintf("  • Conservation Status  : CONSERVED (Cut %d == Accounted %d)\n\n", cert.Breakdown.CutQty, accounted))
-
+	if cert.Breakdown.CutQty == accounted {
+		buf.WriteString(fmt.Sprintf("    Conservation Status  : CONSERVED (Cut %d == Accounted %d)\n\n", cert.Breakdown.CutQty, accounted))
+	} else {
+		buf.WriteString(fmt.Sprintf("    Conservation Status  : VARIANCE EXPLAINED (Cut %d vs Accounted %d | Delta: %d)\n\n", cert.Breakdown.CutQty, accounted, cert.Breakdown.CutQty-accounted))
+	}
 	buf.WriteString("--- DIGITAL DEPARTMENT SIGN-OFF WATERMARKS ---\n")
 	for dept, ok := range cert.Signatures {
 		status := "AWAITING"

@@ -1,10 +1,13 @@
 package stores
 
 import (
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
+	"strings"
 	"sync"
 	"time"
 )
@@ -52,12 +55,23 @@ func (s *StoresEngine) DoubleWitnessIssue(rollID, orderID string, cutNo int, iss
 	s.Lock()
 	defer s.Unlock()
 
+	if issueLen <= 0 {
+		return nil, errors.New("ERR_INVALID_ISSUE_LEN: Issued length must be greater than zero")
+	}
+	if strings.TrimSpace(issuerID) == "" || strings.TrimSpace(recipientID) == "" || issuerID == recipientID {
+		return nil, errors.New("ERR_INVALID_WITNESS: Distinct issuer and recipient digital IDs are required")
+	}
+
 	roll, exists := s.inventory[rollID]
 	if !exists {
 		return nil, errors.New("ERR_ROLL_NOT_FOUND: Roll does not exist in store catalog")
 	}
 
-	if roll.Status == "DEPLETED" || roll.RemainingLength < issueLen {
+	// Round to nearest millimeter to eliminate IEEE-754 representation drift
+	availMM := math.Round(roll.RemainingLength * 1000)
+	reqMM := math.Round(issueLen * 1000)
+
+	if roll.Status == "DEPLETED" || availMM < reqMM {
 		return nil, fmt.Errorf("ERR_INSUFFICIENT_STOCK: Requested %.2fm exceeds available %.2fm", issueLen, roll.RemainingLength)
 	}
 
@@ -66,16 +80,19 @@ func (s *StoresEngine) DoubleWitnessIssue(rollID, orderID string, cutNo int, iss
 			roll.ReservedOrderID, roll.ReservedCutNo, orderID, cutNo)
 	}
 
-	roll.RemainingLength -= issueLen
-	if roll.RemainingLength == 0 {
+	remMM := availMM - reqMM
+	roll.RemainingLength = remMM / 1000.0
+	if remMM <= 0 {
+		roll.RemainingLength = 0
 		roll.Status = "DEPLETED"
 	} else {
 		roll.Status = "ISSUED"
 	}
 
 	now := time.Now().UTC().UnixMilli()
-	claim := fmt.Sprintf("%s:%s:%d:%.2f:%s:%s:%d:%s", rollID, orderID, cutNo, issueLen, issuerID, recipientID, now, secretKey)
-	sig := sha256.Sum256([]byte(claim))
+	claim := fmt.Sprintf("%s:%s:%d:%.3f:%s:%s:%d", rollID, orderID, cutNo, issueLen, issuerID, recipientID, now)
+	mac := hmac.New(sha256.New, []byte(secretKey))
+	mac.Write([]byte(claim))
 
 	record := &IssuanceRecord{
 		IssuanceID:       fmt.Sprintf("ISS-%d", now),
@@ -87,8 +104,7 @@ func (s *StoresEngine) DoubleWitnessIssue(rollID, orderID string, cutNo int, iss
 		RecipientID:      recipientID,
 		IssuedAt:         now,
 		RemainingLengthM: roll.RemainingLength,
-		DigitalSigHash:   hex.EncodeToString(sig[:]),
+		DigitalSigHash:   hex.EncodeToString(mac.Sum(nil)),
 	}
-
 	return record, nil
 }

@@ -80,7 +80,33 @@ func (l *MerkleLedger) GetLatestHash() string {
 func (l *MerkleLedger) Hydrate(events []AuditEvent) {
 	l.Lock()
 	defer l.Unlock()
+
+	h := sha256.Sum256([]byte("GENESIS_BLOCK_AGIPAREL_REV11"))
+	genesisHash := hex.EncodeToString(h[:])
+	l.chain = []EventBlock{{
+		Index:        0,
+		Timestamp:    time.Unix(0, 0).UTC(),
+		StationID:    "SYSTEM",
+		OperatorID:   "ROOT",
+		EventType:    "GENESIS",
+		PayloadHash:  "GENESIS_PAYLOAD",
+		PreviousHash: "0000000000000000000000000000000000000000000000000000000000000000",
+		BlockHash:    genesisHash,
+	}}
+	l.currentIndex = 0
+	l.lastHash = genesisHash
+
 	for _, ev := range events {
+		l.chain = append(l.chain, EventBlock{
+			Index:        ev.Index,
+			Timestamp:    time.UnixMilli(ev.Timestamp).UTC(),
+			StationID:    ev.StationID,
+			OperatorID:   ev.OperatorID,
+			EventType:    ev.EventType,
+			PayloadHash:  ev.PayloadHash,
+			PreviousHash: ev.PreviousHash,
+			BlockHash:    ev.EntryHash,
+		})
 		if ev.Index > l.currentIndex {
 			l.currentIndex = ev.Index
 			l.lastHash = ev.EntryHash

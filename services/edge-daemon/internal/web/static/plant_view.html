@@ -501,20 +501,7 @@
       }
       stream.scrollTop = stream.scrollHeight;
     }
-    async function loadFloorIssues() {
-      const res = await fetch('/api/v1/issues');
-      const issues = await res.json();
-      const container = document.getElementById("issue-list");
-      container.innerHTML = issues.map(iss => `
-        <div class="issue-item">
-          <div class="issue-header">
-            <strong>${iss.line_id} · ${iss.station_id}</strong>
-            <span class="issue-tag ${iss.severity}">${iss.severity.toUpperCase()}</span>
-          </div>
-          <div>${iss.title}</div>
-        </div>
-      `).join('');
-    }
+    
     async function loadFloorIssues() {
       try {
         const res = await fetch("/api/v1/issues");

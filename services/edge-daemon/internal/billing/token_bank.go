@@ -40,6 +40,9 @@ func (b *HardwareTokenBank) DeductPieces(pieces int64) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	if pieces <= 0 {
+		return errors.New("ERR_INVALID_DEDUCTION: Piece count must be strictly positive")
+	}
 	if b.balance < pieces {
 		return fmt.Errorf("ERR_METER_EXHAUSTED: Remaining credit balance (%d) insufficient for %d pieces. Top up via signed voucher", b.balance, pieces)
 	}
@@ -56,7 +59,6 @@ func (b *HardwareTokenBank) RedeemVoucher(voucher string) (int64, error) {
 	if len(parts) != 5 {
 		return b.balance, errors.New("ERR_INVALID_VOUCHER_FORMAT")
 	}
-
 	tenant, plant, credStr, nonce, sigB64 := parts[0], parts[1], parts[2], parts[3], parts[4]
 
 	if tenant != b.tenantID || plant != b.plantID {
@@ -66,19 +68,22 @@ func (b *HardwareTokenBank) RedeemVoucher(voucher string) (int64, error) {
 		return b.balance, errors.New("ERR_NONCE_ALREADY_REDEEMED")
 	}
 
+	credits, err := strconv.ParseInt(credStr, 10, 64)
+	if err != nil || credits <= 0 {
+		return b.balance, errors.New("ERR_INVALID_VOUCHER_CREDITS: Credits must be a positive integer")
+	}
+
 	sigBytes, err := base64.StdEncoding.DecodeString(sigB64)
 	if err != nil {
 		return b.balance, err
 	}
 
 	claim := []byte(fmt.Sprintf("%s:%s:%s:%s", tenant, plant, credStr, nonce))
-	if !ed25519.Verify(b.publicKey, claim, sigBytes) {
+	if len(b.publicKey) != ed25519.PublicKeySize || !ed25519.Verify(b.publicKey, claim, sigBytes) {
 		return b.balance, errors.New("ERR_CRYPTOGRAPHIC_SIGNATURE_INVALID")
 	}
 
-	credits, _ := strconv.ParseInt(credStr, 10, 64)
 	b.balance += credits
 	b.usedNonces[nonce] = true
-
 	return b.balance, nil
 }

@@ -58,11 +58,19 @@ func (b *APIBridgeEngine) MapForeignRow(row ImportedRow) (StandardizedSKU, error
 }
 
 func findVal(m map[string]string, keys ...string) string {
-	for k, v := range m {
-		kLower := strings.ToLower(k)
-		for _, target := range keys {
-			if kLower == target || strings.Contains(kLower, target) {
-				return v
+	// Pass 1: Exact case-insensitive key match in priority order of `keys`
+	for _, target := range keys {
+		for k, v := range m {
+			if strings.EqualFold(strings.TrimSpace(k), target) {
+				return strings.TrimSpace(v)
+			}
+		}
+	}
+	// Pass 2: Substring match in priority order of `keys`
+	for _, target := range keys {
+		for k, v := range m {
+			if strings.Contains(strings.ToLower(k), target) {
+				return strings.TrimSpace(v)
 			}
 		}
 	}

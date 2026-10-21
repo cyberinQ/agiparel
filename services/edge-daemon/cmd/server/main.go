@@ -287,41 +287,78 @@ func (s *EdgeServer) handleLedgerAppend(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if req.EventType == "CYCLE_DONE" {
+		var p struct {
+			SAM       float64 `json:"sam"`
+			ActualSec float64 `json:"actual_sec"`
+		}
+		if err := json.Unmarshal([]byte(req.Payload), &p); err == nil && p.SAM > 0 {
+			now := time.Now().UTC()
+			dwellRes, err := sewing.ValidateCycleDwell(sewing.CycleSubmission{
+				StationID:      req.StationID,
+				OperatorID:     req.OperatorID,
+				OperationID:    "SEW_CYCLE",
+				FactorySAMMin:  p.SAM / 60.0,
+				CycleStartedAt: now.Add(-time.Duration(p.ActualSec * float64(time.Second))),
+				SubmittedAt:    now,
+			})
+			if err != nil || !dwellRes.IsValid {
+				http.Error(w, dwellRes.Reason, http.StatusConflict)
+				return
+			}
+		}
+	}
+
 	event, err := s.ledger.AppendEvent(req.StationID, req.OperatorID, req.EventType, req.Payload)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	evBytes, _ := json.Marshal(event)
 	_, _ = s.wal.Append("LEDGER_EVENT", evBytes)
 
 	if s.db != nil {
-		currHour := time.Now().Hour()
+		loc, err := time.LoadLocation("Asia/Kolkata")
+		if err != nil {
+			loc = time.FixedZone("IST", 5*3600+1800)
+		}
+		currHour := time.Now().In(loc).Hour()
 		hourWindow := (currHour - 8) + 1
 		if hourWindow < 1 {
 			hourWindow = 1
 		} else if hourWindow > 16 {
-			hourWindow = 16 // Clamped to valid shift boundary
+			hourWindow = 16
 		}
 
+		initActual, initDefect, initAndon := 1, 0, 0
 		colToIncrement := "actual_units = hourly_line_metrics.actual_units + 1"
-		if req.EventType == "DEFECT_TAG" {
+		switch req.EventType {
+		case "DEFECT_TAG":
+			initActual, initDefect, initAndon = 0, 1, 0
 			colToIncrement = "defect_units = hourly_line_metrics.defect_units + 1"
-		} else if req.EventType == "ANDON_CALL" {
+		case "ANDON_CALL":
+			initActual, initDefect, initAndon = 0, 0, 5
 			colToIncrement = "andon_downtime_minutes = hourly_line_metrics.andon_downtime_minutes + 5"
 		}
 
-		query := fmt.Sprintf(`
-			INSERT INTO hourly_line_metrics (tenant_id, line_id, shift_date, hour_window, target_units, actual_units, defect_units, andon_downtime_minutes)
-			VALUES ('TENANT_DEFAULT', 'Line 14', CURRENT_DATE, %d, 75, 1, 0, 0)
-			ON CONFLICT (tenant_id, line_id, shift_date, hour_window)
-			DO UPDATE SET %s;
-		`, hourWindow, colToIncrement)
-
-		if _, dbErr := s.db.Exec(query); dbErr != nil {
-			log.Printf("Warning: failed to update hourly_line_metrics: %v", dbErr)
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		tx, txErr := s.db.BeginTx(ctx, nil)
+		if txErr == nil {
+			_, _ = tx.ExecContext(ctx, "SET LOCAL app.current_tenant_id = 'TENANT_DEFAULT'")
+			query := fmt.Sprintf(`
+				INSERT INTO hourly_line_metrics (tenant_id, line_id, shift_date, hour_window, target_units, actual_units, defect_units, andon_downtime_minutes)
+				VALUES ('TENANT_DEFAULT', 'Line 14', CURRENT_DATE, $1, 75, $2, $3, $4)
+				ON CONFLICT (tenant_id, line_id, shift_date, hour_window)
+				DO UPDATE SET %s;
+			`, colToIncrement)
+			if _, dbErr := tx.ExecContext(ctx, query, hourWindow, initActual, initDefect, initAndon); dbErr != nil {
+				log.Printf("Warning: failed to update hourly_line_metrics: %v", dbErr)
+				_ = tx.Rollback()
+			} else {
+				_ = tx.Commit()
+			}
 		}
+		cancel()
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -347,15 +384,21 @@ func (s *EdgeServer) handleLedgerVerify(w http.ResponseWriter, r *http.Request) 
 	}
 	tempLedger.Hydrate(auditEvents)
 
-	isValid := tempLedger.GetLatestHash() == s.ledger.GetLatestHash()
+	chainValid, verifyErr := tempLedger.VerifyChain()
+	isValid := chainValid && verifyErr == nil && (tempLedger.GetLatestHash() == s.ledger.GetLatestHash())
+
+	resp := map[string]interface{}{
+		"verified":     isValid,
+		"total_events": tempLedger.GetCurrentIndex(),
+		"current_hash": s.ledger.GetLatestHash(),
+		"audited_hash": tempLedger.GetLatestHash(),
+	}
+	if verifyErr != nil {
+		resp["error"] = verifyErr.Error()
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"verified":      isValid,
-		"total_events":  tempLedger.GetCurrentIndex(),
-		"current_hash":  s.ledger.GetLatestHash(),
-		"audited_hash":  tempLedger.GetLatestHash(),
-	})
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func (s *EdgeServer) handleLedgerLatest(w http.ResponseWriter, r *http.Request) {
@@ -436,8 +479,11 @@ func (s *EdgeServer) handleCuttingPlanTarget(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-
-	target := cutting.CalculateCutTarget(req.OrderID, req.SizeVariant, req.OrderQty)
+	target, err := cutting.CalculateCutTarget(req.OrderID, req.SizeVariant, req.OrderQty)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(target)
 }
@@ -636,11 +682,11 @@ func (s *EdgeServer) handlePackingSeal(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "SEALED"})
 }
 
-type ReconcileRequest struct {
-	OrderID         string             `json:"order_id"`
-	CutNo           int                `json:"cut_no"`
-	Breakdown       ocr.StageBreakdown `json:"breakdown"`
-	VarianceComment string             `json:"variance_comment"`
+func ocrSessionKey(orderID string, cutNo int) string {
+	if cutNo <= 0 {
+		cutNo = 1
+	}
+	return fmt.Sprintf("%s:%d", orderID, cutNo)
 }
 
 func (s *EdgeServer) handleOCRReconcile(w http.ResponseWriter, r *http.Request) {
@@ -653,24 +699,22 @@ func (s *EdgeServer) handleOCRReconcile(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-
 	report, err := ocr.EvaluateConservation(req.OrderID, req.CutNo, req.Breakdown, req.VarianceComment)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-
-	key := req.OrderID
+	key := ocrSessionKey(req.OrderID, req.CutNo)
 	s.ocrMu.Lock()
 	s.activeOCRSess[key] = ocr.NewSignOffSession(report, s.secretKey)
 	s.ocrMu.Unlock()
-
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(report)
 }
 
 type SignRequest struct {
 	OrderID    string `json:"order_id"`
+	CutNo      int    `json:"cut_no,omitempty"`
 	Department string `json:"department"`
 	SignerID   string `json:"signer_id"`
 }
@@ -685,21 +729,18 @@ func (s *EdgeServer) handleOCRSign(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-
+	key := ocrSessionKey(req.OrderID, req.CutNo)
 	s.ocrMu.Lock()
-	sess, exists := s.activeOCRSess[req.OrderID]
+	sess, exists := s.activeOCRSess[key]
 	s.ocrMu.Unlock()
-
 	if !exists {
-		http.Error(w, "Reconciliation session not initialized for order", http.StatusNotFound)
+		http.Error(w, "Reconciliation session not initialized for order/cut", http.StatusNotFound)
 		return
 	}
-
 	if err := sess.Sign(req.Department, req.SignerID); err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":     "ACCEPTED",
@@ -710,6 +751,7 @@ func (s *EdgeServer) handleOCRSign(w http.ResponseWriter, r *http.Request) {
 
 type SealRequest struct {
 	OrderID string `json:"order_id"`
+	CutNo   int    `json:"cut_no,omitempty"`
 }
 
 func (s *EdgeServer) handleOCRSeal(w http.ResponseWriter, r *http.Request) {
@@ -722,22 +764,19 @@ func (s *EdgeServer) handleOCRSeal(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-
+	key := ocrSessionKey(req.OrderID, req.CutNo)
 	s.ocrMu.Lock()
-	sess, exists := s.activeOCRSess[req.OrderID]
+	sess, exists := s.activeOCRSess[key]
 	s.ocrMu.Unlock()
-
 	if !exists {
-		http.Error(w, "Reconciliation session not initialized for order", http.StatusNotFound)
+		http.Error(w, "Reconciliation session not initialized for order/cut", http.StatusNotFound)
 		return
 	}
-
 	cert, err := sess.Seal()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(cert)
 }
@@ -789,19 +828,26 @@ func (s *EdgeServer) handleAgieConfirm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-
 	if req.ConfirmationPIN == "" || req.ConfirmedBy == "" {
 		http.Error(w, "ERR_UNCONFIRMED: Human approval signature required before code/schema updates", http.StatusBadRequest)
 		return
 	}
+	if len(req.CandidateConfig.Lines) == 0 {
+		http.Error(w, "ERR_INVALID_CONFIG: At least one line specification is required", http.StatusBadRequest)
+		return
+	}
 
 	smith := dbsmith.NewDBSmithEngine(req.CandidateConfig.TenantID)
-	migrationSQL, _ := smith.GenerateSafeMigration(dbsmith.CustomFieldRequest{
+	migrationSQL, err := smith.GenerateSafeMigration(dbsmith.CustomFieldRequest{
 		EntityName: "store_rolls",
 		FieldName:  "custom_intake_batch",
 		FieldType:  "VARCHAR(64)",
 		IsNullable: true,
 	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	weaver := logicweaver.NewLogicWeaverEngine(req.CandidateConfig.TenantID)
 	rule, _ := weaver.CompileRule("RULE-M01", "DWELL", "Enforce 40% SAM dwell floor", "KK524867", 36, 14)
@@ -810,8 +856,7 @@ func (s *EdgeServer) handleAgieConfirm(w http.ResponseWriter, r *http.Request) {
 	manual, _ := scribe.GeneratePlainEnglishManual("LINE14_ST01", "HEM_FOLD", "HI")
 
 	cfgPath := "services/edge-daemon/internal/web/static/config.json"
-	cfgFile, err := os.Create(cfgPath)
-	if err == nil {
+	if cfgFile, err := os.Create(cfgPath); err == nil {
 		_ = json.NewEncoder(cfgFile).Encode(req.CandidateConfig)
 		cfgFile.Close()
 	}
@@ -870,11 +915,21 @@ func (s *EdgeServer) handleGetIssues(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	_, _ = s.db.ExecContext(ctx, "SET app.current_tenant_id = 'TENANT_DEFAULT'")
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to begin transaction: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
 
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, tenant_id, issue_type, severity, plant_id, line_id, 
-		       COALESCE(station_id, ''), COALESCE(machine_id, ''), COALESCE(operator_id, ''), 
+	if _, err := tx.ExecContext(ctx, "SET LOCAL app.current_tenant_id = 'TENANT_DEFAULT'"); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to set tenant context: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	rows, err := tx.QueryContext(ctx, `
+		SELECT id, tenant_id, issue_type, severity, plant_id, line_id,
+		       COALESCE(station_id, ''), COALESCE(machine_id, ''), COALESCE(operator_id, ''),
 		       title, started_at, resolved_at, owner_id, status
 		FROM floor_issues
 		WHERE status IN ('open', 'in_progress')
@@ -901,6 +956,5 @@ func (s *EdgeServer) handleGetIssues(w http.ResponseWriter, r *http.Request) {
 			issues = append(issues, iss)
 		}
 	}
-
 	_ = json.NewEncoder(w).Encode(issues)
 }

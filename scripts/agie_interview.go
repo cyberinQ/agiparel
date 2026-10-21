@@ -22,11 +22,6 @@ type FactoryConfig struct {
 	ConfiguredAt int64  `json:"configured_at"`
 }
 
-func speak(text string) {
-	fmt.Printf("\n🤖 [Agie]: %s\n", text)
-	_ = exec.Command("say", text).Run()
-}
-
 func queryOllama(prompt string) string {
 	payload := map[string]interface{}{
 		"model": "qwen2.5-coder:7b",

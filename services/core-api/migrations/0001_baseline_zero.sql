@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS bundle_registry (
     sequential_bundle_no INT NOT NULL CHECK (sequential_bundle_no > 0),
     pant_position INT NOT NULL CHECK (pant_position > 0),
     part_code VARCHAR(64) NOT NULL,
+    sub_bundle_id INT NOT NULL DEFAULT 1 CHECK (sub_bundle_id > 0),
     ssb_ply_group INT NOT NULL CHECK (ssb_ply_group > 0),
     part_description VARCHAR(128) NOT NULL,
     ply_start INT NOT NULL CHECK (ply_start > 0),

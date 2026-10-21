@@ -54,9 +54,11 @@ type SequentialBundleSpec struct {
 
 // GeneratePOSequentialBundles creates sequential bundle cards 1..N based on actual cut plies
 func GeneratePOSequentialBundles(orderID string, cutNo, pantPositions int, parts []string, totalPlies, bundleSize int) []SequentialBundleSpec {
+	if pantPositions <= 0 || totalPlies <= 0 || bundleSize <= 0 || len(parts) == 0 {
+		return []SequentialBundleSpec{}
+	}
 	var bundles []SequentialBundleSpec
 	seq := 1
-
 	numGroups := (totalPlies + bundleSize - 1) / bundleSize
 
 	for pant := 1; pant <= pantPositions; pant++ {
@@ -68,7 +70,6 @@ func GeneratePOSequentialBundles(orderID string, cutNo, pantPositions int, parts
 					pEnd = totalPlies
 				}
 				count := pEnd - pStart + 1
-
 				bundles = append(bundles, SequentialBundleSpec{
 					SequentialBundleNo: seq,
 					OrderID:            orderID,
@@ -88,4 +89,44 @@ func GeneratePOSequentialBundles(orderID string, cutNo, pantPositions int, parts
 		}
 	}
 	return bundles
+}
+
+type LayRollRecord struct {
+	RollID        string  `json:"roll_id"`
+	OrderID       string  `json:"order_id"`
+	CutNo         int     `json:"cut_no"`
+	LayStart      int     `json:"lay_start"`
+	LayEnd        int     `json:"lay_end"`
+	PliesCount    int     `json:"plies_count"`
+	EndBitLengthM float64 `json:"end_bit_length_m"`
+	EndBitAction  string  `json:"end_bit_action"`
+}
+
+func EvaluateEndBitDisposition(rollID, orderID string, cutNo, layStart, layEnd int, endBitM float64) (*LayRollRecord, error) {
+	if layStart <= 0 || layEnd < layStart {
+		return nil, errors.New("ERR_INVALID_LAY_RANGE: lay_start must be > 0 and lay_end >= lay_start")
+	}
+	if endBitM < 0 {
+		return nil, errors.New("ERR_INVALID_ENDBIT: end_bit_length_m cannot be negative")
+	}
+	plies := layEnd - layStart + 1
+	if plies > 210 {
+		return nil, errors.New("ERR_EXCEEDS_MAX_LAYS: plies exceed maximum threshold of 210")
+	}
+	action := "STORE_RETURN"
+	if endBitM < 1.5 {
+		action = "SCRAP"
+	} else if endBitM <= 5.0 {
+		action = "RECUT_HOLD"
+	}
+	return &LayRollRecord{
+		RollID:        rollID,
+		OrderID:       orderID,
+		CutNo:         cutNo,
+		LayStart:      layStart,
+		LayEnd:        layEnd,
+		PliesCount:    plies,
+		EndBitLengthM: endBitM,
+		EndBitAction:  action,
+	}, nil
 }

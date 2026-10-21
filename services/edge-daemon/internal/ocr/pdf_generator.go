@@ -1,6 +1,7 @@
 package ocr
 
 import (
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -56,8 +57,9 @@ func (g *OCRCertificateGenerator) GenerateSealCertificate(orderID string, cutNo 
 	docHashBytes := sha256.Sum256(rawPayload)
 	docHashStr := hex.EncodeToString(docHashBytes[:])
 
-	proofBytes := sha256.Sum256([]byte(docHashStr + ":" + g.SecretKey))
-	proofStr := hex.EncodeToString(proofBytes[:])
+	mac := hmac.New(sha256.New, []byte(g.SecretKey))
+	mac.Write([]byte(docHashStr))
+	proofStr := hex.EncodeToString(mac.Sum(nil))
 
 	return SealCertificatePayload{
 		CertificateID:      certID,

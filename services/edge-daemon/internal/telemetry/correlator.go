@@ -33,23 +33,29 @@ func NewProcessCorrelator() *ProcessCorrelator {
 func (c *ProcessCorrelator) RecordStationEntry(stationID, bundleID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cycleStarts[stationID] = time.Now().UTC()
+	key := stationID + ":" + bundleID
+	c.cycleStarts[key] = time.Now().UTC()
 }
 
-func (c *ProcessCorrelator) RecordCycleCompletion(stationID, operatorID, bundleID string, samSeconds float64) ProcessMeasurement {
+func (c *ProcessCorrelator) RecordCycleCompletion(stationID, operatorID, bundleID string, samSeconds float64) (ProcessMeasurement, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	now := time.Now().UTC()
-	start, exists := c.cycleStarts[stationID]
-	cycleDuration := 36 * time.Second
-	if exists {
-		cycleDuration = now.Sub(start)
+	key := stationID + ":" + bundleID
+	start, exists := c.cycleStarts[key]
+	if !exists {
+		return ProcessMeasurement{}, errors.New("ERR_MISSING_ENTRY_SCAN: Bundle entry scan not recorded at station")
 	}
+	cycleDuration := now.Sub(start)
+	delete(c.cycleStarts, key)
 
 	var interLatency time.Duration
 	if prevTime, ok := c.lastSeenTime[bundleID]; ok {
-		interLatency = now.Sub(prevTime)
+		interLatency = start.Sub(prevTime)
+		if interLatency < 0 {
+			interLatency = 0
+		}
 	}
 	c.lastSeenTime[bundleID] = now
 
@@ -70,5 +76,5 @@ func (c *ProcessCorrelator) RecordCycleCompletion(stationID, operatorID, bundleI
 		FactorySAM:           factorySAM,
 		PaceDeviationPercent: math.Round(paceDev*10) / 10,
 		IsBottleneck:         isBottleneck,
-	}
+	}, nil
 }

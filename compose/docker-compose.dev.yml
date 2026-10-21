@@ -44,7 +44,9 @@ services:
       LEDGER_SECRET: ${LEDGER_HMAC_SECRET:-c9b2e61a4f8d073e51a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f7a8}
       WAL_PATH: "/data/wal/events.wal"
       ENABLED_MODULES: ${ENABLED_MODULES:-mod_stores,mod_cutting,mod_sewing,mod_packing,mod_ocr}
-      DATABASE_URL: "postgres://${POSTGRES_USER:-agiparel_admin}:${POSTGRES_PASSWORD:-dev_secret_vault_pg16}@postgres:5432/${POSTGRES_DB:-agiparel_dev}?sslmode=disable"
+      
+      DATABASE_URL: "postgres://agiparel_app:app_secure_runtime_pass@postgres:5432/${POSTGRES_DB:-agiparel_dev}?sslmode=disable"
+
       OLLAMA_HOST: "http://host.docker.internal:11434"
       AGIE_MODEL: "qwen2.5-coder:7b"
     extra_hosts:

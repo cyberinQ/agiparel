@@ -36,10 +36,13 @@ func (s *DocScribeEngine) GeneratePlainEnglishManual(stationID, opName, language
 	}
 
 	audioScript := "Please scan your bundle and press the green button when done."
-	if lang == "HI" {
-		audioScript = "कृपया अपना बंडल स्कैन करें और समाप्त होने पर हरा बटन दबाएं।"
-	} else if lang == "BN" {
-		audioScript = "অনুগ্রহ করে আপনার বান্ডিল স্ক্যান করুন এবং শেষ হলে সবুজ বোতাম টিপুন।"
+	switch lang {
+	case "HI":
+		audioScript = "कृपया अपना बंडल स्कैन करें और काम पूरा होने पर हरा बटन दबाएं।"
+	case "BN":
+		audioScript = "অনুগ্রহ করে আপনার বান্ডিল স্ক্যান করুন এবং কাজ শেষ হলে সবুজ বোতামটি টিপুন।"
+	case "TA":
+		audioScript = "தயவுசெய்து உங்கள் பண்டிலை ஸ்கேன் செய்து, முடிந்ததும் பச்சை பட்டனை அழுத்தவும்."
 	}
 
 	return OperatorManual{

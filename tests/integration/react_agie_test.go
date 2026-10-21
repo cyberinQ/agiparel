@@ -20,23 +20,28 @@ func TestCatalogInspectorSafeSQL(t *testing.T) {
 	defer db.Close()
 
 	// 0. Ipasdek ti session-level tenant context tapno maikkat ti RLS isolation filter
-	_, err = db.ExecContext(ctx, "SET app.current_tenant_id = 'TENANT_DEFAULT'")
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
+		t.Fatalf("Failed to begin seed transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, "SET LOCAL app.current_tenant_id = 'TENANT_DEFAULT'"); err != nil {
 		t.Fatalf("Failed to set tenant context: %v", err)
 	}
 
-	// Siguraduen nga adda test worker ken attendance record para ken W-03
-	_, err = db.ExecContext(ctx, `
+	_, err = tx.ExecContext(ctx, `
 		INSERT INTO tenants (id, name) VALUES ('TENANT_DEFAULT', 'Noble Garments') ON CONFLICT DO NOTHING;
 		INSERT INTO workers (id, tenant_id, name, employee_code, primary_skill, skill_grade)
-		VALUES ('W-03', 'TENANT_DEFAULT', 'Sunita Sharma', 'EMP_A813', 'KANSAI_HEMMING', 'B')
-		ON CONFLICT (id) DO NOTHING;
+		VALUES ('W-03', 'TENANT_DEFAULT', 'Sunita Sharma', 'EMP_A813', 'KANSAI_HEMMING', 'B') ON CONFLICT (id) DO NOTHING;
 		INSERT INTO attendance_register (tenant_id, worker_id, shift_date, status, assigned_line_id, assigned_station_id)
-		VALUES ('TENANT_DEFAULT', 'W-03', CURRENT_DATE, 'ABSENT', 'Line 14', 'ST-03')
-		ON CONFLICT DO NOTHING;
+		VALUES ('TENANT_DEFAULT', 'W-03', CURRENT_DATE, 'ABSENT', 'Line 14', 'ST-03') ON CONFLICT DO NOTHING;
 	`)
 	if err != nil {
 		t.Fatalf("Failed to seed attendance record: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Failed to commit seed transaction: %v", err)
 	}
 
 	inspector := sqlguard.NewCatalogInspector(db)
