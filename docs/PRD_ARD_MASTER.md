@@ -40,12 +40,23 @@ Defect Coordinate Normalization: Fabric defects map to a two-dimensional physica
 Mathematical Cut Allowances: Over-cut allowances are standardized via a deterministic clamp formula: \text{Target Cut Qty} = \text{Order Qty} + \text{Clamp}\Big(\text{round}(0.02 \times \text{Order Qty}), \, 1, \, 15\Big)
 1.2 Measurable
 Decoupled Web Metrology: Length is tracked via physical quadrature rotary encoders riding the moving fabric; width is tracked via calibrated, sub-pixel edge detection algorithms.
-Physical Carrier Segmentation:
-Long-Range Live UHF RFID: Fabric rolls in the warehouse.
-Touch NFC (HF 13.56 MHz): Sub-sub bundles at operator sewing stations.
-Standard UHF EPC Gen2: Individual garments during sewing and transit.
-1D/2D Optical Barcodes: Trim packages, buyer hangtags, shipping cartons, and container manifests.
-Cycle Pacing: Machine cycle times are recorded automatically via station NFC/RFID touchpoints.
+
+Physical Carrier Segmentation & Flow Architecture:
+The platform enforces a 4-Tier physical carrier model matching the factory lifecycle[cite: 5]:
+1. Tag Type 1 — Roll Core Tag: RAIN UHF (860–960 MHz), writable, reusable, mounted on the fabric roll core[cite: 5]. Encodes factory SKU, measured length, minimum usable width, 2D flaw coordinates, shade lot, and remaining length[cite: 5]. Interrogated by Overhead UHF antennas and Handheld UHF Sleds (Chainway C72)[cite: 5, 7]. Removed and redeployed when the roll is depleted[cite: 5].
+2. Tag Type 2 — Sub-Bundle Disc Tag: Encapsulated ABS HF/NFC button disc (13.56 MHz, NTAG213 / ICODE SLIX), 100% closed-loop reusable[cite: 5, 7]. Encodes sequential bundle ID, Cut #, Pant #, Part description, and physical Ply Range (e.g., 1–20)[cite: 5, 7]. Interrogated via flatbed USB NFC pads at bundling tables and station phone NFC pads[cite: 5].
+3. Tag Type 3 — Permanent Garment Tag: Washable fabric inlay RAIN UHF (860–960 MHz, EPC Gen2), permanently stitched into the care label or waistband[cite: 5]. Encodes SGTIN-96 (Buyer GTIN/UPC + sequential garment serial number)[cite: 5]. Survives 50–100 industrial wash/dry cycles[cite: 5]. Interrogated by near-field UHF/barcode scanners at hangtag helper stations, ring scanners at final QC, and bulk packing tunnels[cite: 5].
+4. Tag Type 4 — Carton Shipping Tag: RAIN UHF label + GS1-128 / SSCC barcode, single-use, applied on outer cartons[cite: 5]. Encodes Carton ID, buyer manifest contents, and gross weight verification[cite: 5]. Interrogated by packing tunnels and dock door portals[cite: 5].
+
+Process Telemetry Engine:
+"Every RFID read is an event --> Correlated events become process measurements --> Process measurements become actionable intelligence."[cite: 14]
+By correlating tag identities, reader locations, and timestamps, the edge kernel reconstructs the production journey and continuously measures:
+a) Cycle time: Net duration of each manufacturing operation against Factory SAM[cite: 14].
+b) Interprocess latency: Time elapsed between successive operations across workstations[cite: 14].
+c) Variability: Mean, standard deviation, and outliers across operators, machines, and shifts[cite: 14].
+d) Bottlenecks: Real-time detection of where WIP accumulates and line velocity degrades[cite: 14].
+e) Traceability: Complete garment genealogy from raw fabric roll to shipping container[cite: 14].
+
 1.3 Optimizable
 Empirical Learning Loops: System-calculated standard times (Factory SAM) adjust continuously based on rolling medians from floor scans.
 Adaptive Scheduling: The Cut Plan dynamically incorporates real-world roll measurements and defect maps to bypass damaged fabric zones.
@@ -196,92 +207,19 @@ Runtime Verification: Upon boot, plant-edge-os inspects the active license paylo
 
 
 Dynamic UI Mounting: The edge web server dynamically mounts only licensed API endpoints. The frontend PWA reads this configuration on hydration, rendering only licensed workspace routes while pruning inactive modules from the UI bundle.
-5. End-to-End System Invariants
-Invariant 1: Pre-PO Surplus Matching Gate
-Before an indent can be issued to procurement, the system calculates the net purchase requirement against unreserved inventory:
-\text{Net Indent Qty} = \text{BOM Required Qty} - \text{Available Unreserved Qty}
-The system blocks the creation of purchase orders for gross quantities unless an explicit override reason code is recorded.
-Invariant 2: Sacrosanct Reservations & Zero-Borrowing
-Once a fabric roll is allocated to an Order \times Cut in the Cut Plan, its state locks to RESERVED. The system prohibits borrowing materials across orders. Supplier shortfalls route to the Top Management Council (CEO, Sourcing, Production, IE, Finance) for an official replan.
-Invariant 3: Collaborative Non-Repudiable Planning Lock
-Order commitments require independent baseline sign-offs from Merchandising, IE, Sourcing, and Production. A plan freezes only when all four leads submit cryptographic PIN confirmations. Mid-order modifications generate formal amendments that require unanimous digital re-acceptance before schedule updates take effect.
-Invariant 4: Post-Cut 1 Reality Numbering
-Sequential bundle numbering and RFID tag bindings generate strictly after Cut 1 finishes spreading and cutting. Numbering plans reflect actual physical plies counted rather than CAD projections, preventing phantom garment tags from reaching the sewing floor.
-Invariant 5: Directed Sub Bundle Attachment DAG
-Garment assembly pairings are verified at scan time using an in-memory directed graph:
-\text{Scan Status} = \begin{cases} \mathbf{ACCEPT}, & \text{if } (B_{\text{source}}, B_{\text{target}}) \in \mathcal{E} \land \text{Pant}(B_{\text{source}}) = \text{Pant}(B_{\text{target}}) \\ \mathbf{REJECT}, & \text{otherwise} \end{cases}
-If an operator scans panels from different pants or cuts, the edge engine rejects the pairing, cuts machine motor power via Modbus TCP relays, and withholds piece credits.
-Invariant 6: Hangtag Helper Atomic Swap
-At sewing exit, the internal factory RFID tag is removed and recycled. An atomic database transaction binds the internal RFID tracking record to the buyer's serialized Hangtag barcode:
-\text{HangtagBind} = \langle \text{Internal RFID ID}, \, \text{Buyer Hangtag Barcode}, \, \text{SKU Details}, \, \text{Helper ID}, \, t_{\text{timestamp}} \rangle
-This preserves complete piece-level history through downstream packing and logistics.
-Invariant 7: Closed-Loop Order Conservation
-Material flows must balance across every stage of the manufacturing pipeline:
-\text{Inflow}_{\text{stage}} = \text{Forward} + \text{Lost} + \text{Left Over}
-The complete order must balance before the Order Closure Report (OCR) PDF can be generated:
-\mathbf{Cut} = \mathbf{Shipped} + \sum \mathbf{Lost} + \sum \mathbf{Left Over}
-Any non-zero variance requires explanatory comments from the owning supervisor and digital sign-offs from all six department heads.
-6. Functional Modules Specification
-[Part 1: Costing] ─────────► [Part 2: Planning] ─────────► [Part 3: Sourcing & Stores]
-  Empirical SAM Quote           8-Stream T&A Synch            Mandatory Surplus Pre-PO Gate
-  Capacity-Aware CMT            Ramp Learning Curve           Material Radar & Roll Lay Log
-       │                             │                                  │
-       ▼                             ▼                                  ▼
-[Part 4: Cutting] ─────────► [Part 5 & 6: Sewing/Finishing] ──► [Part 7: OCR Closure]
-  210 Lay & 16-Part DAG         Hangtag Helper Atomic Bind      Inflow = Forward+Lost+Left
-  End-Bit Tier Routing          Multi-Slot Ratio Packing        Immutable Reconciled Ledger
+Invariant 5: Directed Sub-Bundle Attachment DAG & Marriage Retirement Protocol
+Garment assembly pairings are verified at scan time using an in-memory directed graph[cite: 3]. In any joining operation (e.g., Pocket joining Front Panel), the larger component is designated as the Master Carrier[cite: 5].
+1. At a marriage station, the operator taps Secondary Sub-Bundle Tag A on the fixed station NFC pad, followed by Master Sub-Bundle Tag B[cite: 5].
+2. The edge engine evaluates compatibility in <= 20 ms:
+   Scan Status = ACCEPT  if (B_source, B_target) ∈ E  AND  Pant(B_source) == Pant(B_target)  AND  PlyRange(B_source) == PlyRange(B_target)
+3. On MATCH: Tag B absorbs Tag A's complete piece lineage in the database; Tag A is retired and physically dropped into the station recovery bin to be cleaned, re-encoded, and returned to the Cutting Dept pool[cite: 5].
+4. On MISMATCH: The edge engine immediately triggers a 150Hz warning tone, blocks piece credit, and disengages machine motor power via a Modbus TCP relay[cite: 3, 5].
 
-6.1 Costing (Part 1)
-Empirical Factory SAM: Quotes use real operational time studies derived from workstation telemetry rather than theoretical GSD benchmarks. SAM values carry confidence scores: RFID·H (\ge 500 runs), IE·M (100–500 runs), and Provisional / Analogy (<100 runs).
-Capacity-Aware CMT Engine: Calculates Cost-Make-Trim from operation-level SAM and Cost Per Minute (CPM) rates. Identifies machine and skill shortages during initial quoting.
-Progressive Margin Tracking: Monitors margins across four baselines: Quoted \rightarrow Booked \rightarrow Projected Realized \rightarrow Final Realized (OCR).
-6.2 Planning (Part 2)
-8 Synchronized T&A Streams: Balances Fabric, Trims, Cutting, Sewing (Bottleneck), Finishing, Packing Trims, Machine Plan, and Skill Plan. Schedule slips automatically update downstream dependencies.
-Sampling-to-Production Stage Gates: Enforces strict sequential sign-offs before bulk production release: \text{Proto 1} \rightarrow \text{Proto 2} \rightarrow \text{Ref Sample} \rightarrow \text{Pre-Production (PP)} \rightarrow \text{Size Set} \rightarrow \text{TOP Sample} \rightarrow \text{Bulk Cut}
-Learning-Curve Production Ramp (DPP Layer 1): Replaces flat daily targets with an empirical ramp profile across the 8-day production window:
-Day 1: Line setup and tooling verification (0 pcs).
-Day 2: Initial pilot output (30% capacity).
-Day 3: Acceleration (60% capacity).
-Days 4–7: Steady-state run (100% capacity).
-Day 8: Balance runout and line clean-down.
-Automated Pacing Alerts: Calculates line pace deviations: \text{Variance}_{\text{hour}} = \frac{\text{DPP Adjusted Target} - \text{Actual Good Scans}}{\text{DPP Adjusted Target}}
-\text{Variance} \in [11\%, 15\%]: Triggers Level 1 Alert on Line Supervisor tablet (SEW-03).
-\text{Variance} > 15\%: Triggers Level 2 Issue on Line Quality and Mechanic consoles.
-\text{Variance} > 20\% (or 2 consecutive hours behind): Triggers Level 3 Escalation on Plant Manager desktop (PM-01/PM-02).
-6.3 Sourcing & Stores (Part 3)
-Material Radar: Warehouse personnel query inventory remotely via handheld UHF readers. A directional audio tone indicates physical proximity to targeted rolls.
-Dimensional Tolerance Normalization: Inspects fabric rolls at three physical positions: Head, Middle, and Tail. The minimum usable width becomes the binding geometric boundary for CAD marker matching: W_{\text{usable}} = \min(W_{\text{head}}, W_{\text{mid}}, W_{\text{tail}}) - \delta_{\text{selvage}}
-Inspection Rig Metrology: Tracks fabric length using a physical rotary encoder and logs 2D defect coordinates via an overhead camera mounted on a rigid gantry. Measured values commit directly to the roll's Live RFID tag.
-Double-Witness Digital Issuance: Material checkouts require dual authentication (Issuer ID + Recipient ID) completed in <20\text{ seconds}, decrementing tag memory dynamically.
-6.4 Cutting Floor (Part 4)
-Physical Spreading & Cut Constraints:
-Maximum Lay Limit: Spread length capped at 210 lays per table.
-Bundle Size Bounds: 20 \pm 2 pieces per sub-sub bundle.
-Part Complexity: Enforces a 16-part component graph per trouser unit.
-Dynamic Defect Bypass & Optimization: Ingests CAD markers (universal DXF, Optitex, Lectra, Gerber). Projects the 2D defect map across the planned spread: defects falling into inter-panel gaps are flagged as benign, avoiding unnecessary cut stops.
-Roll-to-Lay Lineage (cut_lay_rolls): Explicitly maps each roll to its spread lay range (e.g., Roll #7 \rightarrow Lays 29 to 59). Any ply defect logged downstream traces back to the source fabric roll.
-End-Bit Disposition Thresholds:
-L_{\text{end}} < 1.5\text{m}: Written off as cutting scrap.
-1.5\text{m} \le L_{\text{end}} \le 5.0\text{m}: Retained at the cutting table for panel recuts.
-L_{\text{end}} > 5.0\text{m}: Returned to Stores inventory with updated Live RFID tags for future orders.
-Pre-Sewing Balance Gate: If fabric consumption deviates by more than \pm 2\%, bundles cannot release to sewing lines without digital CEO authorization.
-6.5 Sewing Floor Execution (Part 5)
-Operation Bulletin (OB) Data Contract: Standardizes operation parameters across distinct operational columns:
-Unit Mode: Bundle (batch credit on stack completion) vs. Single (piece-rate credit per unit read).
-Tracking Mode: Scanned (hardware-verified) vs. Unscanned (manual steps inheriting credit from the next scanned operation).
-Operator Multiplicity: Single (1:1 station mapping) vs. Multi-Operator (shared stations balancing tact times).
-Zero-Typing Station HMI: Operators interact with high-contrast touch targets (CYCLE DONE, DEFECT TAG, ANDON) paired with animated 3D assembly instructions.
-In-Line Checker HMI: Checkers verify garments and log results via dedicated [PASS] and [REJECT] tabs, routing rework pieces directly to alteration lines.
-6.6 Finishing, Packing & Pre-Ship Logistics (Part 6)
-Execution Principle: Scan = Identity, Tap = Decision.
-Inspection & Alteration Routing: Checkers inspect garments under the 1.5-second dwell guardrail. Rejections route by failure type: REDO_HANGTAG (Hangtag Helper), REDO_IRON (Ironing Station), or REDO_SEWING (Alteration Operator). All repaired garments must receive a final PASS tap before entering packing queues.
-Multi-Slot Ratio Packing Engine (PK-02): Supports complex mixed cartons:
-Cartons 1–50: Ratio pack (e.g., 2 \times \text{UPC}_1 + 2 \times \text{UPC}_2 + 2 \times \text{UPC}_3 = 6\text{ pcs/box}; Target Gross Weight: 6.2 kg \pm 250\text{g}).
-Cartons 51–150: Solid pack (12 \times \text{UPC}_4; Target Gross Weight: 7.8 kg \pm 250\text{g}).
-Enforcement: The tablet interface renders decrementing slot targets, locking the carton seal and barcode printer until all slots are filled and scale weight matches specification.
-Dock Container Loader: Dock loaders execute decremental scans against shipping manifests, rejecting unverified cartons.
-6.7 Order Closure Report (Part 7)
-Closed-Loop Reconciliation: Reconciles piece counts across all six departments. Once verified against the conservation equation, the system generates an immutable, numbered PDF (e.g., OCR-MK6574J9-001). Post-closure adjustments must be issued as numbered addenda.
+Invariant 6: Permanent Tag Swap & SGTIN-96 Binding
+At the exit of the sewing floor (Hangtag Helper station FH-01), the final Master Sub-Bundle NFC tag is removed and retired to the central recyclable pool[cite: 5, 10]. An atomic database transaction binds the internal WIP tracking record to the garment's permanent washable RAIN UHF inlay (Tag Type 3) and buyer hangtag barcode[cite: 3, 5]:
+   PermanentBind = <Internal Bundle ID, Garment Serial, Buyer GTIN/UPC, SGTIN-96 EPC, Helper ID, t_timestamp>[cite: 3, 5]
+This preserves complete piece-level history through final inspection, multi-slot carton packing, warehouse logistics, and retail checkout[cite: 3, 5].
+
 7. Screen Taxonomy
 The user interface layer contains 31 production-floor screens and ~70 system-wide target views:
 +─────────────────────────────────────────────────────────────────────────────────────────────+
@@ -1137,80 +1075,18 @@ func (l *MerkleLedger) AppendEvent(stationID, operatorID, eventType, rawPayload 
 }
 
 9. Role-Based Hardware Assignment Matrix
-+───────────────────────────────────────────────────────────────────────────────────────────+
-|                                    WORKER-LEVEL HARDWARE                                  |
-|                                                                                           |
-|  [Sewing Operator]          [Store & Cut Helper]           [Finishing & Packers]          |
-|  • Phone / 10" Tablet Mount • Handheld RFID Reader Sled    • Phone / Tablet Kiosk         |
-|  • NFC Wristband Login      • NFC Reader / Barcode Scanner • Bluetooth Ring 2D Scanner    |
-|  • Machine Relay Interlock  • Industrial Label/Card Printer• Benchtop Weighing Scale      |
-+───────────────────────────────────────────────────────────────────────────────────────────+
 
-Operational Persona
-Device Form Factor
-Physical Mounting / Carrying
-Attached Peripherals
-Primary Operational Workflow
-Sewing Machine Operator
-6.5" Phone / 10" Tablet
-Fixed C-clamp machine arm
-NFC wristband / badge
-Large touch targets (DONE, DEFECT, HELP); animated assembly guides.
-Cutting Helper
-10" Rugged Tablet
-Fixed bundling table stand
-Flatbed USB NFC reader
-Cursor-driven auto-advancing single-tag assignment (20 \pm 2 units).
-Store Clerk / Issuer
-Handheld Mobile Computer
-Holster / Pistol grip
-Long-range UHF antenna
-Directional inventory search and double-witness issuance (<20\text{ s}).
-Line Mechanic
-6.5" Rugged Phone
-Drop-resistant belt holster
-Internal vibration/sound alerts
-Real-time breakdown queue, acceptance, and resolution stamps.
-In-Line Quality Checker
-6.5" Rugged Phone
-Neck lanyard / Holster
-Integrated camera
-Defect logging, photo capture, and immediate routing to alteration.
-Hangtag Helper
-6.5" Phone / 10" Tablet
-Station mount at line exit
-Optical barcode reader
-Detaches factory RFID, binds buyer hangtag, and recycles tag.
-Final Quality Checker
-10" Rugged Tablet
-Inspection table mount
-Wearable ring scanner
-1.5s dwell lock, verification, and PASS / REDO routing.
-Packer
-10" Tablet
-Packing station mount
-2D ring scanner + scale
-Multi-slot ratio pack verification and gross box weight check.
-Dock Container Loader
-10" Rugged Tablet
-Handheld with rear strap
-Integrated laser barcode scanner
-Decremental count as cartons load; blocks unauthorized boxes.
-Line Supervisor
-10" Android Tablet
-Shoulder sling / Elastic strap
-Drop bumper casing
-Pacing bars 1–8, bottleneck identification, and float redeployment.
-Plant Manager
-24"–27" Monitor + Desktop
-Office desk
-High-resolution display
-14-line plant status grid (PM-01), executive overrides, and daily review.
-Solution Administrator
-Laptop / Workstation
-Office desk / Server rack
-Secondary diagnostic sled
-System configuration, schema setup, edge monitoring, and backup routines.
+Operational Persona | Device Form Factor | Attached Readers & Peripherals | Primary Operational Workflow
+-------------------|-------------------|--------------------------------|-----------------------------
+Stores Clerk / Receiver | Handheld Mobile Computer (Chainway C72)[cite: 3] | Integrated Long-range UHF antenna + 2D scanner[cite: 3] | Inspect incoming rolls, write measured length & 2D flaw map to Tag Type 1, zoned inventory Geiger search, double-witness issuance[cite: 3, 5].
+Cutting Helper | 10" Rugged Tablet[cite: 3] | Flatbed USB NFC Reader + Industrial Card Printer[cite: 3] | Cursor-driven auto-advancing single-scan binding of 20-piece Sub-Bundle Disc Tags (Tag Type 2)[cite: 3, 5].
+Sewing Machine Operator | 6.5" Android Smartphone[cite: 3] | Machine C-clamp mount with integrated Phone NFC Pad[cite: 3, 5] | Tap bundle NFC tag on station pad; evaluate marriage/absorb sub-tags (<20ms); anti-ghost dwell lock (40% SAM)[cite: 3, 5].
+Line Quality Checker | 6.5" Rugged Phone[cite: 3] | Integrated camera + Bluetooth ring scanner[cite: 3] | In-line inspection, defect tagging, repair routing[cite: 3].
+Hangtag Helper | 6.5" Phone / 10" Tablet[cite: 3] | Dual Reader: USB/Phone NFC Pad + Near-field UHF / 1D-2D Barcode scanner[cite: 3, 5] | Atomic swap: scan final Master NFC Tag, bind to permanent washable UHF label (SGTIN-96) and buyer hangtag, recycle NFC tag[cite: 3, 5].
+Final Quality Checker | 10" Rugged Tablet[cite: 3] | Bluetooth 2D Ring Scanner / Near-field UHF pad[cite: 3, 5] | Scan permanent garment UHF tag; enforce 1.5s inspection dwell lock; PASS or REDO routing[cite: 3, 5].
+Carton Packer | 10" Tablet[cite: 3] | Benchtop Certified Scale + Bulk UHF Packing Tunnel / Scanner[cite: 3, 5] | Scan carton manifest, multi-slot ratio pack verification, instantaneous multi-tag scan of closed carton, gross weight balance[cite: 3, 5].
+Dock Container Loader | 10" Rugged Tablet[cite: 3] | Overhead Dock Door UHF Portal Antennas + Handheld Scanner[cite: 3, 5] | Decremental loading scan against container manifest; rejects unverified cartons[cite: 3].
+Plant Manager / Executive | Desktop Workstation[cite: 3] | Situation Room Display (PM-01)[cite: 3] | 14-line telemetry overview, live process latency & bottleneck monitoring, Agie ReAct AI drawer[cite: 3].
 
 10. 16-Week Agile Sprint Plan
 +─────────────────────────────────────────────────────────────────────────────────+

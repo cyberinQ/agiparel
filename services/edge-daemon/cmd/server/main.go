@@ -27,7 +27,6 @@ import (
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/dbsmith"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/docscribe"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/logicweaver"
-
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -69,100 +68,17 @@ type EdgeServer struct {
 	activeConfig   map[string]interface{}
 }
 
-func initExecutiveDatabase(db *sql.DB) {
-	ddl := `
-	CREATE TABLE IF NOT EXISTS workers (
-		id VARCHAR(64) PRIMARY KEY,
-		tenant_id VARCHAR(64) NOT NULL,
-		name VARCHAR(255) NOT NULL,
-		employee_code VARCHAR(64) NOT NULL,
-		primary_skill VARCHAR(64) NOT NULL,
-		skill_grade VARCHAR(8) NOT NULL,
-		hourly_rate_inr NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-		created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-	);
-
-	CREATE TABLE IF NOT EXISTS attendance_register (
-		id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-		tenant_id VARCHAR(64) NOT NULL,
-		worker_id VARCHAR(64) NOT NULL REFERENCES workers(id),
-		shift_date DATE NOT NULL,
-		clock_in_time TIMESTAMPTZ,
-		clock_out_time TIMESTAMPTZ,
-		status VARCHAR(32) NOT NULL,
-		assigned_line_id VARCHAR(64),
-		assigned_station_id VARCHAR(64)
-	);
-
-	CREATE TABLE IF NOT EXISTS hourly_line_metrics (
-		id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-		tenant_id VARCHAR(64) NOT NULL,
-		line_id VARCHAR(64) NOT NULL,
-		shift_date DATE NOT NULL,
-		hour_window INT NOT NULL,
-		target_units INT NOT NULL,
-		actual_units INT NOT NULL DEFAULT 0,
-		defect_units INT NOT NULL DEFAULT 0,
-		andon_downtime_minutes INT NOT NULL DEFAULT 0,
-		dhu_pct NUMERIC(5,2) GENERATED ALWAYS AS (
-			CASE WHEN actual_units > 0 THEN (defect_units::numeric / actual_units::numeric) * 100 ELSE 0 END
-		) STORED,
-		recorded_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-		CONSTRAINT uq_line_hour UNIQUE (tenant_id, line_id, shift_date, hour_window)
-	);
-
-	CREATE TABLE IF NOT EXISTS work_orders (
-		id VARCHAR(64) PRIMARY KEY,
-		tenant_id VARCHAR(64) NOT NULL,
-		order_id VARCHAR(64) NOT NULL,
-		po_number VARCHAR(64) NOT NULL,
-		style_code VARCHAR(64) NOT NULL,
-		line_id VARCHAR(64) NOT NULL,
-		supervisor_id VARCHAR(64) NOT NULL,
-		target_qty INT NOT NULL,
-		completed_qty INT NOT NULL DEFAULT 0,
-		status VARCHAR(32) NOT NULL,
-		started_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-	);
-
-	-- Seed Ground Truth Workers
-	INSERT INTO workers (id, tenant_id, name, employee_code, primary_skill, skill_grade) VALUES
-	('W-01', 'TENANT_DEFAULT', 'Ram Kumar', 'EMP_SUPV_01', 'LINE_SUPERVISOR', 'A'),
-	('W-02', 'TENANT_DEFAULT', 'Sita Devi', 'EMP_A812', '4-OL_SERGING', 'A'),
-	('W-03', 'TENANT_DEFAULT', 'Sunita Sharma', 'EMP_A813', 'KANSAI_HEMMING', 'B'),
-	('W-04', 'TENANT_DEFAULT', 'Mohan Lal', 'EMP_A814', 'SNLS_BACK_RISE', 'A')
-	ON CONFLICT (id) DO NOTHING;
-
-	-- Seed Today's Attendance
-	DELETE FROM attendance_register WHERE shift_date = CURRENT_DATE;
-	INSERT INTO attendance_register (tenant_id, worker_id, shift_date, clock_in_time, status, assigned_line_id, assigned_station_id) VALUES
-	('TENANT_DEFAULT', 'W-01', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '4 hours', 'PRESENT', 'Line 14', 'SUPERVISOR_DESK'),
-	('TENANT_DEFAULT', 'W-02', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '4 hours', 'PRESENT', 'Line 14', 'ST-02'),
-	('TENANT_DEFAULT', 'W-03', CURRENT_DATE, NULL, 'ABSENT', 'Line 14', 'ST-03'),
-	('TENANT_DEFAULT', 'W-04', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '4 hours', 'PRESENT', 'Line 14', 'ST-04')
-	ON CONFLICT DO NOTHING;
-
-	-- Seed Active Work Order
-	INSERT INTO work_orders (id, tenant_id, order_id, po_number, style_code, line_id, supervisor_id, target_qty, completed_qty, status)
-	VALUES ('WO-MK6574J9-01', 'TENANT_DEFAULT', 'ORD-2026-001', 'MK6574J9', 'KK524867', 'Line 14', 'W-01', 600, 3, 'IN_PROGRESS')
-	ON CONFLICT (id) DO NOTHING;
-	`
-	if _, err := db.Exec(ddl); err != nil {
-		log.Printf("Executive DB init warning: %v", err)
-	} else {
-		log.Println("Executive DB schema and ground-truth seed verified successfully.")
-	}
-}
-
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
+
 	secret := os.Getenv("LEDGER_SECRET")
 	if secret == "" {
 		secret = "DEV_INSECURE_SECRET_REPLACE_IN_PROD"
 	}
+
 	walPath := os.Getenv("WAL_PATH")
 	if walPath == "" {
 		walPath = "./data/wal/events.wal"
@@ -218,11 +134,11 @@ func main() {
 		} else {
 			db.SetMaxOpenConns(25)
 			db.SetMaxIdleConns(5)
-			initExecutiveDatabase(db)
 		}
 	}
 
 	twin := topology.NewSpatialTwin()
+
 	defaultCfg := map[string]interface{}{
 		"plant_name":    "Noble Garments",
 		"unit_code":     "Unit 002/02",
@@ -249,11 +165,11 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-
 	mux.HandleFunc("/healthz", server.handleHealth)
 	mux.HandleFunc("/api/v1/modules", server.handleGetModules)
 	mux.HandleFunc("/api/v1/ledger/append", server.handleLedgerAppend)
 	mux.HandleFunc("/api/v1/ledger/latest", server.handleLedgerLatest)
+	mux.HandleFunc("/api/v1/ledger/verify", server.handleLedgerVerify)
 	mux.HandleFunc("/api/v1/agie/chat", server.handleAgieChat)
 	mux.HandleFunc("/api/v1/agie/confirm", server.handleAgieConfirm)
 	mux.HandleFunc("/api/v1/config", server.handleGetConfig)
@@ -283,6 +199,7 @@ func main() {
 	}
 
 	mux.HandleFunc("/api/v1/topology/devices", server.handleGetTopologyDevices)
+
 	mux.HandleFunc("/plant", func(w http.ResponseWriter, r *http.Request) {
 		data, err := web.GetPlantViewHTML()
 		if err != nil {
@@ -294,6 +211,7 @@ func main() {
 	})
 
 	mux.Handle("/static/", http.StripPrefix("/static/", web.StaticHandler()))
+
 	mux.HandleFunc("/sew01", func(w http.ResponseWriter, r *http.Request) {
 		data, err := web.GetSEW01HTML()
 		if err != nil {
@@ -376,7 +294,6 @@ func (s *EdgeServer) handleLedgerAppend(w http.ResponseWriter, r *http.Request) 
 	evBytes, _ := json.Marshal(event)
 	_, _ = s.wal.Append("LEDGER_EVENT", evBytes)
 
-	// Persist to PostgreSQL hourly metrics
 	if s.db != nil {
 		currHour := time.Now().Hour()
 		hourWindow := (currHour - 8) + 1
@@ -407,6 +324,36 @@ func (s *EdgeServer) handleLedgerAppend(w http.ResponseWriter, r *http.Request) 
 	_ = json.NewEncoder(w).Encode(event)
 }
 
+func (s *EdgeServer) handleLedgerVerify(w http.ResponseWriter, r *http.Request) {
+	records, err := s.wal.ReplayAll()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to replay WAL: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	tempLedger := crypto.NewMerkleLedger(s.secretKey)
+	var auditEvents []crypto.AuditEvent
+	for _, rec := range records {
+		if rec.Type == "LEDGER_EVENT" {
+			var ev crypto.AuditEvent
+			if err := json.Unmarshal(rec.Payload, &ev); err == nil {
+				auditEvents = append(auditEvents, ev)
+			}
+		}
+	}
+	tempLedger.Hydrate(auditEvents)
+
+	isValid := tempLedger.GetLatestHash() == s.ledger.GetLatestHash()
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"verified":      isValid,
+		"total_events":  tempLedger.GetCurrentIndex(),
+		"current_hash":  s.ledger.GetLatestHash(),
+		"audited_hash":  tempLedger.GetLatestHash(),
+	})
+}
+
 func (s *EdgeServer) handleLedgerLatest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{
@@ -430,6 +377,7 @@ func (s *EdgeServer) handleStoresIndentCheck(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
+
 	calc := stores.CalculateNetIndent(req.SKU, req.BOMRequiredQty, req.UnreservedQty)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(calc)
@@ -454,6 +402,7 @@ func (s *EdgeServer) handleStoresIssueDoubleWitness(w http.ResponseWriter, r *ht
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
+
 	record, err := s.stores.DoubleWitnessIssue(
 		req.RollID, req.OrderID, req.CutNo, req.IssuedLengthM,
 		req.IssuerID, req.RecipientID, s.secretKey,
@@ -462,6 +411,7 @@ func (s *EdgeServer) handleStoresIssueDoubleWitness(w http.ResponseWriter, r *ht
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(record)
 }
@@ -482,6 +432,7 @@ func (s *EdgeServer) handleCuttingPlanTarget(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
+
 	target := cutting.CalculateCutTarget(req.OrderID, req.SizeVariant, req.OrderQty)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(target)
@@ -506,6 +457,7 @@ func (s *EdgeServer) handleCuttingLayRoll(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
+
 	record, err := cutting.EvaluateEndBitDisposition(
 		req.RollID, req.OrderID, req.CutNo, req.LayStart, req.LayEnd, req.EndBitLengthM,
 	)
@@ -513,6 +465,7 @@ func (s *EdgeServer) handleCuttingLayRoll(w http.ResponseWriter, r *http.Request
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(record)
 }
@@ -532,6 +485,7 @@ func (s *EdgeServer) handleSewingBindTag(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
+
 	s.attachment.BindTag(req.NFCUID, req.Node)
 	w.WriteHeader(http.StatusCreated)
 }
@@ -552,18 +506,20 @@ func (s *EdgeServer) handleSewingValidatePair(w http.ResponseWriter, r *http.Req
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
+
 	if err := s.attachment.ValidatePair(req.StyleID, req.SourceNFC, req.TargetNFC); err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ACCEPT"})
 }
 
 type RegisterRuleRequest struct {
-	StyleID      string `json:"style_id"`
-	SourcePartID int    `json:"source_part_id"`
-	TargetPartID int    `json:"target_part_id"`
+	StyleID        string `json:"style_id"`
+	ParentPartCode string `json:"parent_part_code"`
+	ChildPartCode  string `json:"child_part_code"`
 }
 
 func (s *EdgeServer) handleSewingRegisterRule(w http.ResponseWriter, r *http.Request) {
@@ -576,7 +532,8 @@ func (s *EdgeServer) handleSewingRegisterRule(w http.ResponseWriter, r *http.Req
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-	s.attachment.RegisterRule(req.StyleID, req.SourcePartID, req.TargetPartID)
+
+	s.attachment.RegisterRule(req.StyleID, req.ParentPartCode, req.ChildPartCode)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -598,11 +555,13 @@ func (s *EdgeServer) handlePackingStart(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
+
 	s.packingMu.Lock()
 	s.activePackings[req.BoxID] = packing.NewCartonPackingSession(
 		req.BoxID, req.PackType, req.Slots, req.ExpectedWeightKg, req.ToleranceKg,
 	)
 	s.packingMu.Unlock()
+
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -621,6 +580,7 @@ func (s *EdgeServer) handlePackingScan(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
+
 	s.packingMu.Lock()
 	sess, exists := s.activePackings[req.BoxID]
 	s.packingMu.Unlock()
@@ -629,10 +589,12 @@ func (s *EdgeServer) handlePackingScan(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Box session not found", http.StatusNotFound)
 		return
 	}
+
 	if err := sess.ScanItemUPC(req.UPC); err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -651,6 +613,7 @@ func (s *EdgeServer) handlePackingSeal(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
+
 	s.packingMu.Lock()
 	sess, exists := s.activePackings[req.BoxID]
 	s.packingMu.Unlock()
@@ -659,10 +622,12 @@ func (s *EdgeServer) handlePackingSeal(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Box session not found", http.StatusNotFound)
 		return
 	}
+
 	if err := sess.VerifyAndSeal(req.MeasuredWeight); err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "SEALED"})
 }
@@ -684,6 +649,7 @@ func (s *EdgeServer) handleOCRReconcile(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
+
 	report, err := ocr.EvaluateConservation(req.OrderID, req.CutNo, req.Breakdown, req.VarianceComment)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
@@ -724,6 +690,7 @@ func (s *EdgeServer) handleOCRSign(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Reconciliation session not initialized for order", http.StatusNotFound)
 		return
 	}
+
 	if err := sess.Sign(req.Department, req.SignerID); err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -760,6 +727,7 @@ func (s *EdgeServer) handleOCRSeal(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Reconciliation session not initialized for order", http.StatusNotFound)
 		return
 	}
+
 	cert, err := sess.Seal()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
@@ -780,117 +748,6 @@ type AgieChatRequest struct {
 	Messages []interviewer.LLMMessage `json:"messages"`
 }
 
-func (s *EdgeServer) buildLiveContextPrompt() string {
-	s.cfgMu.Lock()
-	cfg := s.activeConfig
-	s.cfgMu.Unlock()
-
-	targetQty := 600
-	if val, ok := cfg["target_qty"].(int); ok && val > 0 {
-		targetQty = val
-	}
-
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("FACTORY: %v | UNIT: %v | LINE: %v\n", cfg["plant_name"], cfg["unit_code"], cfg["pilot_line"]))
-	sb.WriteString(fmt.Sprintf("SHIFT TARGET: %d units total (approx 75 units/hour across an 8-hour shift)\n", targetQty))
-
-	// 1. WORK ORDER & SUPERVISION GROUND TRUTH
-	if s.db != nil {
-		var woID, po, style, supvName string
-		var target, done int
-		err := s.db.QueryRow(`
-			SELECT wo.id, wo.po_number, wo.style_code, w.name, wo.target_qty, wo.completed_qty
-			FROM work_orders wo
-			JOIN workers w ON wo.supervisor_id = w.id
-			WHERE wo.status = 'IN_PROGRESS' LIMIT 1
-		`).Scan(&woID, &po, &style, &supvName, &target, &done)
-
-		if err != nil {
-			log.Printf("buildLiveContextPrompt: work_orders query error: %v", err)
-		} else {
-			sb.WriteString("\nACTIVE WORK ORDER & SUPERVISION:\n")
-			sb.WriteString(fmt.Sprintf("• Active Work Order: %s (PO: %s, Style: %s)\n", woID, po, style))
-			sb.WriteString(fmt.Sprintf("• Line Supervisor: %s\n", supvName))
-			sb.WriteString(fmt.Sprintf("• Work Order Progress: %d of %d pieces completed\n", done, target))
-		}
-	}
-
-	// 2. ATTENDANCE REALITY
-	if s.db != nil {
-		rows, err := s.db.Query(`
-			SELECT w.name, a.status, COALESCE(a.assigned_station_id, 'UNASSIGNED') 
-			FROM attendance_register a 
-			JOIN workers w ON a.worker_id = w.id 
-			WHERE a.shift_date = CURRENT_DATE AND a.status = 'ABSENT'
-		`)
-		if err != nil {
-			log.Printf("buildLiveContextPrompt: attendance query error: %v", err)
-		} else {
-			absentCount := 0
-			sb.WriteString("\nATTENDANCE STATUS (ABSENTEES TODAY):\n")
-			for rows.Next() {
-				absentCount++
-				var name, status, stID string
-				_ = rows.Scan(&name, &status, &stID)
-				sb.WriteString(fmt.Sprintf("• ABSENT: %s (Assigned to Station: %s)\n", name, stID))
-			}
-			rows.Close()
-			if absentCount == 0 {
-				sb.WriteString("• All scheduled operators are PRESENT.\n")
-			}
-		}
-
-		// 3. LIVE PRODUCTION TOTALS & DHU
-		var totalMade, totalDefects, totalDowntime int
-		err = s.db.QueryRow(`
-			SELECT COALESCE(SUM(actual_units), 0), COALESCE(SUM(defect_units), 0), COALESCE(SUM(andon_downtime_minutes), 0)
-			FROM hourly_line_metrics 
-			WHERE shift_date = CURRENT_DATE
-		`).Scan(&totalMade, &totalDefects, &totalDowntime)
-
-		if err != nil {
-			log.Printf("buildLiveContextPrompt: hourly metrics query error: %v", err)
-		} else {
-			dhu := 0.0
-			if totalMade > 0 {
-				dhu = (float64(totalDefects) / float64(totalMade)) * 100.0
-			}
-			sb.WriteString("\nTODAY'S PRODUCTION TOTALS (CUMULATIVE):\n")
-			sb.WriteString(fmt.Sprintf("• Actual Output: %d pieces completed\n", totalMade))
-			sb.WriteString(fmt.Sprintf("• Target Deficit: %d pieces behind shift target\n", targetQty-totalMade))
-			sb.WriteString(fmt.Sprintf("• Total Defects: %d pieces\n", totalDefects))
-			sb.WriteString(fmt.Sprintf("• Cumulative DHU: %.2f%%\n", dhu))
-			sb.WriteString(fmt.Sprintf("• Total Andon Downtime: %d minutes\n", totalDowntime))
-		}
-
-		// 4. HOURLY BREAKDOWN
-		hRows, err := s.db.Query(`
-			SELECT hour_window, actual_units, defect_units, andon_downtime_minutes, dhu_pct
-			FROM hourly_line_metrics
-			WHERE shift_date = CURRENT_DATE
-			ORDER BY hour_window ASC
-		`)
-		if err == nil {
-			sb.WriteString("\nHOURLY VELOCITY BREAKDOWN:\n")
-			rowCount := 0
-			for hRows.Next() {
-				rowCount++
-				var hw, actual, def, down int
-				var dhuPct float64
-				_ = hRows.Scan(&hw, &actual, &def, &down, &dhuPct)
-				sb.WriteString(fmt.Sprintf("• Hour %d: %d pcs completed, %d defects (DHU: %.1f%%), %d min downtime\n",
-					hw, actual, def, dhuPct, down))
-			}
-			hRows.Close()
-			if rowCount == 0 {
-				sb.WriteString("• No completed hour buckets recorded yet.\n")
-			}
-		}
-	}
-
-	return sb.String()
-}
-
 func (s *EdgeServer) handleAgieChat(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -902,13 +759,12 @@ func (s *EdgeServer) handleAgieChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	plantContext := s.buildLiveContextPrompt()
-
-	reply, err := s.interviewer.Chat(req.Mode, req.Messages, plantContext)
+	reply, err := s.interviewer.Chat(r.Context(), s.db, req.Messages)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{"reply": reply})
 }
@@ -980,58 +836,6 @@ func (s *EdgeServer) handleAgieConfirm(w http.ResponseWriter, r *http.Request) {
 func (s *EdgeServer) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	s.cfgMu.Lock()
 	defer s.cfgMu.Unlock()
-
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(s.activeConfig)
-}
-
-type HourlyTrend struct {
-	HourBucket   string  `json:"hour_bucket"`
-	CyclesDone   int     `json:"cycles_done"`
-	DefectsCount int     `json:"defects_count"`
-	AndonCalls   int     `json:"andon_calls"`
-	AvgCycleSec  float64 `json:"avg_cycle_sec"`
-}
-
-func (s *EdgeServer) computeRecentTrends(hours int) []HourlyTrend {
-	records, err := s.wal.ReplayAll()
-	if err != nil {
-		return nil
-	}
-
-	cutoff := time.Now().UTC().Add(-time.Duration(hours) * time.Hour).UnixMilli()
-	bucketMap := make(map[string]*HourlyTrend)
-
-	for _, rec := range records {
-		if rec.Timestamp < cutoff {
-			continue
-		}
-		t := time.UnixMilli(rec.Timestamp).UTC()
-		hourKey := t.Format("15:00")
-
-		if _, exists := bucketMap[hourKey]; !exists {
-			bucketMap[hourKey] = &HourlyTrend{HourBucket: hourKey}
-		}
-
-		b := bucketMap[hourKey]
-		switch rec.Type {
-		case "LEDGER_EVENT":
-			var ev crypto.AuditEvent
-			if err := json.Unmarshal(rec.Payload, &ev); err == nil {
-				if ev.EventType == "CYCLE_DONE" {
-					b.CyclesDone++
-				} else if ev.EventType == "DEFECT_TAG" {
-					b.DefectsCount++
-				} else if ev.EventType == "ANDON_CALL" {
-					b.AndonCalls++
-				}
-			}
-		}
-	}
-
-	var results []HourlyTrend
-	for _, trend := range bucketMap {
-		results = append(results, *trend)
-	}
-	return results
 }

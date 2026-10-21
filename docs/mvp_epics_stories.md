@@ -324,34 +324,35 @@ Dev Tasks
 
 [ ] Integrate local audio chimes (800Hz success, 150Hz warning, Hindi/Bengali error prompts).
 
+### Story 4.3: Real-Time Process Measurement & Event Correlation Engine
+**As an** Industrial Engineer and Line Supervisor,  
+**I want to** correlate tag identities, station NFC reader IDs, and scan timestamps,  
+**So that** the system automatically computes cycle times, interprocess transfer latency, and operator variability without manual time studies[cite: 14].
 
-EPIC 5: Finishing Handoff, Multi-Slot Ratio Packing & Shipping
-Story 5.1: Hangtag Helper Atomic Swap (FH-01)
-As a Hangtag Helper,
+#### Acceptance Criteria
+* **Gherkin Scenario: Process Latency & Cycle Computation**
+  ```gherkin
+  Given Bundle 047 completes Operation 10 (Left Pocket Hem) at Station ST-02 at timestamp T_0
+  When Bundle 047 is scanned at Station ST-04 for Operation 11 (Pocket Attach) at timestamp T_1
+  And the operator taps "CYCLE DONE" at timestamp T_2
+  Then the edge daemon records Interprocess Latency = (T_1 - T_0)
+  And records Operation Cycle Time = (T_2 - T_1)
+  And flags a bottleneck warning if Interprocess Latency exceeds 15 minutes.
 
-I want to scan the factory internal NFC bundle tag and the buyer's serialized hangtag barcode,
+### Story 5.1: Permanent Washable RFID Label Swap & SGTIN-96 Binding (FH-01)
+**As a** Hangtag Helper,  
+**I want to** scan the final Master Sub-Bundle NFC tag and encode the garment's permanent washable RAIN UHF label,  
+**So that** internal WIP genealogy transfers to the buyer's serialized SGTIN-96 (GTIN + serial), and the recyclable NFC tag returns to the pool[cite: 4, 5].
 
-So that full production genealogy transfers to the buyer UPC while the NFC tag is returned to the pool.
-
-Acceptance Criteria
-Gherkin Scenario: Atomic Hangtag Swap
-
-
-
-Gherkin
-When the helper scans factory NFC "04A1B2C3" and buyer barcode "760925382574"
-Then hangtag_binds records the link atomically
-And the internal NFC tag status reverts to "AVAILABLE"
-And the buyer hangtag is locked to prevent duplicate usage.
-
-
-
-
-Dev Tasks
-[ ] Implement POST /api/v1/finishing/hangtag-bind endpoint with unique constraints.
-
-
-[ ] Build rapid-scan dual barcode/NFC view FH-01.
+#### Acceptance Criteria
+* **Gherkin Scenario: Atomic Permanent Tag Swap**
+  ```gherkin
+  Given Style KK524867 has Buyer UPC "760295722291" for Size 29/30 Green
+  When the helper scans final Master NFC Tag "04A1B2C3" at station FH-01
+  And scans the permanent washable UHF care-label inlay
+  Then the system writes SGTIN-96 encoding to the permanent UHF tag
+  And creates an immutable HangtagBind record linking factory serial to buyer SGTIN-96
+  And marks NFC Tag "04A1B2C3" as RETIRED/AVAILABLE in the cutting tag pool.
 
 
 Story 5.2: Final QC Checker HMI (FH-03) with 1.5s Dwell Guard
@@ -401,16 +402,27 @@ Then the carton status remains "INCOMPLETE" and label print is disabled
 When the final 2x of UPC_3 are scanned and scale reads 6.22 kg
 Then the system emits carton seal authorization and prints the box label.
 
-
-
-
 Dev Tasks
 [ ] Implement ratio-packing session state machine in services/core-api/internal/packing/carton.go.
 
 
 [ ] Build PK-02 packing station tablet view with live slot counters and scale weight check.
 
+### Story 5.4: Bulk Carton Packing Tunnel & Scale Verification (PK-02)
+**As a** Carton Packer,  
+**I want** the bulk packing tunnel to read all permanent garment tags inside a closed carton while simultaneously capturing scale weight,  
+**So that** ratio-pack compliance and piece count are verified in under 1 second without opening the box[cite: 4, 5].
 
+#### Acceptance Criteria
+* **Gherkin Scenario: Instant Bulk Carton Verification**
+  ```gherkin
+  Given a ratio carton with manifest: 2x Size 28 + 2x Size 30 + 2x Size 32 (Target: 6.20 kg ± 250g)
+  When the sealed carton passes through the UHF packing tunnel
+  Then the tunnel reads all 6 permanent UHF garment tags in <= 500 ms
+  And verifies each SGTIN-96 matches the expected ratio slots
+  And verifies digital scale reads 6.22 kg
+  Then the carton status marks SHIP_READY and emits the SSCC-18 Carton Label.
+  
 EPIC 6: Order Closure Report (OCR) & Management Dashboard
 Story 6.1: Closed-Loop Mathematical Conservation Engine
 As a Factory Head and Merchandiser,

@@ -1,22 +1,39 @@
-ALTER TABLE store_rolls ENABLE ROW LEVEL SECURITY;
-ALTER TABLE store_rolls FORCE ROW LEVEL SECURITY;
+-- ============================================================================
+-- AGIPAREL OS: CONSOLIDATED RLS POLICIES (0002_rls_policies.sql)
+-- ============================================================================
 
-ALTER TABLE store_issuances ENABLE ROW LEVEL SECURITY;
-ALTER TABLE store_issuances FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE bundle_registry ENABLE ROW LEVEL SECURITY;
-ALTER TABLE bundle_registry FORCE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS tenant_isolation_store_rolls ON store_rolls;
-CREATE POLICY tenant_isolation_store_rolls ON store_rolls
-    FOR ALL
-    TO PUBLIC
-    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), ''))
-    WITH CHECK (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), ''));
-
-DROP POLICY IF EXISTS tenant_isolation_store_issuances ON store_issuances;
-CREATE POLICY tenant_isolation_store_issuances ON store_issuances
-    FOR ALL
-    TO PUBLIC
-    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), ''))
-    WITH CHECK (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), ''));
+-- Helper Macro Loop for Enabling RLS and Setting Uniform Tenant Isolation
+DO $$
+DECLARE
+    tbl text;
+    tables text[] := ARRAY[
+        'store_rolls',
+        'store_issuances',
+        'cut_lay_rolls',
+        'bundle_registry',
+        'hangtag_binds',
+        'carton_pack_manifests',
+        'ocr_records',
+        'floor_issues',
+        'workers',
+        'attendance_register',
+        'machine_roster',
+        'hourly_line_metrics',
+        'styles_master',
+        'style_parts',
+        'style_assembly_dag',
+        'dynamic_work_orders'
+    ];
+BEGIN
+    FOREACH tbl IN ARRAY tables LOOP
+        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', tbl);
+        EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY;', tbl);
+        EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_%I ON %I;', tbl, tbl);
+        EXECUTE format(
+            'CREATE POLICY tenant_isolation_%I ON %I FOR ALL TO PUBLIC ' ||
+            'USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')) ' ||
+            'WITH CHECK (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), ''''));',
+            tbl, tbl
+        );
+    END LOOP;
+END $$;

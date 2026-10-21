@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -15,6 +16,17 @@ func TestRLSTenantIsolation(t *testing.T) {
 		t.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
+
+	// 0. Ensure foreign key parent tenants exist
+	tenantSetupQuery := `
+		INSERT INTO tenants (id, name) VALUES 
+		('TENANT_NOBLE_OKHLA', 'Noble Garments Okhla Unit'),
+		('TENANT_TEST_99', 'Test Tenant 99')
+		ON CONFLICT (id) DO NOTHING;
+	`
+	if _, err := db.ExecContext(ctx, tenantSetupQuery); err != nil {
+		t.Fatalf("Failed to seed prerequisite test tenants: %v", err)
+	}
 
 	rollA_ID := "ROLL-NOBLE-001"
 
@@ -37,6 +49,7 @@ func TestRLSTenantIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to insert roll for tenant A: %v", err)
 	}
+
 	if err := txA.Commit(); err != nil {
 		t.Fatalf("Failed to commit transaction A: %v", err)
 	}
@@ -57,6 +70,7 @@ func TestRLSTenantIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to scan rolls under Tenant B: %v", err)
 	}
+
 	if count != 0 {
 		t.Fatalf("RLS VIOLATION: Tenant B detected %d records belonging to Tenant A", count)
 	}
