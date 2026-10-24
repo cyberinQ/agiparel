@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
-
-	"github.com/cyberinq/agiparel/services/edge-daemon/internal/modbus"
 )
 
 var (
@@ -24,25 +22,18 @@ type SubBundleNode struct {
 	PartName     string `json:"part_name"`
 	PlyStart     int    `json:"ply_start"`
 	PlyEnd       int    `json:"ply_end"`
-	StationCoil  uint16 `json:"station_coil,omitempty"`
 }
 
 type AttachmentEngine struct {
 	sync.RWMutex
-	validRules   map[string]map[string]map[string]bool // Style -> SrcPartKey -> TgtPartKey -> true
-	bundleLookup map[string]SubBundleNode              // NFC_UID -> Node
-	relay        *modbus.RelayController
+	validRules   map[string]map[string]map[string]bool
+	bundleLookup map[string]SubBundleNode
 }
 
-func NewAttachmentEngine(modbusAddr ...string) *AttachmentEngine {
-	var rc *modbus.RelayController
-	if len(modbusAddr) > 0 && modbusAddr[0] != "" {
-		rc = modbus.NewRelayController(modbusAddr[0])
-	}
+func NewAttachmentEngine() *AttachmentEngine {
 	return &AttachmentEngine{
 		validRules:   make(map[string]map[string]map[string]bool),
 		bundleLookup: make(map[string]SubBundleNode),
-		relay:        rc,
 	}
 }
 
@@ -75,61 +66,43 @@ func (e *AttachmentEngine) RegisterRule(styleID, parentPartCode, childPartCode s
 	e.validRules[styleID][parentPartCode][childPartCode] = true
 }
 
-func (e *AttachmentEngine) RegisterValidEdge(styleID string, srcPart, tgtPart int) {
-	e.RegisterRule(styleID, strconv.Itoa(srcPart), strconv.Itoa(tgtPart))
-}
-
 func (e *AttachmentEngine) ValidatePair(styleID, sourceNFC, targetNFC string) error {
 	e.Lock()
 	defer e.Unlock()
 
 	src, okSrc := e.bundleLookup[sourceNFC]
 	tgt, okTgt := e.bundleLookup[targetNFC]
+
 	if !okSrc || !okTgt {
 		return errors.New("ERR_UNREGISTERED_TAG: Tag missing from active floor pool")
 	}
 
-	coil := tgt.StationCoil
-	if coil == 0 {
-		coil = 1
-	}
-
 	if src.CutNo != tgt.CutNo {
-		e.tripInterlock(coil)
 		return fmt.Errorf("%w: Cannot attach Cut %d to Cut %d", ErrCutMismatch, src.CutNo, tgt.CutNo)
 	}
-
 	if src.PantPosition != tgt.PantPosition {
-		e.tripInterlock(coil)
-		return fmt.Errorf("%w: Bundle %d (Pant %d) cannot marry Bundle %d (Pant %d)",
-			ErrShadeMismatch, src.SequentialID, src.PantPosition, tgt.SequentialID, tgt.PantPosition)
+		return fmt.Errorf("%w: Bundle %d (Pant %d) cannot marry Bundle %d (Pant %d)", ErrShadeMismatch, src.SequentialID, src.PantPosition, tgt.SequentialID, tgt.PantPosition)
 	}
-
 	if src.PlyStart != tgt.PlyStart || src.PlyEnd != tgt.PlyEnd {
-		e.tripInterlock(coil)
-		return fmt.Errorf("ERR_PLY_MISMATCH: Ply group mismatch [%d-%d] vs [%d-%d]",
-			src.PlyStart, src.PlyEnd, tgt.PlyStart, tgt.PlyEnd)
+		return fmt.Errorf("ERR_PLY_MISMATCH: Ply group mismatch [%d-%d] vs [%d-%d]", src.PlyStart, src.PlyEnd, tgt.PlyStart, tgt.PlyEnd)
 	}
 
 	srcKey := partKey(src)
 	tgtKey := partKey(tgt)
+
 	if e.validRules[styleID] == nil || e.validRules[styleID][srcKey] == nil || !e.validRules[styleID][srcKey][tgtKey] {
-		e.tripInterlock(coil)
 		return fmt.Errorf("%w: Part %s cannot attach to %s", ErrInvalidSequence, src.PartName, tgt.PartName)
 	}
 
 	return nil
 }
 
-// RetireSecondaryTag retires Tag A after marriage absorption into Master Carrier Tag B (PRD Invariant 5)
 func (e *AttachmentEngine) RetireSecondaryTag(sourceNFC string) {
 	e.Lock()
 	defer e.Unlock()
 	delete(e.bundleLookup, sourceNFC)
 }
 
-func (e *AttachmentEngine) tripInterlock(coil uint16) {
-	if e.relay != nil {
-		_ = e.relay.TripMotorInterlock(coil)
-	}
+func (e *AttachmentEngine) RegisterValidEdge(styleID string, srcPart, tgtPart int) {
+	e.RegisterRule(styleID, strconv.Itoa(srcPart), strconv.Itoa(tgtPart))
 }

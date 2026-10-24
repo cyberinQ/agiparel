@@ -108,3 +108,22 @@ func (s *StoresEngine) DoubleWitnessIssue(rollID, orderID string, cutNo int, iss
 	}
 	return record, nil
 }
+// VerifyIssuanceSignature allows offline downstream stations (e.g., cutting tables) 
+// to cryptographically verify double-witness signatures without reaching the cloud.
+func VerifyIssuanceSignature(record IssuanceRecord, secretKey string) bool {
+	claim := fmt.Sprintf("%s:%s:%d:%.3f:%s:%s:%d", 
+		record.RollID, 
+		record.OrderID, 
+		record.CutNo, 
+		record.IssuedLengthM, 
+		record.IssuerID, 
+		record.RecipientID, 
+		record.IssuedAt,
+	)
+	
+	mac := hmac.New(sha256.New, []byte(secretKey))
+	mac.Write([]byte(claim))
+	expectedHash := hex.EncodeToString(mac.Sum(nil))
+	
+	return hmac.Equal([]byte(record.DigitalSigHash), []byte(expectedHash))
+}

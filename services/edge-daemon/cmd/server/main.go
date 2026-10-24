@@ -152,11 +152,10 @@ func main() {
 		"configured_at": time.Now().UTC().UnixMilli(),
 	}
 
-	modbusRelay := os.Getenv("MODBUS_RELAY_ADDR")
 	server := &EdgeServer{
 		modules:        modules,
 		ledger:         ledger,
-		attachment:     attachment.NewAttachmentEngine(modbusRelay),
+		attachment:     attachment.NewAttachmentEngine(),
 		stores:         storesEng,
 		spatialTwin:    twin,
 		wal:            localWAL,
