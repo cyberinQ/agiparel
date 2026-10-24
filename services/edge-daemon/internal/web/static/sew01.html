@@ -3,219 +3,296 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>SEW-01 · Operator HMI Terminal</title>
+  <title>SEW-01 | Advanced RFID Operator Terminal</title>
   <style>
     :root {
-      --bg: #121214;
-      --card: #1F1F23;
-      --text: #F9FAFB;
-      --green: #10B981;
-      --amber: #F59E0B;
-      --red: #DC2626;
-      --disabled: #374151;
+      --bg: #121214; --card: #1F1F23; --text: #F9FAFB;
+      --brand: #2563EB; --green: #10B981; --amber: #F59E0B;
+      --red: #DC2626; --disabled: #374151; --line: #2D2D30;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 16px;
-      overflow: hidden;
-    }
-    header {
-      background: var(--card);
-      padding: 16px 20px;
-      border-radius: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .station-title {
-      font-size: 1.4rem;
-      font-weight: 800;
-    }
-    .badge {
-      background: #2563EB;
-      padding: 6px 14px;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 700;
-    }
-    .timer-container {
-      width: 100%;
-      height: 14px;
-      background: var(--disabled);
-      border-radius: 7px;
-      overflow: hidden;
-      margin: 14px 0;
-    }
-    .timer-bar {
-      width: 0%;
-      height: 100%;
-      background: var(--green);
-      transition: width 0.1s linear;
-    }
-    .button-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      flex: 1;
-      justify-content: center;
-    }
-    button {
-      border: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-weight: 800;
-      transition: transform 0.08s ease;
-    }
-    button:active { transform: scale(0.97); }
-
-    /* Green Circle: CYCLE DONE */
-    .btn-done {
-      flex: 2;
-      background: var(--green);
-      border-radius: 20px;
-      font-size: 2.2rem;
-      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
-    }
-    .btn-done:disabled {
-      background: var(--disabled);
-      color: #9CA3AF;
-      box-shadow: none;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .aux-row {
-      display: flex;
-      gap: 16px;
-      flex: 1;
-    }
-    /* Amber Triangle: DEFECT */
-    .btn-defect {
-      flex: 1;
-      background: var(--amber);
-      border-radius: 16px;
-      font-size: 1.5rem;
-      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-    }
-    /* Red Octagon: ANDON/HELP */
-    .btn-help {
-      flex: 1;
-      background: var(--red);
-      border-radius: 16px;
-      font-size: 1.5rem;
-      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
-    }
-    footer {
-      font-size: 0.95rem;
-      color: #9CA3AF;
-      text-align: center;
-      padding-top: 8px;
-    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, Roboto, sans-serif; padding: 20px; height: 100vh; display: flex; flex-direction: column; }
+    
+    header { background: var(--card); padding: 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border: 1px solid var(--line); }
+    .station-title { font-size: 1.5rem; font-weight: 800; display: flex; flex-direction: column; }
+    .station-sub { font-size: 0.9rem; color: #9CA3AF; font-weight: 500; margin-top: 4px; }
+    .badge { background: var(--brand); padding: 8px 16px; border-radius: 8px; font-size: 1rem; font-weight: 700; }
+    
+    .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex: 1; min-height: 0; }
+    
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; }
+    .panel h2 { font-size: 1.1rem; color: #9CA3AF; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+    
+    /* Analytics Panel */
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .kpi-box { background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px; border: 1px solid var(--line); }
+    .kpi-val { font-size: 2rem; font-weight: 800; margin-top: 4px; }
+    .kpi-label { font-size: 0.85rem; color: #9CA3AF; text-transform: uppercase; font-weight: 600; }
+    
+    /* Controls Panel */
+    .control-area { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
+    button { border: none; padding: 18px; border-radius: 12px; font-size: 1.2rem; font-weight: 800; cursor: pointer; color: #fff; transition: transform 0.1s, opacity 0.2s; display: flex; justify-content: center; align-items: center; }
+    button:active:not(:disabled) { transform: scale(0.98); }
+    button:disabled { background: var(--disabled) !important; color: #9CA3AF !important; cursor: not-allowed; box-shadow: none !important; }
+    
+    .btn-scan { background: var(--brand); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+    .btn-sew { background: var(--green); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+    .btn-warn { background: var(--amber); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); }
+    .btn-danger { background: var(--red); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); }
+    
+    .timer-container { width: 100%; height: 16px; background: var(--disabled); border-radius: 8px; overflow: hidden; margin-bottom: 16px; display: none; }
+    .timer-bar { width: 0%; height: 100%; background: var(--green); transition: width 0.1s linear; }
+    
+    /* Ledger */
+    .ledger { flex: 1; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 0.9rem; color: #D1D5DB; }
+    .ledger-entry { margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; }
+    .ledger-time { color: var(--amber); margin-right: 8px; }
   </style>
 </head>
 <body>
 
   <header>
-    <div class="station-title">LINE 14 · ST-04</div>
-    <div class="badge">BACK RISE JOIN (SAM: 36s)</div>
+    <div class="station-title">
+      LINE 14 | ST-04 (SNLS_LOCKSTITCH)
+      <div class="station-sub" id="op-identity">Operator: W-05 (Vikram Singh) | Provisioned CSV Config</div>
+    </div>
+    <div class="badge">BACK RISE JOIN (SAM: 36.0s)</div>
   </header>
 
-  <div class="timer-container">
-    <div class="timer-bar" id="timer-bar"></div>
-  </div>
+  <div class="dashboard">
+    <!-- Controls (Left) -->
+    <div class="panel">
+      <h2 id="state-header">STATE: AWAITING INPUT</h2>
+      <div class="control-area" id="controls">
+        <!-- Rendered by JS -->
+      </div>
+      <div class="timer-container" id="timer-wrap">
+        <div class="timer-bar" id="timer-bar"></div>
+      </div>
+      <div id="dwell-text" style="text-align: center; color: #9CA3AF; font-size: 0.9rem; margin-top: -8px; margin-bottom: 16px; display: none;">
+        Anti-Ghosting Dwell Enforced
+      </div>
+    </div>
 
-  <div class="button-grid">
-    <button class="btn-done" id="btn-done" disabled onclick="onCycleDone()">
-      ● CYCLE DONE
-    </button>
-    <div class="aux-row">
-      <button class="btn-defect" onclick="onDefect()">
-        ▲ DEFECT
-      </button>
-      <button class="btn-help" onclick="onHelp()">
-        🛑 ANDON / HELP
-      </button>
+    <!-- Analytics & Ledger (Right) -->
+    <div class="panel">
+      <h2>Live Station Analytics</h2>
+      <div class="kpi-grid">
+        <div class="kpi-box">
+          <div class="kpi-label">Completed Cycles</div>
+          <div class="kpi-val" id="kpi-cycles">0</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">First Pass Yield</div>
+          <div class="kpi-val" id="kpi-fpy" style="color: var(--green);">100%</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Utilization (Active/Total)</div>
+          <div class="kpi-val" id="kpi-util">0.0%</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Defects Reported</div>
+          <div class="kpi-val" id="kpi-defects" style="color: var(--amber);">0</div>
+        </div>
+      </div>
+      
+      <h2 style="margin-top: 10px;">Event Ledger</h2>
+      <div class="ledger" id="ledger-box">
+        <div class="ledger-entry"><span class="ledger-time">System</span> Simulation Initialized.</div>
+      </div>
     </div>
   </div>
 
-  <footer>
-    <span id="dwell-label">LOCKED: 14.4s Anti-Ghost Dwell Floor</span> | Agiparel Edge OS
-  </footer>
-
   <script>
+    // --- Configuration & Identity ---
+    const STATION_ID = "LINE14_ST04";
+    const OPERATOR_ID = "W-05";
     const SAM_SEC = 36.0;
-    const DWELL_SEC = SAM_SEC * 0.40; // 14.4 seconds anti-ghost dwell floor
-    let cycleStart = Date.now();
+    const DWELL_SEC = SAM_SEC * 0.40; // 14.4 seconds anti-ghost
 
-    function updateDwell() {
-      const elapsed = (Date.now() - cycleStart) / 1000;
-      const progress = Math.min(100, (elapsed / DWELL_SEC) * 100);
-      document.getElementById("timer-bar").style.width = progress + "%";
+    // --- State Machine (Mirrors Python Notebook) ---
+    let state = 'SCAN_INPUT';
+    let bundles = [];
+    let pastBundles = [];
+    let currentTag = null;
+    let outputCarrier = null;
+    let cycleStartTime = Date.now();
+    let lastDropTime = Date.now();
+    
+    // Timer tracking
+    let opStartTime = null;
+    let timerInterval = null;
+    let lastOpDuration = 0;
 
-      const btn = document.getElementById("btn-done");
-      const label = document.getElementById("dwell-label");
-      if (elapsed >= DWELL_SEC) {
-        btn.disabled = false;
-        label.innerText = "READY FOR SCAN / TAP";
-      } else {
-        btn.disabled = true;
-        const remain = (DWELL_SEC - elapsed).toFixed(1);
-        label.innerText = `LOCKED: ${remain}s Anti-Ghost Dwell Floor`;
+    // --- Core Logic ---
+    function logEvent(msg) {
+      const timeStr = new Date().toLocaleTimeString();
+      const ledger = document.getElementById('ledger-box');
+      const entry = document.createElement('div');
+      entry.className = 'ledger-entry';
+      entry.innerHTML = `<span class="ledger-time">[${timeStr}]</span> ${msg}`;
+      ledger.prepend(entry);
+    }
+
+    function updateKPIs() {
+      const totalCycles = pastBundles.length;
+      const totalDefects = [...bundles, ...pastBundles].reduce((sum, b) => sum + b.defects, 0);
+      const fpy = Math.max(0, 100 - (totalDefects * 10));
+      
+      let util = 0;
+      if (totalCycles > 0 && lastOpDuration > 0) {
+        const totalCycleTime = (lastDropTime - cycleStartTime) / 1000;
+        if (totalCycleTime > 0) util = Math.min(100, (lastOpDuration / totalCycleTime) * 100);
+      }
+
+      document.getElementById('kpi-cycles').innerText = totalCycles;
+      document.getElementById('kpi-fpy').innerText = `${fpy.toFixed(1)}%`;
+      document.getElementById('kpi-fpy').style.color = fpy < 90 ? 'var(--red)' : 'var(--green)';
+      document.getElementById('kpi-util').innerText = `${util.toFixed(1)}%`;
+      document.getElementById('kpi-defects').innerText = totalDefects;
+    }
+
+    // --- API Backend Comm ---
+    async function appendLedger(eventType, payloadObj) {
+      try {
+        await fetch("/api/v1/ledger/append", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            station_id: STATION_ID,
+            operator_id: OPERATOR_ID,
+            event_type: eventType,
+            payload: JSON.stringify(payloadObj)
+          })
+        });
+      } catch (e) {
+        console.error("Backend offline, continuing simulation.", e);
       }
     }
-    setInterval(updateDwell, 100);
 
-    async function onCycleDone() {
-      const elapsed = (Date.now() - cycleStart) / 1000;
-      if (elapsed < DWELL_SEC) return;
-      cycleStart = Date.now();
-      await fetch("/api/v1/ledger/append", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          station_id: "LINE14_ST04",
-          operator_id: "W-04",
-          event_type: "CYCLE_DONE",
-          payload: JSON.stringify({ sam: SAM_SEC, actual_sec: elapsed })
-        })
-      });
+    // --- State Transitions ---
+    function transition(newState) {
+      state = newState;
+      const c = document.getElementById('controls');
+      const head = document.getElementById('state-header');
+      const timerWrap = document.getElementById('timer-wrap');
+      const dwellText = document.getElementById('dwell-text');
+      c.innerHTML = '';
+      
+      if (state !== 'OPERATION') {
+        timerWrap.style.display = 'none';
+        dwellText.style.display = 'none';
+        clearInterval(timerInterval);
+      }
+
+      if (state === 'SCAN_INPUT') {
+        head.innerText = 'STATE: AWAITING BUNDLE SCAN';
+        const tag = `TAG-${Math.floor(Date.now()/1000).toString().slice(-4)}`;
+        
+        c.innerHTML = `<button class="btn-scan" onclick="actionScanIn('${tag}')">Scan Bundle (${tag})</button>`;
+        if (bundles.length > 0) {
+          c.innerHTML += `<button class="btn-sew" onclick="transition('OPERATION')">Start Operation on ${bundles.length} Bundle(s)</button>`;
+        }
+      } 
+      else if (state === 'INSPECT') {
+        head.innerText = `STATE: QC INSPECT [${currentTag}]`;
+        c.innerHTML = `
+          <div style="display:flex; gap:16px;">
+            <button class="btn-sew" style="flex:1;" onclick="actionQC(0)">Quality OK (0 Def)</button>
+            <button class="btn-warn" style="flex:1;" onclick="actionQC(1)">Report 1 Defect</button>
+          </div>
+        `;
+      }
+      else if (state === 'OPERATION') {
+        head.innerText = `STATE: SEWING (SAM: ${SAM_SEC}s)`;
+        opStartTime = Date.now();
+        timerWrap.style.display = 'block';
+        dwellText.style.display = 'block';
+        
+        c.innerHTML = `<button class="btn-scan" id="btn-finish" disabled onclick="actionFinishOp()">CYCLE DONE (Scan Output)</button>`;
+        
+        timerInterval = setInterval(() => {
+          const elapsed = (Date.now() - opStartTime) / 1000;
+          const prog = Math.min(100, (elapsed / DWELL_SEC) * 100);
+          document.getElementById('timer-bar').style.width = `${prog}%`;
+          
+          if (elapsed >= DWELL_SEC) {
+            document.getElementById('btn-finish').disabled = false;
+            dwellText.innerText = "Dwell cleared. Ready to finish.";
+            clearInterval(timerInterval);
+          } else {
+            dwellText.innerText = `LOCKED: ${(DWELL_SEC - elapsed).toFixed(1)}s Anti-Ghost Dwell Floor`;
+          }
+        }, 100);
+        logEvent(`Operation started for ${bundles.length} bundle(s).`);
+      }
+      else if (state === 'SCAN_OUTPUT') {
+        head.innerText = 'STATE: BIND OUTPUT CARRIER';
+        const outTag = `CARRIER-OUT-${Math.floor(Date.now()/1000).toString().slice(-4)}`;
+        c.innerHTML = `<button class="btn-scan" onclick="actionScanOut('${outTag}')">Scan Output RFID (${outTag})</button>`;
+      }
+      else if (state === 'DONE') {
+        head.innerText = 'STATE: READY FOR BIN DROP';
+        c.innerHTML = `<button class="btn-danger" onclick="actionDropBin()">Drop into Output Bin & Reset</button>`;
+      }
+      updateKPIs();
     }
 
-    async function onDefect() {
-      await fetch("/api/v1/ledger/append", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          station_id: "LINE14_ST04",
-          operator_id: "W-04",
-          event_type: "DEFECT_TAG",
-          payload: JSON.stringify({ defect: "SEAM_PUCKERING" })
-        })
-      });
+    // --- Actions ---
+    function actionScanIn(tagId) {
+      currentTag = tagId;
+      logEvent(`Bundle RFID [${tagId}] scanned at input.`);
+      if (bundles.length === 0) cycleStartTime = Date.now();
+      transition('INSPECT');
     }
 
-    async function onHelp() {
-      await fetch("/api/v1/ledger/append", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          station_id: "LINE14_ST04",
-          operator_id: "W-04",
-          event_type: "ANDON_CALL",
-          payload: JSON.stringify({ reason: "NEEDLE_THREAD_TENSION" })
-        })
-      });
+    function actionQC(defects) {
+      bundles.push({ tag: currentTag, defects: defects });
+      logEvent(`Bundle [${currentTag}] inspected. Defects: ${defects}.`);
+      if (defects > 0) {
+        appendLedger("DEFECT_TAG", { defect_count: defects, tag: currentTag });
+      }
+      currentTag = null;
+      transition('SCAN_INPUT');
     }
+
+    function actionFinishOp() {
+      lastOpDuration = (Date.now() - opStartTime) / 1000;
+      logEvent(`Operation completed in ${lastOpDuration.toFixed(1)}s. Awaiting carrier assignment.`);
+      transition('SCAN_OUTPUT');
+    }
+
+    function actionScanOut(tagId) {
+      outputCarrier = tagId;
+      logEvent(`Output RFID carrier [${tagId}] scanned and bound.`);
+      transition('DONE');
+    }
+
+    function actionDropBin() {
+      const dropTime = Date.now();
+      const totalCycleTime = (dropTime - cycleStartTime) / 1000;
+      
+      logEvent(`Carrier [${outputCarrier}] dropped. Total Cycle Time: ${totalCycleTime.toFixed(1)}s.`);
+      
+      // Dispatch Core Backend Event
+      appendLedger("CYCLE_DONE", { 
+        sam: SAM_SEC, 
+        actual_sec: totalCycleTime,
+        op_active_sec: lastOpDuration,
+        carrier_uid: outputCarrier
+      });
+
+      // Reset state variables
+      pastBundles = pastBundles.concat(bundles);
+      bundles = [];
+      outputCarrier = null;
+      lastDropTime = dropTime;
+      
+      transition('SCAN_INPUT');
+    }
+
+    // Init
+    transition('SCAN_INPUT');
   </script>
 </body>
 </html>

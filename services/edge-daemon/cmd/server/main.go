@@ -18,10 +18,10 @@ import (
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/agie/interviewer"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/attachment"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/crypto"
-	"github.com/cyberinq/agiparel/services/edge-daemon/internal/cutting"
+	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/cutting"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/ocr"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/packing"
-	"github.com/cyberinq/agiparel/services/edge-daemon/internal/stores"
+	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/stores"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/topology"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/wal"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/web"
@@ -440,7 +440,7 @@ func (s *EdgeServer) handleStoresIndentCheck(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	calc := stores.CalculateNetIndent(req.SKU, req.BOMRequiredQty, req.UnreservedQty)
+	calc, _ := stores.EvaluateIndent(stores.IndentRequest{SKU: req.SKU, BOMRequiredQty: req.BOMRequiredQty, UnreservedQty: req.UnreservedQty})
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(calc)
 }
