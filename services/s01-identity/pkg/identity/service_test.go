@@ -15,9 +15,12 @@ import (
 )
 
 func setupTestDB(t *testing.T) (*sql.DB, func()) {
+<<<<<<< HEAD
 	if os.Getenv("RUN_DB_TESTS") != "1" {
 		t.Skip("Set RUN_DB_TESTS=1 for PostgreSQL integration tests")
 	}
+=======
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		dbURL = "postgres://agiparel_app:app_secure_runtime_pass@localhost:5432/agiparel_dev?sslmode=disable"
@@ -111,4 +114,8 @@ func TestA12_HardwareDeviceAttestationAndRevocation(t *testing.T) {
 	if err := svc.VerifyDeviceSignature(pubKey, tamperedPayload, sigHex); err != identity.ErrInvalidSignature {
 		t.Fatalf("Expected ErrInvalidSignature on tampered payload, got %v", err)
 	}
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1

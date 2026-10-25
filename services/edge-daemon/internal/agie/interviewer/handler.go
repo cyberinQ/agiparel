@@ -45,19 +45,33 @@ type InterviewerEngine struct {
 
 func NewInterviewerEngine() *InterviewerEngine {
 	endpoint := os.Getenv("CLOUD_S27_ENDPOINT")
+<<<<<<< HEAD
+=======
+	if endpoint == "" {
+		endpoint = "https://api.agiparel.cloud/v1/s27/copilot/chat"
+	}
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	oHost := os.Getenv("OLLAMA_HOST")
 	if oHost == "" {
 		oHost = "http://host.docker.internal:11434"
 	}
 	model := os.Getenv("AGIE_MODEL")
 	if model == "" {
+<<<<<<< HEAD
 		model = "qwen3-coder:30b"
+=======
+		model = "qwen2.5-coder:7b"
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	}
 	return &InterviewerEngine{
 		cloudEndpoint: endpoint,
 		ollamaHost:    oHost,
 		modelName:     model,
+<<<<<<< HEAD
 		client:        &http.Client{Timeout: 20 * time.Second},
+=======
+		client:        &http.Client{Timeout: 60 * time.Second},
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	}
 }
 
@@ -65,13 +79,20 @@ func (e *InterviewerEngine) Chat(ctx context.Context, db *sql.DB, messages []LLM
 	fullMessages := []LLMMessage{{Role: "system", Content: AgieExecutivePrompt}}
 	fullMessages = append(fullMessages, messages...)
 	inspector := sqlguard.NewCatalogInspector(db)
+<<<<<<< HEAD
 	verifiedSQL := false
+=======
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 
 	for step := 0; step < 4; step++ {
 		reqPayload := LLMRequest{
 			Model:       e.modelName,
 			Messages:    fullMessages,
+<<<<<<< HEAD
 			Tools:       AgieToolDefinitions,
+=======
+			Tools:       AgieToolDefinitions, 
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 			Temperature: 0.0,
 			Stream:      false,
 		}
@@ -79,6 +100,7 @@ func (e *InterviewerEngine) Chat(ctx context.Context, db *sql.DB, messages []LLM
 		bodyBytes, _ := json.Marshal(reqPayload)
 		var resp *http.Response
 		var err error
+<<<<<<< HEAD
 
 		// Cloud is opt-in. Unconfigured deployments go straight to local Ollama.
 		// Previously every request attempted a nonexistent cloud hostname first.
@@ -110,10 +132,28 @@ func (e *InterviewerEngine) Chat(ctx context.Context, db *sql.DB, messages []LLM
 			resp.Body.Close()
 			return "", fmt.Errorf("AI service returned HTTP %d (check installed model %s)", status, e.modelName)
 		}
+=======
+		
+		httpReq, _ := http.NewRequestWithContext(ctx, http.MethodPost, e.cloudEndpoint, bytes.NewBuffer(bodyBytes))
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", os.Getenv("S27_API_KEY")))
+		
+		resp, err = e.client.Do(httpReq)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			if resp != nil { resp.Body.Close() }
+			oHttpReq, _ := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/api/chat", e.ollamaHost), bytes.NewBuffer(bodyBytes))
+			oHttpReq.Header.Set("Content-Type", "application/json")
+			resp, err = e.client.Do(oHttpReq)
+			if err != nil {
+				return "I am offline and cannot reach my systems right now.", nil
+			}
+		}
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 
 		var result struct {
 			Message LLMMessage `json:"message"`
 		}
+<<<<<<< HEAD
 
 		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 			if resp != nil {
@@ -132,6 +172,16 @@ func (e *InterviewerEngine) Chat(ctx context.Context, db *sql.DB, messages []LLM
 			if strings.TrimSpace(result.Message.Content) == "" {
 				return "I do not have enough verified information to answer.", nil
 			}
+=======
+		
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			if resp != nil { resp.Body.Close() }
+			return "I had trouble understanding the response from my systems.", nil
+		}
+		if resp != nil { resp.Body.Close() }
+
+		if len(result.Message.ToolCalls) == 0 {
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 			return result.Message.Content, nil
 		}
 
@@ -162,12 +212,19 @@ func (e *InterviewerEngine) Chat(ctx context.Context, db *sql.DB, messages []LLM
 					toolOut = fmt.Sprintf(`{"error": %q}`, err.Error())
 				} else {
 					toolOut = out
+<<<<<<< HEAD
 					verifiedSQL = true
+=======
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 				}
 			default:
 				toolOut = `{"error": "unknown tool"}`
 			}
+<<<<<<< HEAD
 
+=======
+			
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 			fullMessages = append(fullMessages, LLMMessage{
 				Role:    "tool",
 				Content: toolOut,

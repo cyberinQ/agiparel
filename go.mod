@@ -2,15 +2,20 @@ module github.com/cyberinq/agiparel
 
 go 1.24.0
 
+<<<<<<< HEAD
 require (
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/nats-io/nats.go v1.49.0
 )
+=======
+require github.com/jackc/pgx/v5 v5.7.2
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+<<<<<<< HEAD
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/nats-io/nkeys v0.4.12 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
@@ -18,4 +23,9 @@ require (
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
+=======
+	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 )

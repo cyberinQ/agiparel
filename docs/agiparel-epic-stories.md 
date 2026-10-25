@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 The following engineering remediation ("Get-Well") and product completion plan transforms the fragmented `agiparel` skeleton into the cohesive, three-module factory operating system outlined in your vision and the ARD/PRD specification.
 
 ---
@@ -327,3 +328,304 @@ To ensure 100% adoption across floor operators, helpers, clerks, and management 
  |
 
 Would you like to start immediately with **Epic 0 & Epic 1** by generating the fixed `0001_baseline_zero.sql` migration and the repaired deterministic+AI `ingest_docs.go` code?
+=======
+# Agiparel Factory OS — v3 Epic & Story Implementation Register
+Version: 3.0.0-PROD
+Governing Specification: Agiparel Factory OS Engineering ARD & PRD v3
+Target Baseline: 29 Microservices, 4 UI BFF Applications, 1 Embedded Station Kernel, 113 Routable Screens
+
+================================================================================
+PHASE 1: FOUNDATION, CONTRACTS & CONTROLLED DOCUMENT PLATFORM (S01–S07, S28)
+================================================================================
+
+[EPIC-01] Identity, Device Registry & Tenant Trust Mesh (S01, S02)
+Goal: Establish tenant-isolated security boundaries, OIDC SSO, mutual TLS, and physical device attestation for cloud and plant edge topologies.
+
+* STORY-01.1: Tenant-Partitioned Identity & Access Service (S01)
+  - Implement S01 schema with PostgreSQL RLS: tenants, plants, lines, users, roles, grants.
+  - Implement JWT/OIDC authentication with plant-level offline caching of signed role grants.
+  - Deliver screen ADM-03 (Roles and Separation of Duties Workbench).
+  - Acceptance Test: A41 (Unauthorized operator cannot approve cut overage or carton waiver).
+
+* STORY-01.2: Hardware Device Trust & Credential Provisioning (S02)
+  - Implement S02 device registry schema: device ID, MAC, mTLS x509 cert fingerprints, zone, station assignment.
+  - Characterize hardware attestation and periodic session rotation for industrial Android tablets and Zebra handheld sleds.
+  - Deliver screen ADM-02 (Devices, Readers and Tags Console).
+  - Acceptance Test: A12 (Reject unauthorized device credentials; detect suspect duplicate device pings).
+
+[EPIC-02] Controlled Document Intake & Precedence Engine (S03)
+Goal: Ingest, extract, and reconcile authoritative commercial and technical documents without silently mutating approved production parameters.
+
+* STORY-02.1: Multi-Format Document Ingestion & Storage Pipeline (S03)
+  - Implement S3-compatible encrypted object storage integration storing document blobs with SHA-256 content hashes.
+  - Implement schema: documents, document_revisions, field_assertions, approvals, supersedes_document_id.
+  - Integrate async parsing queue for PDF, CSV, and XLSX tech pack extraction.
+  - Acceptance Test: A06 (Archiving original document cannot erase approved extracted assertions and source hash).
+
+* STORY-02.2: Field Precedence & Conflicting Revision Resolution Desk (S03)
+  - Build precedence matrix enforcing: Buyer PO controls SKU volume, Buyer Tech Pack controls construction POM, IE OB controls routing.
+  - Deliver screens MER-03 (Style / Document Variance Desk) and ADM-06 (Document/Rule Revision Audit).
+  - Acceptance Test: A02 (Import page-specific dates; flag conflicting delivery milestones without reclassification).
+
+[EPIC-03] Product Master, BOM Graph & Order Lifecycle (S04, S06, S07)
+Goal: Model garment specifications, multi-level BOMs, buyer purchase orders, and commercial quotation baselines.
+
+* STORY-03.1: Style Master, Graded POM & SKU Hierarchy (S04)
+  - Implement S04 relational schema: styles, style_revisions, skus, boms, pom_dimensions, tolerance_rules.
+  - Enforce immutable versioning: publishing style revision generates new UUIDv7, preserving in-flight production links.
+  - Acceptance Test: A04 (Resolve size-conditioned 7-loop pattern for sizes 30–42; isolate 9-loop variants).
+
+* STORY-03.2: Commercial Purchase Orders & Amendment Versioning (S06)
+  - Implement S06 schema: customer_po, po_lines, requested_deliveries, change_orders.
+  - Deliver screens SAL-03 (Sales Order & PO Amendment) and CST-02 (Order Book / Margin Pipeline).
+  - Acceptance Test: A01 (Import PO REP1/REP2 separately; seven SKU quantities reproduce exact 129,000 units).
+
+* STORY-03.3: Pre-Production Quotation & Standard Costing Studio (S07)
+  - Implement S07 cost calculation engine: direct fabric, trim BOM, SAM direct labor, thread factor, and margin targets.
+  - Deliver screens CST-01 (Enquiry Costing Studio) and SAL-02 (Quote / RFQ Pipeline).
+  - Acceptance Test: A47 (Order costing engine never interprets buyer unit price as contribution margin).
+
+[EPIC-04] OB Routing DAG Compiler & Pre-Production Gate (S05)
+Goal: Compile linear Operation Bulletins into validated, acyclic Directed Acyclic Graphs with branch/merge logic and evidence rules.
+
+* STORY-04.1: Operation Master & Route DAG Graph Compiler (S05)
+  - Implement route compiler validating DAG properties: acyclicity, reachability, balanced incoming/outgoing piece ratios.
+  - Support node kinds: operation, inspect, split, join, transfer, buffer, bypass, consume-bulk.
+  - Deliver screen OB-01 (OB Authoring / Costing Workbench) and IE-01 (Operation Master).
+  - Acceptance Test: A08 (Reject missing DAG prerequisite, circular dependency, or invalid machine type).
+
+* STORY-04.2: Engineering Conflict Gate & Route Publication (S05)
+  - Enforce cross-document gate: block route publication if fabric/fit differs between tech pack and OB.
+  - Deliver screen OB-02 (OB Execution Allocation Console).
+  - Acceptance Test: A03 (Quarantine polyester straight-fit OB when bound to cotton twill pleated pants tech pack).
+
+================================================================================
+PHASE 2: TRACEABLE MATERIALS, STORES & CUTTING COMMISSIONING (S08, S10–S13)
+================================================================================
+
+[EPIC-05] Material Requirements (MRP) & Procurement Integration (S08, S10)
+Goal: Compute exact net material requirements, peg allocations to purchase orders, and track supplier fulfillment.
+
+* STORY-05.1: BOM Pegging & Net Purchase Indent Evaluator (S08)
+  - Implement net indent calculation comparing demand against unreserved warehouse stock.
+  - Deliver screen STR-01 (Indent and Surplus Reuse Gate).
+  - Acceptance Test: Net indent correctly flags surplus allocations and blocks duplicate raw material purchases.
+
+* STORY-05.2: Supplier PO & ASN Tracking (S10)
+  - Implement S10 schema: supplier_po, supplier_po_line, asn, vendor_scorecard.
+  - Deliver screens SRC-01 (Supplier PO / Approval) and SRC-02 (Vendor ETA and Shortage Risk).
+  - Acceptance Test: Inbound delivery delays dynamically trigger shortage warnings in dependent cut orders.
+
+[EPIC-06] Raw Material Inventory Ledger & Metrology (S11, S12)
+Goal: Track fabric roll lifecycle with append-only ledger movements, 4-point metrology, and double-witness issuances.
+
+* STORY-06.1: Append-Only Material Movement Ledger (S11)
+  - Implement S11 schema: inventory_location, stock_lot, fabric_roll, stock_movement.
+  - Enforce conservation: stock can never be updated in-place; all adjustments require signed movement records.
+  - Deliver screen STR-03 (Live Stores and Roll Location Map).
+  - Acceptance Test: A17 (Prohibit consuming the same reserved fabric roll across multiple cut plans).
+
+* STORY-06.2: Fabric Inspection Metrology & Defect Coordinate Mapping (S12)
+  - Implement 4-point fabric inspection capture: length, usable width, shade band, and calibrated 2D defect coordinates.
+  - Deliver screens STR-02 (Gate Intake and Fabric Inspection) and STR-07 (Shade and Roll Grading).
+  - Acceptance Test: A16 (Capture actual physical roll dimensions from metrology; reject uncalibrated reads).
+
+* STORY-06.3: Double-Witness Material Custody Transfer (S11)
+  - Implement HMAC-SHA256 authenticated roll issue requiring distinct storekeeper and cutting receiver digital IDs.
+  - Deliver screen STR-04 (Double-Witness Material Issue Station).
+  - Acceptance Test: A19 (Issue and return require two authenticated witnesses; generate immutable custody record).
+
+[EPIC-07] Cut Plan Optimization, Lay Execution & Bundle Commissioning (S13)
+Goal: Execute physical cutting, record actual ply layups, evaluate end-bit dispositions, and bind physical tags to bundles.
+
+* STORY-07.1: Marker Yield & End-Bit Disposition Calculator (S13)
+  - Implement lay tracking: order, cut number, roll ID, lay range (max 210 plies), and residual fabric threshold classification (<1.5m scrap, 1.5–5.0m recut-hold, >5.0m store-return).
+  - Deliver screen CUT-01 (Cut Plan Optimizer) and CUT-02 (Spreading and Cutting Execution).
+  - Acceptance Test: A18 (Cut plies differing from planned generate actual physical piece counts, not planned numbers).
+
+* STORY-07.2: Component Bundle Numbering & Reusable Tag Binding (S13)
+  - Implement 1..N sequential bundle generator across plies, pant positions, and component parts.
+  - Bind reusable HF/NFC tags with strict non-overlapping interval constraints via PostgreSQL exclusion indexes.
+  - Deliver screens CUT-03 (Post-Cut Numbering) and CUT-04 (Bundle Commissioning HMI).
+  - Acceptance Test: A11 (Retire reusable tag binding only after bundle lifecycle completion; prevent alias collisions).
+
+================================================================================
+PHASE 3: SHOP-FLOOR SEWING EXECUTION, QUALITY & WORKFORCE (S14–S17, S23)
+================================================================================
+
+[EPIC-08] Station Edge Kernel & Local Offline Operation
+Goal: Deploy a hardened, deterministic runtime at workstations to debounce readers, enforce dwell, and buffer transactions offline.
+
+* STORY-08.1: Embedded Gateway Architecture & Local SQLite WAL Outbox
+  - Package Go station daemon with local SQLite WAL store-and-forward outbox.
+  - Synchronize clock offsets, monotonic intervals, and cryptographic gateway timestamps.
+  - Acceptance Test: A32 (8-hour WAN isolation retains all accepted events; replays without duplication upon reconnect).
+
+* STORY-08.2: Station HMI, Physical Reader Debounce & Evidence Evaluation
+  - Implement zero-typing HMI: deliberate HF IN/OUT pads, large button controls, multi-lingual audio guidance.
+  - Enforce anti-ghost-tap dwell floors (40% of SAM) and evidence policy classification (E0–E4).
+  - Deliver screens SEW-01 (Sewing Station HMI) and SEW-06 (My Next Bundle).
+  - Acceptance Test: A13 & A14 (Deduplicate 100 repeated taps; reject cycle completions violating dwell floor).
+
+[EPIC-09] Line Execution, Carrier Lineage & Assembly Merging (S14)
+Goal: Enforce assembly DAG constraints, validate part marriage rules, and record operator piece credits.
+
+* STORY-09.1: Carrier State Machine & Atomic Assembly Merging (S14)
+  - Implement S14 schema: carrier, carrier_parent, work_claim, accepted_operation_credit.
+  - Enforce marriage checks: verify identical cut number, pant position, and ply ranges before allowing bundle joins.
+  - Acceptance Test: A09 & A34 (Reject cross-cut/cross-shade assembly; prevent double-spending parent bundles in races).
+
+* STORY-09.2: Line Bottleneck Tracking & Execution Management (S14)
+  - Implement real-time queue age tracking, starvation/blockage detection, and hourly line pace calculations.
+  - Deliver screens SEW-03 (Line Execution Console) and LIN-01 (Operation Bottleneck Map).
+  - Acceptance Test: Station latency and bottleneck deviations exceeding 15% immediately flag supervisory alerts.
+
+[EPIC-10] Multi-Tier Quality Inspection, NCR & Defect Tracking (S17)
+Goal: Capture inline defects, manage rework queues, and enforce statistical AQL lot acceptance.
+
+* STORY-10.1: Inline Quality Capture & Rework Dispatch (S17)
+  - Implement S17 schema: inspection, inspection_finding, defect_code, rework_ticket.
+  - Segregate defective units into rework loops without creating phantom units or cycles in the master route DAG.
+  - Deliver screens SEW-02 (Inline QC), QS-02 (Live Defect Feed), and QS-04 (Repair Queue).
+  - Acceptance Test: A20 & A21 (Quarantine failed units; ensure repaired units undergo fresh verification).
+
+* STORY-10.2: Statistical AQL Audit & Multi-Line Quality Governance (S17)
+  - Implement AQL sampling tables, inspection dispositions (Release, Rework, Scrap), and Defect Pareto analytics.
+  - Deliver screens QS-01 (Line Quality Dashboard), QM-01 (Plant Quality Overview), and QLT-01 (Quarantine & NCR).
+  - Acceptance Test: A28 (Failed AQL lot audit halts packing carton release and downstream shipping release).
+
+[EPIC-11] Workforce Allocation, Skills & Maintenance Dispatch (S15, S16, S23)
+Goal: Govern operator line balancing, machine availability, and unified no-blame issue escalation.
+
+* STORY-11.1: Skill-Matrix Roster & Absence Balancing (S15)
+  - Implement S15 schema: workers, skills, certifications, attendance_register, line_assignments.
+  - Deliver screens LIN-02 (Labor/Float Assignment) and PM-04 (Workforce & Attendance Radar).
+  - Acceptance Test: A38 (Simulating absent critical skill triggers infeasibility alert and suggests certified floats).
+
+* STORY-11.2: Machine Asset Maintenance & Telemetry Tracking (S16)
+  - Implement machine roster, breakdown logging, maintenance work orders, and spare parts inventory tracking.
+  - Deliver screens SEW-04 (Mechanic Ticket Terminal) and MNT-01 (Preventive Maintenance Plan).
+  - Acceptance Test: Machine breakdown auto-trips line rebalancing alerts and logs downtime to line metrics.
+
+* STORY-11.3: Unified No-Blame Issue Coordination Mesh (S23)
+  - Implement plant-wide issue escalation bus: issue ID, severity, line/station scope, owner, watchers, action log.
+  - Deliver screen PM-02 (Live Issues Situation Room).
+  - Acceptance Test: Issue raised on station HMI appears simultaneously on line supervisor and plant manager consoles.
+
+================================================================================
+PHASE 4: FINISHING, PACKING, DISPATCH & ORDER CLOSURE (S18–S22)
+================================================================================
+
+[EPIC-12] Finishing, Ironing & Buyer Identity Binding (S18)
+Goal: Complete post-sewing operations, execute garment inspection, and bind permanent buyer RFID hangtags.
+
+* STORY-12.1: Finishing Routing & Alteration Station Control (S18)
+  - Implement finishing steps: thread trimming, industrial washing, steam pressing, and final checking.
+  - Deliver screens FH-00 (Finishing Flow Map), FH-02 (Ironing Station), and FH-04 (Alteration Station).
+  - Acceptance Test: Track garment transit across finishing stations; isolate units failing visual measurement checks.
+
+* STORY-12.2: Buyer EPC Gen2 Hangtag Commissioning & Serialization (S18)
+  - Encode and bind buyer EPC Gen2 UHF hangtags (e.g., SGTIN-96) to internal accepted garment UUIDs.
+  - Deliver screen FH-01 (Hangtag Helper HMI).
+  - Acceptance Test: A22 (One buyer garment identifier cannot be bound to two garments; reject duplicate UPC scans).
+
+[EPIC-13] Exact Pack Cartonization & Shipping Manifests (S19, S20)
+Goal: Enforce two-piece polybag aggregation, solid/ratio carton packing arithmetic, scale verification, and dock loading.
+
+* STORY-13.1: Two-Piece Polybagging & Carton Slot Enforcement (S19)
+  - Implement intermediate polybag aggregate enforcing exactly two distinct accepted garments per bag.
+  - Enforce carton capacities: 12 bags (24 pcs) or 24 bags (48 pcs).
+  - Deliver screens PK-01 (Buyer Pack-Plan Setup) and PK-02 (Carton Packing Station).
+  - Acceptance Test: A23, A24, A25 (Reject unapproved carton fill; block mismatched colors, sizes, or orders).
+
+* STORY-13.2: Partial Carton Exception Governance (S19)
+  - Enforce strict blocking of unauthorized partial cartons (e.g., George 220988 size 42: REP1 16 pcs, REP2 8 pcs).
+  - Deliver screen LOG-02 (Repack Exception Station).
+  - Acceptance Test: A26 & A27 (Hold unallocated residual garments; require explicit signed buyer exception).
+
+* STORY-13.3: Shipping Manifest Loading & Vehicle Verification (S20)
+  - Implement dock loading verification: scan cartons against approved shipping manifests with digital seals.
+  - Deliver screens PK-04 (Dock Loader Terminal) and LOG-03 (Dock & Loading Calendar).
+  - Acceptance Test: A29 (Manifest accepts only released cartons; reject unmanifested cartons at dock door).
+
+[EPIC-14] Order Closure Reconciliation (OCR) & Financial Handoff (S21, S22)
+Goal: Execute mathematical stage balance sheet reconciliation across the six factory stages and hand off realized costs to finance.
+
+* STORY-14.1: Six-Department Order Closure Attestation (S21)
+  - Implement immutable stage ledger: Cut = Shipped + Logged Losses + Surplus Leftover.
+  - Require sequential cryptographic sign-offs: Merchandising, IE, Sourcing, Production, Quality, Finance.
+  - Deliver screens OC-01 (Reconciliation Working Desk) and OC-02 (Immutable OCR Certificate).
+  - Acceptance Test: A30 & A31 (Reject closure on unexplained delta; generate tamper-evident HMAC certificate).
+
+* STORY-14.2: Realized Order P&L & Inventory Valuation Handoff (S22)
+  - Compute actual vs standard contribution margin based on raw materials, scrap, labor minutes, and rework.
+  - Deliver screens FIN-01 (Order Actual-vs-Standard P&L) and FIN-02 (Consumption & Scrap Valuation).
+  - Acceptance Test: Financial ledger posts realized COGS and WIP aging based on immutable event counts.
+
+================================================================================
+PHASE 5: REASONING, OPTIMIZATION & PLATFORM GOVERNANCE (S24–S27, S29)
+================================================================================
+
+[EPIC-15] Real-Time Projections, Metrics & Observability (S24, S25)
+Goal: Maintain CQRS read projections, ClickHouse analytical aggregation, and system-wide telemetry.
+
+* STORY-15.1: High-Performance Plant Materialized Projections (S24)
+  - Implement read-model workers subscribing to NATS JetStream, projecting station states and line WIP with <5s latency.
+  - Expose typed endpoints via floor-bff, supervisor-bff, office-bff, and executive-bff.
+  - Acceptance Test: Line dashboard reflects committed station events within 5 seconds under full pilot load.
+
+* STORY-15.2: ClickHouse Analytics & Standard Metric Engine (S25)
+  - Implement unified calculation definitions for DHU, FPY, Earned Labor Efficiency, and OTIF.
+  - Deliver screens QM-04 (Quality Trends) and EXE-03 (Executive Performance Radar).
+  - Acceptance Test: A44 (Report exact denominators and sample sizes; prevent arbitrary metric redefinition).
+
+[EPIC-16] Closed-Loop Digital Twin, Intervention Optimizer & AGIE (S26, S27, S29)
+Goal: Deliver constrained discrete simulation, scenario comparison, and zero-hallucination grounded executive intelligence.
+
+* STORY-16.1: Factory Constraint Solver & Digital Twin (S26)
+  - Implement discrete event simulation evaluating interventions (rerouting, float reallocation, overtime).
+  - Deliver screens OPT-01 (Plant Digital Twin) and OPT-02 (Scenario Comparator).
+  - Acceptance Test: A39 (Optimizer produces candidate recommendations; strictly prohibited from mutating floor state without human sign-off).
+
+* STORY-16.2: AGIE Evidence-Grounded Plant Copilot (S27)
+  - Implement read-only ReAct SQL-grounded assistant enforcing strict catalog inspection and bounded SELECT queries.
+  - Deliver Agie Executive Drawer on PM-01.
+  - Acceptance Test: A40 (AGIE answers cite exact metric IDs, timestamps, and row counts; zero invented figures).
+
+* STORY-16.3: Multi-Plant Enterprise Orchestration (S29)
+  - Implement federated capacity sharing, cross-site transfer requests, and enterprise KPI benchmarking.
+  - Deliver screens EXE-04 (Multi-Factory Benchmark) and EXE-05 (Scenario Approval Center).
+  - Acceptance Test: Coordinate order splitting and material transfer requests across federated tenant instances.
+
+
+  Author: Sunil Jain, CyberinQ LLC
+
+**TL;DR:** Yes. The ARD/PRD must serve as the definitive single source of truth for the engineering backlog. We must formally append the Hardware Abstraction Layer (HAL), Micro-Frontend (MFE) orchestration, and CQRS analytics pipeline into the document, and subsequently break them down into actionable Epics and Stories.
+
+The current `Agiparel_Factory_OS_Engineering_ARD_PRD_v3.md` establishes the 29 backend services, the 4 BFF gateways, and the ClickHouse telemetry separation. We must explicitly expand the document with the following structural Epics to drive sprint execution:
+
+**Epic 1: Hardware Abstraction Layer (HAL) & Protocol Adapters**
+
+* Story: Implement TCP/IP LLRP driver for UHF RFID portals at stores and dispatch gates.
+* Story: Implement Edge OS debounce logic and spatial filtering for NFC touch zones at sewing stations.
+* Story: Map raw hardware hex payloads to standardized `LEDGER_EVENT` JSON domain commands.
+
+**Epic 2: Micro-Frontend (MFE) & BFF API Gateways**
+
+* Story: Deploy `floor-bff` to aggregate high-contrast, offline-tolerant operator widgets.
+* Story: Deploy `executive-bff` to handle multi-line analytical data hydration.
+* Story: Build the composable React UI widget library covering scanner boundaries, timeline ledgers, and KPI blocks.
+
+**Epic 3: CQRS & ClickHouse Analytics Pipeline**
+
+* Story: Configure NATS JetStream to sink Edge Kernel `LEDGER_EVENT` payloads directly into ClickHouse.
+* Story: Build materialized views for real-time DHU, bottleneck identification, and utilization metrics.
+* Story: Expose low-latency, freshness-labeled telemetry endpoints via the S24 projection service.
+
+**Epic 4: Role-Based Workspace Configurations**
+
+* Story: Implement dynamic UI shell hydration based on enterprise JWT authentication scope.
+* Story: Map the 113 distinct PRD screen routes to specific JSON widget assemblies.
+
+Once these architectural expansions and Epics are appended to the markdown specification, we can confidently assign them to the respective development streams.
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1

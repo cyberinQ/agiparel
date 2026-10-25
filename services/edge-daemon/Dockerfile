@@ -4,6 +4,7 @@ WORKDIR /build
 RUN apk add --no-cache git
 
 COPY go.mod go.sum ./
+<<<<<<< HEAD
 COPY services/ services/
 COPY scripts/ scripts/
 RUN go mod tidy && go mod download
@@ -18,4 +19,18 @@ COPY --from=builder /bin/plant-edge-os /app/plant-edge-os
 COPY --from=builder /bin/ingest-docs /app/ingest-docs
 
 EXPOSE 18530
+=======
+RUN go mod download
+
+COPY services/ services/
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/plant-edge-os ./services/edge-daemon/cmd/server
+
+FROM alpine:3.19
+RUN apk --no-cache add ca-certificates tzdata
+WORKDIR /app
+RUN mkdir -p /data/wal
+COPY --from=builder /bin/plant-edge-os /app/plant-edge-os
+
+EXPOSE 8080
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 ENTRYPOINT ["/app/plant-edge-os"]

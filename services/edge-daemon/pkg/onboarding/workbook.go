@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // Author: Sunil Jain, 2026-10-25 — Preserve partial PO updates and transactional tenant isolation.
+=======
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 package onboarding
 
 import (
@@ -11,6 +14,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+<<<<<<< HEAD
 	"time"
 )
 
@@ -28,6 +32,24 @@ type FactoryWorkbook struct {
 	OperationsDAG  []OperationDAGRow `json:"operations_dag"`
 	StoreRolls     []StoreRollRow    `json:"store_rolls"`
 	WorkOrders     []WorkOrderRow    `json:"work_orders"`
+=======
+)
+
+type FactoryWorkbook struct {
+	TenantID       string              `json:"tenant_id"`
+	FactoryName    string              `json:"factory_name"`
+	UnitCode       string              `json:"unit_code"`
+	ShiftStartHour int                 `json:"shift_start_hour"`
+	BundleSize     int                 `json:"bundle_size"`
+	Lines          []LineRow           `json:"lines"`
+	Machines       []MachineRow        `json:"machines"`
+	Workers        []WorkerRow         `json:"workers"`
+	Styles         []StyleRow          `json:"styles"`
+	StyleParts     []StylePartRow      `json:"style_parts"`
+	OperationsDAG  []OperationDAGRow   `json:"operations_dag"`
+	StoreRolls     []StoreRollRow      `json:"store_rolls"`
+	WorkOrders     []WorkOrderRow      `json:"work_orders"`
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 }
 
 type LineRow struct {
@@ -56,7 +78,10 @@ type WorkerRow struct {
 	SkillGrade        string  `json:"skill_grade"`
 	HourlyRateINR     float64 `json:"hourly_rate_inr"`
 	AttendanceStatus  string  `json:"attendance_status"`
+<<<<<<< HEAD
 	AttendanceDate    string  `json:"attendance_date,omitempty"`
+=======
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	AssignedLineID    string  `json:"assigned_line_id"`
 	AssignedStationID string  `json:"assigned_station_id"`
 }
@@ -101,6 +126,7 @@ type StoreRollRow struct {
 }
 
 type WorkOrderRow struct {
+<<<<<<< HEAD
 	WorkOrderID   string `json:"work_order_id"`
 	PONumber      string `json:"po_number"`
 	StyleCode     string `json:"style_code"`
@@ -112,6 +138,17 @@ type WorkOrderRow struct {
 	Status        string `json:"status"`
 	PackagingJSON string `json:"packaging_json,omitempty"`
 	ShippingJSON  string `json:"shipping_json,omitempty"`
+=======
+	WorkOrderID  string `json:"work_order_id"`
+	PONumber     string `json:"po_number"`
+	StyleCode    string `json:"style_code"`
+	LineID       string `json:"line_id"`
+	SupervisorID string `json:"supervisor_id"`
+	OrderedQty   int    `json:"ordered_qty"`
+	ColorJSON    string `json:"color_json"`
+	SizeJSON     string `json:"size_json"`
+	Status       string `json:"status"`
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 }
 
 // GenerateTemplateCSV returns a pre-boarding spreadsheet with example rows in every section.
@@ -396,7 +433,11 @@ func ApplyToDatabase(ctx context.Context, db *sql.DB, wb *FactoryWorkbook) error
 	}
 	defer tx.Rollback()
 
+<<<<<<< HEAD
 	if _, err := tx.ExecContext(ctx, "SELECT set_config('app.current_tenant_id', $1, true)", wb.TenantID); err != nil {
+=======
+	if _, err := tx.ExecContext(ctx, "SELECT set_config('app.current_tenant_id', $1, false)", wb.TenantID); err != nil {
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 		return fmt.Errorf("failed to set tenant context: %w", err)
 	}
 
@@ -413,6 +454,10 @@ func ApplyToDatabase(ctx context.Context, db *sql.DB, wb *FactoryWorkbook) error
 	}
 
 	// 2. Upsert Workers & Attendance + Auto-Flag Absenteeism Issues
+<<<<<<< HEAD
+=======
+	_, _ = tx.ExecContext(ctx, `DELETE FROM attendance_register WHERE tenant_id = $1 AND shift_date = CURRENT_DATE;`, wb.TenantID)
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	for _, w := range wb.Workers {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO workers (id, tenant_id, name, employee_code, primary_skill, skill_grade, hourly_rate_inr)
@@ -427,6 +472,7 @@ func ApplyToDatabase(ctx context.Context, db *sql.DB, wb *FactoryWorkbook) error
 			return fmt.Errorf("failed to upsert worker %s: %w", w.WorkerID, err)
 		}
 
+<<<<<<< HEAD
 		// Source attendance belongs to its recorded shift, never silently to today's shift.
 		date := w.AttendanceDate
 		if date == "" {
@@ -438,11 +484,32 @@ func ApplyToDatabase(ctx context.Context, db *sql.DB, wb *FactoryWorkbook) error
            ON CONFLICT (tenant_id,worker_id,shift_date) DO UPDATE SET status=EXCLUDED.status,
            assigned_line_id=EXCLUDED.assigned_line_id,assigned_station_id=EXCLUDED.assigned_station_id`,
 			wb.TenantID, w.WorkerID, date, w.AttendanceStatus, w.AssignedLineID, w.AssignedStationID)
+=======
+		var clockIn interface{}
+		if w.AttendanceStatus == "PRESENT" || w.AttendanceStatus == "LATE" {
+			clockIn = "NOW()"
+		}
+		if clockIn != nil {
+			_, err = tx.ExecContext(ctx, `
+				INSERT INTO attendance_register (tenant_id, worker_id, shift_date, clock_in_time, status, assigned_line_id, assigned_station_id)
+				VALUES ($1, $2, CURRENT_DATE, CURRENT_TIMESTAMP, $3, $4, $5);
+			`, wb.TenantID, w.WorkerID, w.AttendanceStatus, w.AssignedLineID, w.AssignedStationID)
+		} else {
+			_, err = tx.ExecContext(ctx, `
+				INSERT INTO attendance_register (tenant_id, worker_id, shift_date, clock_in_time, status, assigned_line_id, assigned_station_id)
+				VALUES ($1, $2, CURRENT_DATE, NULL, $3, $4, $5);
+			`, wb.TenantID, w.WorkerID, w.AttendanceStatus, w.AssignedLineID, w.AssignedStationID)
+		}
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 		if err != nil {
 			return fmt.Errorf("failed to record attendance for %s: %w", w.WorkerID, err)
 		}
 
+<<<<<<< HEAD
 		if w.AttendanceStatus == "ABSENT" && w.AssignedLineID != "" && (w.AttendanceDate == "" || w.AttendanceDate == time.Now().Format("2006-01-02")) {
+=======
+		if w.AttendanceStatus == "ABSENT" && w.AssignedLineID != "" {
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 			issID := fmt.Sprintf("ISS-ATT-%s", w.WorkerID)
 			title := fmt.Sprintf("%s absent; station %s (%s) requires float coverage", w.Name, w.AssignedStationID, w.PrimarySkill)
 			_, _ = tx.ExecContext(ctx, `
@@ -588,7 +655,11 @@ func ApplyToDatabase(ctx context.Context, db *sql.DB, wb *FactoryWorkbook) error
 		}
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO dynamic_work_orders (id, tenant_id, po_number, style_id, line_id, supervisor_id, ordered_qty, color_matrix, size_matrix, packaging_bulletin, shipping_spec, status)
+<<<<<<< HEAD
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12)
+=======
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, '{}'::jsonb, '{}'::jsonb, $10)
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 			ON CONFLICT (id) DO UPDATE SET
 				po_number = EXCLUDED.po_number,
 				style_id = EXCLUDED.style_id,
@@ -597,15 +668,21 @@ func ApplyToDatabase(ctx context.Context, db *sql.DB, wb *FactoryWorkbook) error
 				ordered_qty = EXCLUDED.ordered_qty,
 				color_matrix = EXCLUDED.color_matrix,
 				size_matrix = EXCLUDED.size_matrix,
+<<<<<<< HEAD
 				packaging_bulletin = EXCLUDED.packaging_bulletin,
 				shipping_spec = EXCLUDED.shipping_spec,
 				status = CASE WHEN dynamic_work_orders.status = 'LOCKED' THEN 'LOCKED' ELSE EXCLUDED.status END;
 		`, wo.WorkOrderID, wb.TenantID, wo.PONumber, sID, wo.LineID, wo.SupervisorID, wo.OrderedQty, defaultJSON(wo.ColorJSON), defaultJSON(wo.SizeJSON), defaultJSON(wo.PackagingJSON), defaultJSON(wo.ShippingJSON), wo.Status); err != nil {
+=======
+				status = EXCLUDED.status;
+		`, wo.WorkOrderID, wb.TenantID, wo.PONumber, sID, wo.LineID, wo.SupervisorID, wo.OrderedQty, wo.ColorJSON, wo.SizeJSON, wo.Status); err != nil {
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 			return fmt.Errorf("failed to upsert work order %s: %w", wo.WorkOrderID, err)
 		}
 	}
 
 	return tx.Commit()
+<<<<<<< HEAD
 }
 func defaultJSON(v string) string {
 	if strings.TrimSpace(v) == "" {
@@ -613,3 +690,6 @@ func defaultJSON(v string) string {
 	}
 	return v
 }
+=======
+}
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1

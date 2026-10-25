@@ -367,12 +367,16 @@
     </div>
 
     <div class="triage-rail">
+<<<<<<< HEAD
       <!-- Inside triage-card in plant_view.html -->
+=======
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
       <div class="triage-card">
         <h3>Live Floor Issues (PM-02)</h3>
         <div id="issue-list">
           <div class="issue-item">
             <div class="issue-header">
+<<<<<<< HEAD
               <strong>Line 14 - ST-03</strong>
               <span class="issue-tag warn">ATTENTION</span>
             </div>
@@ -390,6 +394,19 @@
             <button class="btn-agie-trigger" style="margin-top:8px; background:var(--brand); font-size:12px; padding:6px 12px;" onclick="resolveIssue('ISS-MACH-M-02', 'DISPATCH_MECHANIC')">
               🔧 Dispatch Mechanic Ramesh
             </button>
+=======
+              <strong>Line 14 · ST-03</strong>
+              <span class="issue-tag">ATTENTION</span>
+            </div>
+            <div>Sunita Sharma absent; station hem bottlenecking pace.</div>
+          </div>
+          <div class="issue-item">
+            <div class="issue-header">
+              <strong>Line 02 · ST-08</strong>
+              <span class="issue-tag">MAINTENANCE</span>
+            </div>
+            <div>Needle timing slippage on Kansai flatlock.</div>
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
           </div>
         </div>
       </div>
@@ -414,7 +431,11 @@
     </div>
     <div class="chat-box" id="chat-stream">
       <div class="msg msg-agie">
+<<<<<<< HEAD
         Ask about attendance, orders, or bottlenecks. Answers are provided only when verified against available factory records.
+=======
+        Good day. I am AGIE, connected live to your factory floor execution database. Ask me any question regarding attendance, pacing, work orders, or bottlenecks.
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
       </div>
     </div>
     <div class="chat-bar">
@@ -539,6 +560,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: chatHistory })
         });
+<<<<<<< HEAD
         if (!res.ok) throw new Error((await res.text()).trim() || `HTTP ${res.status}`);
         const data = await res.json();
         if (typeof data.reply !== 'string' || !data.reply.trim()) throw new Error('AGIE returned an empty answer');
@@ -546,6 +568,13 @@
         chatHistory.push({ role: "assistant", content: data.reply });
       } catch (e) {
         loadDiv.innerText = `AGIE unavailable: ${e.message}`;
+=======
+        const data = await res.json();
+        loadDiv.innerText = data.reply;
+        chatHistory.push({ role: "assistant", content: data.reply });
+      } catch (e) {
+        loadDiv.innerText = "Error communicating with Agie ReAct engine.";
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
       }
       stream.scrollTop = stream.scrollHeight;
     }

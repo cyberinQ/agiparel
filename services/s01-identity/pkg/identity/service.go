@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // Author: Sunil Jain, 2026-10-25 — Remove duplicate permission method and retain NULL-safe plant scoping.
+=======
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 package identity
 
 import (
@@ -59,6 +62,34 @@ func (s *IdentityService) ExecuteWithTenant(ctx context.Context, tenantID string
 	return tx.Commit()
 }
 
+<<<<<<< HEAD
+=======
+func (s *IdentityService) EnforcePermission(ctx context.Context, tenantID, userID, plantID, requiredPermission string) (bool, error) {
+	var hasPerm bool
+	err := s.ExecuteWithTenant(ctx, tenantID, func(tx *sql.Tx) error {
+		query := `
+			SELECT EXISTS (
+				SELECT 1 
+				FROM s01_identity.user_role_grants urg
+				JOIN s01_identity.role_permissions rp ON urg.role_id = rp.role_id
+				WHERE urg.user_id = $1::uuid 
+				  AND urg.tenant_id = $2::uuid
+				  AND (urg.plant_id = $3::uuid OR urg.plant_id IS NULL)
+				  AND rp.permission = $4
+			);
+		`
+		return tx.QueryRowContext(ctx, query, userID, tenantID, plantID, requiredPermission).Scan(&hasPerm)
+	})
+	if err != nil {
+		return false, err
+	}
+	if !hasPerm {
+		return false, ErrUnauthorized
+	}
+	return true, nil
+}
+
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 func (s *IdentityService) VerifyDeviceSignature(pubKey ed25519.PublicKey, rawPayload []byte, signatureHex string) error {
 	sigBytes, err := hex.DecodeString(signatureHex)
 	if err != nil {
@@ -97,4 +128,8 @@ func (s *IdentityService) EnforcePermission(ctx context.Context, tenantID, userI
 		return false, ErrUnauthorized
 	}
 	return true, nil
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
