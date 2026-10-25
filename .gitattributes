@@ -1,0 +1,6 @@
+docs/** export-ignore
+*.sum export-ignore
+templates/** export-ignore
+.gitignore export-ignore
+.github/** export-ignore
+README.md export-ignore

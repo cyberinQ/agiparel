@@ -1,0 +1,329 @@
+The following engineering remediation ("Get-Well") and product completion plan transforms the fragmented `agiparel` skeleton into the cohesive, three-module factory operating system outlined in your vision and the ARD/PRD specification.
+
+---
+
+## 1. Current Codebase Forensic Audit ("The Mess")
+
+Before building new capabilities, the engineering team must stabilize the foundation. An inspection of the repository reveals five critical structural defects:
+
+* **Broken SQL Migrations (`0001_baseline_zero.sql`):** Contains unclosed `CREATE TABLE` statements (missing closing`);`), duplicate table definitions (`store_rolls` and `bundle_registry` are declared twice), Foreign Keys referencing non-existent tables (`styles_master`, `workers`, `hourly_line_metrics`, `floor_issues`), and conflicting data types (`tenant_id` alternates between `UUID` and `VARCHAR(64)`).
+
+
+* **Triple-Duplicated Go Packages:** Business logic for `cutting`, `stores`, `attachment`, `packing`, `rfid`, `sewing`, and `ocr` is duplicated across three locations: root `/pkg/*`, `/services/edge-daemon/pkg/*`, and `/services/edge-daemon/internal/*`.
+
+
+* **Volatile In-Memory State vs. Database:** `EdgeServer` (`services/edge-daemon/cmd/server/main.go`) processes double-witness roll issuances, NFC bundle attachments, and carton packing inside volatile Go maps (`s.stores`, `s.attachment`, `s.activePackings`) rather than committing them transactionally to PostgreSQL.
+
+
+* **Failing Ingestion Pipeline (`scripts/ingest_docs.go`):** `.processed_manifest.json` shows **6 out of 7 staging files (`02` through `06` and the sample `.xlsx`) failed**. The script relies on an LLM (`qwen3-coder:30b`) to parse deterministic CSV/XLSX tables and truncates files at 16,000 characters, causing JSON schema unmarshaling crashes and data loss.
+
+
+* **Hardcoded Multi-Tenancy & Timezones:** `main.go` and `sqlguard/inspector.go` hardcode `'TENANT_DEFAULT'`, `'Line 14'`, and `'Asia/Kolkata'`, bypassing the dynamic `s01-identity` RLS architecture.
+
+
+
+---
+
+## 2. Core UX & Comprehension Mandate ("5th-Grade Rule")
+
+To ensure 100% adoption across floor operators, helpers, clerks, and management with limited literacy or technical comprehension, every UI route must enforce five design rules:
+
+1. **Zero-Typing Floor Interfaces:** Floor workers only scan (RFID/NFC/Barcode) or tap massive color-coded buttons. No keyboards on station screens.
+
+
+2. **Traffic-Light Visual Hierarchy:**
+* **Green (`#10B981`):** Good / Go / Ready / On Pace.
+
+
+* **Yellow (`#F59E0B`):** Wait / Need Help / Warning / Running Slow.
+
+
+* **Red (`#DC2626`):** Stop / Wrong Item / Machine Broken / Shortage.
+
+
+
+
+3. **1st-to-5th Grade Vocabulary Replacement:**
+* Replace *"Empirical Dwell Floor (40% SAM)"* $\rightarrow$ **"Keep Sewing (Wait 7s)"**.
+
+
+* Replace *"DAG Prerequisite / Shade Band Violation"* $\rightarrow$ **"STOP: Wrong Cloth Color or Wrong Step!"**.
+
+
+* Replace *"Order Closure Conservation Variance"* $\rightarrow$ **"Missing Pieces Check"**.
+
+
+
+
+4. **Audio + Picture Prompts:** Every station screen (`sew01.html`, cutting, packing) must integrate browser Text-to-Speech (`window.speechSynthesis`) using the `docscribe` scripts (English, Hindi, Bengali, Tamil) alongside clear visual diagrams of the garment part.
+
+
+5. **3-Step Wizard for Management:** Management screens (`plant_view.html`, `onboarding.html`) must replace raw JSON/CSV/tenant-ID forms with a simple 3-step visual flow: **1. Drop Files Here $\rightarrow$ 2. Check & Fix Plan $\rightarrow$ 3. Approve & Send**.
+
+
+
+---
+
+## 3. Master Epic-Story-Task Execution Plan
+
+### EPIC 0: Engineering "Get-Well" & Foundation Cleanup
+
+**Goal:** Eliminate duplicated packages, fix broken SQL schemas, unify state in PostgreSQL, and establish clean loose coupling between the 3 modules via the database and NATS JetStream.
+
+| Story ID | Story Name | Detailed Engineering Tasks | Acceptance Criteria |
+| --- | --- | --- | --- |
+| **E0-S1** | **Consolidate Go Monorepo Packages** | 1. Delete duplicate packages in `/pkg/*` and `/services/edge-daemon/internal/{attachment,cutting,packing,stores}`.<br>
+
+<br>2. Standardize canonical domain libraries inside `/services/edge-daemon/pkg/*`.
+
+<br>
+
+<br>3. Fix duplicate `EnforcePermission` function declaration in `services/s01-identity/pkg/identity/service.go`.
+
+ | `go build ./...` and `go test ./...` pass with zero duplicate symbol or import path confusion. |
+| **E0-S2** | **Repair & Unify PostgreSQL Migrations** | 1. Fix syntax errors (missing `);`) and remove duplicate `store_rolls` and `bundle_registry` definitions in `0001_baseline_zero.sql`.
+
+<br>
+
+<br>2. Add missing DDL tables: `workers`, `attendance_register`, `machine_roster`, `styles_master`, `style_parts`, `style_assembly_dag`, `hourly_line_metrics`, `floor_issues`, `store_issuances`, `cut_lay_rolls`, `ocr_records`.
+
+<br>
+
+<br>3. Standardize `tenant_id` as `VARCHAR(64)` across all tables so `0002_rls_policies.sql` executes cleanly without UUID cast failures.
+
+ | Fresh `docker compose up` runs all migrations (`0001` to `0003`) with zero SQL errors; `rls_isolation_test.go` passes.
+
+ |
+| **E0-S3** | **Wire In-Memory Engines to PostgreSQL & Outbox** | 1. Refactor `StoresEngine`, `AttachmentEngine`, `CartonPackingSession`, and `SignOffSession` to persist state directly into PostgreSQL within ACID transactions.
+
+<br>
+
+<br>2. Write domain events (`MaterialIssued`, `BundleCommissioned`, `OperationCredited`, `CartonSealed`) to the transactional `outbox` table and publish via `nats_publisher.go`.
+
+<br>
+
+<br>3. Retain `LocalWAL` and `MerkleLedger` strictly for offline station buffering and tamper auditing.
+
+ | Server restart preserves all roll balances, bound NFC tags, active carton counts, and OCR signatures.
+
+ |
+
+---
+
+### EPIC 1: Module 1 — Management Planning & Cumulative AI Intake
+
+**Goal:** Enable management to upload customer documents across multiple rounds, cumulatively extract and reconcile data into the DB, automatically check factory capacity (machines, skills, fabric/trims), adjust the plan in a 5th-grade-friendly UI, lock the approved plan in the DB, and print/email it to the floor teams.
+
+| Story ID | Story Name | Detailed Engineering Tasks | Acceptance Criteria |
+| --- | --- | --- | --- |
+| **E1-S1** | **Hybrid Deterministic + AI Document Ingestion** | 1. Refactor `scripts/ingest_docs.go` into an HTTP service package (`internal/intake`) mounted on `EdgeServer` (`POST /api/v1/planning/upload-docs`).
+
+<br>
+
+<br>2. Use native deterministic Go parsers (`encoding/csv`, `archive/zip` XML reader, `apibridge.MapForeignRow`) for structured `.csv` and `.xlsx` files (`01` to `06`) so they never fail or truncate at 16KB.
+
+<br>
+
+<br>3. Reserve Ollama/Vision LLM (`qwen2.5-coder` / `qwen3-vl`) strictly for unstructured PDFs, images, and unknown column headers.
+
+<br>
+
+<br>4. Store raw files in local/S3 storage and log metadata + SHA256 checksums in the `documents` table (`intake.go`).
+
+ | All 7 files in `data/staging/docs/` process with `100% SUCCESS` in under 5 seconds.
+
+ |
+| **E1-S2** | **Cumulative State Builder & Conflict Detector** | 1. Upgrade `mergeIntoWorkbook` to perform field-level diffs against existing PostgreSQL records for a customer/PO rather than blind overwrites.
+
+<br>
+
+<br>2. Build a **Conflict Gate** (per ARD 2.2): automatically flag mismatches across upload rounds (e.g., if the Tech Pack says *Cotton Twill* but the Operation Bulletin says *Polyester*, or if carton packing leaves an unallocated remainder of 16 or 8 pieces).
+
+<br>
+
+<br>3. Save unapproved extractions as `PROPOSED` drafts in `dynamic_work_orders`.
+
+ | Uploading Round 1 (PO + Tech Pack) and Round 2 (OB + Roster) merges cumulatively and highlights missing/conflicting fields in plain language.
+
+ |
+| **E1-S3** | **Automated Capacity, Skill & Inventory Analyzer** | 1. Create `pkg/planning/analyzer.go` to cross-check customer order asks against live DB state:<br>
+
+<br>   • **Machines:** Compare OB `machine_type` & SAM requirements against `machine_roster` (`ACTIVE` vs `BREAKDOWN`).
+
+<br>
+
+<br>   • **Skills:** Compare OB operations against `workers` & `attendance_register` (`PRESENT` vs `ABSENT` by `primary_skill` and `secondary_skill`).
+
+<br>
+
+<br>   • **Inventory:** Run `stores.EvaluateIndent` comparing BOM fabric/trim requirements against `store_rolls` (`AVAILABLE` / `RESERVED`).
+
+<br>
+
+<br>2. Calculate realistic daily output, expected completion date, and plain-English bottleneck warnings (e.g., *"Need 1 more Kansai Hemming worker on Line 14 — Sunita is Absent, use Deepak as Float"*).
+
+ | API `GET /api/v1/planning/assessment?po=MK6574J9` returns a complete Green/Yellow/Red readiness score for Machines, People, and Cloth.
+
+ |
+| **E1-S4** | **5th-Grade Management Planning Workbench UI** | 1. Replace `onboarding.html` with a visual **Planning Workbench (`/planning`)**:<br>
+
+<br>   • **Step 1 (Upload Box):** Drag-and-drop zone showing uploaded customer docs with Green checkmarks and "What's Missing" prompts.<br>
+
+<br>   • **Step 2 (Traffic-Light Readiness Board):** 3 simple cards: **Cloth & Buttons** (In Stock vs. Need to Buy), **Machines** (Ready vs. Broken), and **Workers** (Here Today vs. Missing).
+
+<br>
+
+<br>   • **Step 3 (Interactive Plan Editor):** Simple +/- buttons and dropdowns allowing the manager to change assigned Line, swap a float worker, adjust daily target, or approve a partial carton waiver.
+
+ | A user with 5th-grade reading comprehension can upload docs, spot a missing worker or cloth shortage in <10 seconds, and click a single button to fix it. |
+| **E1-S5** | **Plan Lock, Print PDF & Email Dispatch** | 1. Implement `POST /api/v1/planning/approve`: requires Manager 4-digit PIN, transitions `dynamic_work_orders.status` from `PLANNED` to `LOCKED`, reserves fabric rolls in `store_rolls`, and writes an immutable hash to `MerkleLedger`.
+
+<br>
+
+<br>2. Build a clean, print-ready HTML/PDF stylesheet (`@media print`) and extend `internal/ocr/pdf.go` to generate a **Master Production Plan Packet** (with big tables, icons, and QR codes for the Cutting and Sewing leads).
+
+<br>
+
+<br>3. Add `POST /api/v1/planning/email` using Go `net/smtp` to email the locked PDF plan to department heads with one click. | Clicking **"Approve, Print & Email Plan"** locks the DB records, triggers the browser print dialog, and emails the PDF to the team. |
+
+---
+
+### EPIC 2: Module 2 — Geometric Cutting, Material Optimization & Vision
+
+**Goal:** Consume locked work orders from the DB, mathematically optimize 2D marker geometry and roll/ply allocation to minimize scrap, enforce double-witness roll issuance, commission NFC bundles, and provide a pluggable Machine Vision interface for defect-aware cutting.
+
+| Story ID | Story Name | Detailed Engineering Tasks | Acceptance Criteria |
+| --- | --- | --- | --- |
+| **E2-S1** | **2D Geometric Nesting & Roll-Lay Optimizer** | 1. Extend `pkg/cutting/planner.go` beyond simple 2% clamping (`CalculateCutTarget`) by building `pkg/cutting/geometry_optimizer.go`:
+
+<br>
+
+<br>   • Implement a **2D Strip-Packing / NFP (No-Fit Polygon) heuristic** that nests garment pattern bounding polygons (Front, Back, Yoke, Waistband, Pocket across graded sizes `28/30` to `34/30`) onto each roll's exact `usable_width_cm`.
+
+<br>
+
+<br>   • Implement a **1D Knapsack Roll-to-Lay Allocator** that matches `store_rolls` (grouped strictly by `shade_band` and `length_m`) to cut lays (max 210 plies) to minimize leftover end-bits.
+
+ | Optimizer takes a locked PO and available `store_rolls`, outputting an exact marker ratio and roll lay sequence that achieves $\ge 85\%$ fabric utilization and minimal end-bit waste. |
+| **E2-S2** | **End-Bit Reuse & Recut Loop** | 1. Wire `EvaluateEndBitDisposition` (`SCRAP` $< 1.5\text{m}$, `RECUT_HOLD` $1.5\text{m}\text{--}5.0\text{m}$, `STORE_RETURN` $> 5.0\text{m}$) into `store_rolls` and `cut_lay_rolls`.
+
+<br>
+
+<br>2. Automatically allocate `RECUT_HOLD` remnants to small parts (pockets, waistbands, belt loops) or defect recuts before cutting into fresh rolls.
+
+ | Remnants between $1.5\text{m}$ and $5.0\text{m}$ are automatically suggested for small-part cutting or panel recuts. |
+| **E2-S3** | **Machine Vision Defect-Avoidance Interface (Camera + Simulator)** | 1. Create `pkg/cutting/vision.go` defining a clean `VisionInspector` interface:<br>
+
+<br>   • Ingests `defect_map_json` $(X, Y \text{ coordinates in cm})$ from `store_rolls` (populated during `05_Fabric_Store_GRN_Inspection.xlsx` or live overhead camera feed).
+
+<br>
+
+<br>   • Provides a **Camera WebRTC/Upload Stub** where a tablet or overhead camera can snap a photo of the spread fabric, use `qwen3-vl:8b` or OpenCV contour detection to spot holes/stains, and overlay red "No-Cut Zones" on the 2D marker.<br>
+
+<br>   • Shifts pattern pieces around the defect coordinates or flags the exact ply/part for immediate recut.
+
+ | Cutting UI renders a 2D visual map of the fabric roll showing nested garment pieces, highlighted red defect spots, and zero defective panels escaping to sewing. |
+| **E2-S4** | **5th-Grade Cutting Table UI & NFC Bundle Commissioning** | 1. Build `/cutting` tablet UI (`cutting_view.html`) with 3 simple tabs:<br>
+
+<br>   • **Get Cloth (Double-Witness):** Store clerk and Cutter tap their badges (`DoubleWitnessIssue`) to unlock the exact roll from the bin.
+
+<br>
+
+<br>   • **Spread & Cut (Visual Guide):** Shows a picture of the roll, how many layers (plies) to spread (e.g., **"Spread 50 Layers"**), and what to do with the leftover piece (**"Put in Recut Bin"**).
+
+<br>
+
+<br>   • **Tap Tags (Bundle Commissioning):** Runs `GeneratePOSequentialBundles`, persists rows to `bundle_registry`, and prompts the helper to tap NFC tags one by one with audio confirmation (*"Bundle 1: Front Pocket, 20 pieces — Tagged!"*).
+
+ | Cutting helper can issue rolls, log actual plies cut, and bind NFC tags to all sub-bundles without typing a single character.
+
+ |
+
+---
+
+### EPIC 3: Module 3 — Floor Operations, Workforce/Machine Tracking & Live KPIs
+
+**Goal:** Track real-time progress of workers, machines, garments, and cartons across the floor; enforce anti-ghosting and shade/part marriage rules; manage breakdowns and absences with one tap; and publish instant, hourly, daily, weekly, and monthly indicators.
+
+| Story ID | Story Name | Detailed Engineering Tasks | Acceptance Criteria |
+| --- | --- | --- | --- |
+| **E3-S1** | **Upgraded Sewing HMI (`sew01.html`) with Real NFC, DAG & Audio** | 1. Connect `sew01.html` to live backend endpoints (`/api/v1/sewing/validate-pair`, `/api/v1/ledger/append`) instead of mock JS timestamps.
+
+<br>
+
+<br>2. Unify the anti-ghosting dwell timer between frontend and backend (standardize on configurable `dwell_floor_pct`, e.g., 40% of SAM).
+
+<br>
+
+<br>3. Add visual part marriage checks: when attaching a pocket (`101`) to a front panel (`102`), validate via `AttachmentEngine.ValidatePair` that both tags belong to the same Cut, Pant Position (shade), and Ply Group. If mismatched, flash a full-screen Red alert with audio in the worker's language (`docscribe`).
+
+<br>
+
+<br>4. Add a giant **"CALL MECHANIC / NEED HELP"** button that creates a live `floor_issues` record.
+
+ | Operator screen speaks instructions in Hindi/English, blocks shade/cut mismatches instantly, enforces minimum sewing time, and logs every cycle to PostgreSQL + WAL.
+
+ |
+| **E3-S2** | **Finishing, 2-Piece Polybag & Scale-Verified Carton Packing UI** | 1. Build `/packing` tablet UI (`packing_view.html`) connected to `/api/v1/packing/session/*` and `carton_packer.go`.
+
+<br>
+
+<br>2. Visual Slot Filler: Display big visual boxes for each size/color slot in the carton (e.g., `12 / 12` pieces). Each barcode/RFID scan fills one visual slot and plays a chime.
+
+<br>
+
+<br>3. Scale Check Gate: Display a visual weight gauge (`Expected: 8.35 kg` vs `Actual Scale Weight`). Block carton sealing if weight is off by $> 0.25\text{ kg}$ or slots are incomplete, unless a Supervisor taps their badge for a `BuyerException`.
+
+ | Packer sees exact visual progress of pieces per carton, gets blocked on wrong UPC or weight mismatch, and seals cartons directly into the DB.
+
+ |
+| **E3-S3** | **1-Tap Supervisor Triage (Absences, Floaters & Breakdowns)** | 1. Upgrade `plant_view.html` Triage Rail (`Live Floor Issues`) from read-only cards to **1-Tap Action Cards**:
+
+<br>
+
+<br>   • **Worker Absent Card:** Shows absent worker (e.g., *Sunita Sharma - Station 14*) and automatically suggests available qualified floaters from `workers` (e.g., **[Assign Deepak Kumar]**). Clicking the button updates `attendance_register` and clears the bottleneck.
+
+<br>
+
+<br>   • **Machine Breakdown Card:** Shows broken machine, timer since breakdown, and a **[Dispatch Mechanic Ramesh]** / **[Mark Fixed]** button that updates `machine_roster` and logs downtime minutes.
+
+ | Supervisor resolves an absence or dispatches a mechanic in 2 taps on their tablet without opening a spreadsheet. |
+| **E3-S4** | **Instant, Hourly, Daily, Weekly & Monthly KPI Rollup Engine** | 1. Remove hardcoded `'Line 14'` and `'75'` target units in `handleLedgerAppend` (`main.go`); dynamically resolve `line_id`, `station_id`, and hourly target from the active work order and `machine_roster`.
+
+<br>
+
+<br>2. Create SQL views and rollup endpoints (`GET /api/v1/analytics/summary?period=instant | hourly |
+| **E3-S5** | **6-Department Order Closure Reconciliation (OCR) UI** | 1. Add a visual **Order Closure Tab (`/ocr`)** wired to `/api/v1/ocr/{reconcile,sign,seal}`.
+
+<br>
+
+<br>2. Show a simple visual balance scale: **Pieces Cut = Pieces Shipped + Damaged + Leftover**.
+
+<br>
+
+<br>3. Provide 6 big sign-off buttons for the 6 department heads (`Merchandising`, `IE`, `Sourcing`, `Production`, `Quality`, `Finance`) to tap and download the tamper-evident OCR Certificate PDF (`GenerateOfficialOCRPDF`).
+
+ | Order cannot be closed if a single cut piece is unaccounted for without an explanation; generates signed cryptographic PDF upon 6-department sign-off.
+
+ |
+
+---
+
+## 4. Phased Implementation Roadmap
+
+| Phase | Duration | Focus Area | Key Deliverable |
+| --- | --- | --- | --- |
+| **Phase 1: Stabilization** | Week 1 | **Epic 0** (Schema & Package Cleanup) | Clean Go build, fixed `0001_baseline_zero.sql`, PostgreSQL-backed state, zero duplicate packages.
+
+ |
+| **Phase 2: Planning Module** | Weeks 2–3 | **Epic 1** (Cumulative Intake, Capacity & Plan Lock) | 100% passing doc ingestion (`01`–`06`), capacity analyzer, 3-step Manager Planning UI, Print/Email PDF plan.
+
+ |
+| **Phase 3: Cutting Module** | Weeks 4–5 | **Epic 2** (2D Geometry, Roll Allocator & Vision) | 2D marker nesting optimizer, double-witness roll UI, defect vision overlay, NFC bundle commissioning tablet.
+
+ |
+| **Phase 4: Operations & KPIs** | Weeks 6–7 | **Epic 3** (Floor HMIs, 1-Tap Triage & Multi-Horizon KPIs) | Multilingual `sew01.html` with audio/NFC, scale-verified packing UI, 1-tap float/mechanic dispatch, Instant/Hourly/Daily/Weekly/Monthly dashboard & OCR closure.
+
+ |
+
+Would you like to start immediately with **Epic 0 & Epic 1** by generating the fixed `0001_baseline_zero.sql` migration and the repaired deterministic+AI `ingest_docs.go` code?

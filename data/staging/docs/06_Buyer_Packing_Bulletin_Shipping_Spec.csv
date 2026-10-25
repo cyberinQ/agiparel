@@ -1,0 +1,15 @@
+# BUYER PACKING BULLETIN & CARTON SPECIFICATION
+# Buyer: Pery Retail Sourcing Corp | Consignee: Pery Distribution Center, NJ, USA
+# PO Number: MK6574J9 | Style: KK524867 | Packing Mode: Solid Size & Pre-Pack Ratio
+CARTON_RANGE,PACK_TYPE,TOTAL_CARTONS,PCS_PER_CARTON,COLOR_CODE,SIZE_RATIO_SPEC,EXPECTED_GROSS_WEIGHT_KG,SCALE_TOLERANCE_KG,BUYER_UPC_LIST
+CTN 001-010,SOLID,10,12,IND,"28/30: 12 pcs",8.100,0.250,"760295722284"
+CTN 011-025,SOLID,15,12,IND,"30/30: 12 pcs",8.350,0.250,"760295722291"
+CTN 026-045,RATIO,20,12,IND,"30/30: 4 pcs | 32/30: 8 pcs",8.550,0.250,"760295722291, 760295722307"
+CTN 046-050,SOLID,5,12,IND,"34/30: 12 pcs",8.800,0.250,"760295722314"
+CTN 051-060,RATIO,10,12,BLK,"30/30: 6 pcs | 32/30: 6 pcs",8.450,0.250,"760295722321, 760295722338"
+CTN 061-070,SOLID,10,12,OLV,"32/30: 12 pcs",8.600,0.250,"760295722345"
+
+# SHIPPING & PALLETIZATION RULES
+# Pallet Configuration: 30 Cartons/Pallet | Stretch Wrap: 23 Micron UV stabilized
+# RFID Hangtag Spec: EPC Gen2 Monza R6 Washable Inlay stitched into left waistband
+# Tamper Seal Rule: Gross weight variance > 250g triggers automatic station lockout

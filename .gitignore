@@ -1,0 +1,29 @@
+# Operating System
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE & History Snapshots
+.history/
+.vscode/
+.idea/
+*.swp
+*~
+
+# Go Build Artifacts & Tests
+bin/
+dist/
+*.test
+*.out
+coverage/
+
+# Runtime Data & WAL
+data/wal/
+*.wal
+compose/pgdata/
+compose/redisdata/
+compose/edge_wal_data/

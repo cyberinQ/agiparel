@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PM-01 · Plant Overview Situation Room</title>
+  <style>
+    :root {
+      --bg: #F1F4F8;
+      --surface: #FFFFFF;
+      --brand: #1E3A8A;
+      --text: #0F172A;
+      --muted: #64748B;
+      --line: #E2E8F0;
+      --ok: #10B981;
+      --warn: #F59E0B;
+      --crit: #DC2626;
+      --info: #2563EB;
+      --radius-card: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 24px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      background: var(--surface);
+      padding: 18px 24px;
+      border-radius: var(--radius-card);
+      border: 1px solid var(--line);
+    }
+    .header-left h1 {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--brand);
+      letter-spacing: -0.02em;
+    }
+    .header-left p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .header-right {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .btn-agie-trigger {
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-agie-trigger:hover { background: #172e6e; }
+
+    /* Top KPI Row */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-card);
+      padding: 18px 20px;
+    }
+    .kpi-caption {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .kpi-val {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-top: 6px;
+    }
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* Main Grid Layout */
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 24px;
+    }
+
+    /* 14-Line Matrix */
+    .line-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .line-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-left: 6px solid var(--ok);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .line-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .line-card.warn { border-left-color: var(--warn); }
+    .line-card.crit { border-left-color: var(--crit); }
+    .line-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .line-title {
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--text);
+    }
+    .status-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .pill-ok { background: #E6F9F0; color: var(--ok); }
+    .pill-warn { background: #FEF3C7; color: var(--warn); }
+    .pill-crit { background: #FEE2E2; color: var(--crit); }
+
+    .line-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    .progress-bar-bg {
+      background: var(--line);
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .progress-bar-fill {
+      background: var(--ok);
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Right Triage Rail */
+    .triage-rail {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .triage-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-card);
+      padding: 18px;
+    }
+    .triage-card h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+    .issue-item {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+    .issue-item:last-child { border-bottom: none; }
+    .issue-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .issue-tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .issue-tag.crit { background: #FEE2E2; color: var(--crit); }
+    .issue-tag.warn { background: #FEF3C7; color: var(--warn); }
+    .issue-tag.info { background: #E0E7FF; color: var(--info); }
+
+    /* Slide-Out Drawer for Agie */
+    .drawer-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.4);
+      z-index: 1000;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .drawer-overlay.active { display: block; opacity: 1; }
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: -520px;
+      width: 500px;
+      height: 100%;
+      background: var(--surface);
+      z-index: 1001;
+      box-shadow: -10px 0 30px rgba(0,0,0,0.15);
+      display: flex;
+      flex-direction: column;
+      transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .drawer.open { right: 0; }
+    .drawer-header {
+      background: var(--brand);
+      color: #fff;
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .drawer-close {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 24px;
+      cursor: pointer;
+    }
+    .chat-box {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      background: var(--bg);
+    }
+    .msg {
+      max-width: 85%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .msg-agie {
+      background: #fff;
+      border: 1px solid var(--line);
+      color: var(--text);
+      align-self: flex-start;
+      border-bottom-left-radius: 2px;
+    }
+    .msg-user {
+      background: var(--brand);
+      color: #fff;
+      align-self: flex-end;
+      border-bottom-right-radius: 2px;
+    }
+    .chat-bar {
+      padding: 16px;
+      border-top: 1px solid var(--line);
+      background: #fff;
+      display: flex;
+      gap: 10px;
+    }
+    .chat-input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .chat-send {
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-left">
+      <h1 id="plant-header-title">PM-01 · Plant Overview Situation Room</h1>
+      <p id="plant-header-sub">Loading factory profile...</p>
+    </div>
+    <div class="header-right">
+      <a href="/api/v1/onboarding/template.csv" class="btn-agie-trigger" style="background:#0F172A;text-decoration:none;">
+        ⬇ Pre-Boarding Template (.csv)
+      </a>
+      <label class="btn-agie-trigger" style="background:#10B981;">
+        ⬆ Upload Onboarding Sheet
+        <input type="file" accept=".csv" style="display:none;" onchange="uploadOnboardingSheet(this)">
+      </label>
+      <button class="btn-agie-trigger" onclick="toggleAgieDrawer()">
+        ✦ Ask Agie (Executive AI)
+      </button>
+    </div>
+  </header>
+
+  <!-- 5 Hero KPIs -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-caption">Plant Output (Achieved / Target)</div>
+      <div class="kpi-val" id="kpi-output">420 / 600</div>
+      <div class="kpi-sub">70.0% Shift Target</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-caption">Plant DHU (Defect Rate)</div>
+      <div class="kpi-val" style="color: var(--ok);" id="kpi-dhu">1.2%</div>
+      <div class="kpi-sub">Target: ≤ 2.5%</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-caption">Active Lines</div>
+      <div class="kpi-val">14 / 14</div>
+      <div class="kpi-sub">100% Floor Utilization</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-caption">Active Issues</div>
+      <div class="kpi-val" style="color: var(--warn);" id="kpi-issues">2</div>
+      <div class="kpi-sub">1 Quality · 1 Mechanic</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-caption">Ready for Packing (Pass Rate)</div>
+      <div class="kpi-val" id="kpi-finish">98.4%</div>
+      <div class="kpi-sub">Target: ≥ 98.0%</div>
+    </div>
+  </div>
+
+  <!-- Main Grid + Triage Rail -->
+  <div class="dashboard-layout">
+    <div class="line-grid" id="line-grid-container">
+      <!-- 14 Lines populated dynamically -->
+    </div>
+
+    <div class="triage-rail">
+      <!-- Inside triage-card in plant_view.html -->
+      <div class="triage-card">
+        <h3>Live Floor Issues (PM-02)</h3>
+        <div id="issue-list">
+          <div class="issue-item">
+            <div class="issue-header">
+              <strong>Line 14 - ST-03</strong>
+              <span class="issue-tag warn">ATTENTION</span>
+            </div>
+            <div>Sunita Sharma absent; station hem bottlenecking pace.</div>
+            <button class="btn-agie-trigger" style="margin-top:8px; background:var(--green); font-size:12px; padding:6px 12px;" onclick="resolveIssue('ISS-ATT-W-03', 'ASSIGN_FLOAT')">
+              ✓ Assign Float Worker Deepak
+            </button>
+          </div>
+          <div class="issue-item">
+            <div class="issue-header">
+              <strong>Line 02 - ST-08</strong>
+              <span class="issue-tag crit">MAINTENANCE</span>
+            </div>
+            <div>Needle timing slippage on Kansai flatlock.</div>
+            <button class="btn-agie-trigger" style="margin-top:8px; background:var(--brand); font-size:12px; padding:6px 12px;" onclick="resolveIssue('ISS-MACH-M-02', 'DISPATCH_MECHANIC')">
+              🔧 Dispatch Mechanic Ramesh
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="triage-card">
+        <h3>Quick Links</h3>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <a href="/sew01" target="_blank" style="color: var(--brand); text-decoration: none; font-size: 13px; font-weight: 600;">➔ SEW-01 Operator Terminal</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agie Drawer -->
+  <div class="drawer-overlay" id="drawer-overlay" onclick="toggleAgieDrawer()"></div>
+  <div class="drawer" id="agie-drawer">
+    <div class="drawer-header">
+      <div>
+        <h2>Agie Executive AI</h2>
+        <span style="font-size: 11px; opacity: 0.8;">Zero-Hallucination ReAct Ground Truth</span>
+      </div>
+      <button class="drawer-close" onclick="toggleAgieDrawer()">&times;</button>
+    </div>
+    <div class="chat-box" id="chat-stream">
+      <div class="msg msg-agie">
+        Ask about attendance, orders, or bottlenecks. Answers are provided only when verified against available factory records.
+      </div>
+    </div>
+    <div class="chat-bar">
+      <input type="text" id="agie-input" class="chat-input" placeholder="e.g. Who is absent today and what is the line impact?" onkeydown="if(event.key==='Enter') sendAgieMessage()">
+      <button class="chat-send" onclick="sendAgieMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    async function loadPlantOverview() {
+      try {
+        const res = await fetch("/api/v1/plant/overview");
+        if (!res.ok) return;
+        const data = await res.json();
+        const cfg = data.config || {};
+        document.getElementById("plant-header-sub").innerText =
+          `${cfg.plant_name || 'Unconfigured Factory'} · ${cfg.unit_code || ''} · Active Shift`;
+
+        const lines = data.lines || [];
+        const grid = document.getElementById("line-grid-container");
+        if (lines.length === 0) {
+          grid.innerHTML = '<div style="grid-column: 1/-1; padding: 24px; background: #fff; border-radius: 14px; border: 1px solid var(--line);">No active lines configured. Download the <strong>Pre-Boarding Template (.csv)</strong> above, fill in your factory details, and click <strong>Upload Onboarding Sheet</strong>.</div>';
+          return;
+        }
+
+        let totalAchieved = 0, totalTarget = 0;
+        grid.innerHTML = "";
+        lines.forEach(l => {
+          totalAchieved += l.achieved;
+          totalTarget += l.target;
+          const pct = l.target > 0 ? Math.round((l.achieved / l.target) * 100) : 0;
+          const card = document.createElement("div");
+          card.className = `line-card ${l.status}`;
+          card.innerHTML = `
+            <div class="line-header">
+              <span class="line-title">${l.line_id}</span>
+              <span class="status-pill ${l.status === 'ok' ? 'pill-ok' : 'pill-warn'}">${l.status === 'ok' ? 'ON PACE' : 'ATTENTION'}</span>
+            </div>
+            <div class="line-stats">
+              <span style="color: var(--muted);">Style: <strong>${l.style}</strong></span>
+              <span>DHU: <strong>${Number(l.dhu).toFixed(1)}%</strong></span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width: ${Math.min(100, pct)}%; background: ${l.status === 'ok' ? 'var(--ok)' : 'var(--warn)'}"></div>
+            </div>
+            <div class="line-stats" style="margin-bottom: 0;">
+              <span>${l.achieved} / ${l.target} pcs</span>
+              <strong>${pct}%</strong>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+        document.getElementById("kpi-output").innerText = `${totalAchieved} / ${totalTarget}`;
+      } catch (e) {
+        console.error("Failed to load plant overview", e);
+      }
+    }
+
+    async function uploadOnboardingSheet(input) {
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
+      const text = await file.text();
+      const res = await fetch("/api/v1/onboarding/upload", {
+        method: "POST",
+        headers: { "Content-Type": "text/csv" },
+        body: text
+      });
+      if (res.ok) {
+        const result = await res.json();
+        alert(`Factory Onboarded: ${result.factory_name} (${result.lines_loaded} lines, ${result.machines_loaded} machines, ${result.workers_loaded} workers, ${result.styles_loaded} styles)`);
+        loadPlantOverview();
+        loadFloorIssues();
+      } else {
+        const errText = await res.text();
+        alert("Onboarding Upload Error: " + errText);
+      }
+      input.value = "";
+    }
+
+    loadPlantOverview();
+    setInterval(loadPlantOverview, 5000);
+
+    // Drawer Interaction
+    function toggleAgieDrawer() {
+      const drawer = document.getElementById("agie-drawer");
+      const overlay = document.getElementById("drawer-overlay");
+      const isOpen = drawer.classList.contains("open");
+      if (isOpen) {
+        drawer.classList.remove("open");
+        overlay.classList.remove("active");
+      } else {
+        drawer.classList.add("open");
+        overlay.classList.add("active");
+        document.getElementById("agie-input").focus();
+      }
+    }
+
+    let chatHistory = [];
+    async function sendAgieMessage() {
+      const input = document.getElementById("agie-input");
+      const query = input.value.trim();
+      if (!query) return;
+      input.value = "";
+
+      const stream = document.getElementById("chat-stream");
+      const userDiv = document.createElement("div");
+      userDiv.className = "msg msg-user";
+      userDiv.innerText = query;
+      stream.appendChild(userDiv);
+
+      chatHistory.push({ role: "user", content: query });
+
+      const loadDiv = document.createElement("div");
+      loadDiv.className = "msg msg-agie";
+      loadDiv.innerText = "Querying live factory database...";
+      stream.appendChild(loadDiv);
+      stream.scrollTop = stream.scrollHeight;
+
+      try {
+        const res = await fetch("/api/v1/agie/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: chatHistory })
+        });
+        if (!res.ok) throw new Error((await res.text()).trim() || `HTTP ${res.status}`);
+        const data = await res.json();
+        if (typeof data.reply !== 'string' || !data.reply.trim()) throw new Error('AGIE returned an empty answer');
+        loadDiv.innerText = data.reply;
+        chatHistory.push({ role: "assistant", content: data.reply });
+      } catch (e) {
+        loadDiv.innerText = `AGIE unavailable: ${e.message}`;
+      }
+      stream.scrollTop = stream.scrollHeight;
+    }
+    
+    async function loadFloorIssues() {
+      try {
+        const res = await fetch("/api/v1/issues");
+        if (!res.ok) return;
+        const issues = await res.json();
+
+        // Update KPI Counter Card
+        const kpiVal = document.getElementById("kpi-issues");
+        if (kpiVal) kpiVal.innerText = issues.length;
+
+        // Render Issue List
+        const container = document.getElementById("issue-list");
+        if (!container) return;
+
+        if (issues.length === 0) {
+          container.innerHTML = '<div style="color: var(--muted); font-size: 13px; padding: 12px 0;">Zero active issues on floor. Operations nominal.</div>';
+          return;
+        }
+
+        container.innerHTML = issues.map(iss => {
+          const sevClass = iss.severity === 'critical' ? 'crit' : (iss.severity === 'attention' ? 'warn' : 'info');
+          const loc = iss.station_id ? `${iss.line_id} · ${iss.station_id}` : iss.line_id;
+          return `
+            <div class="issue-item">
+              <div class="issue-header">
+                <strong>${loc}</strong>
+                <span class="issue-tag ${sevClass}">${iss.severity}</span>
+              </div>
+              <div>${iss.title}</div>
+              <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">Owner: ${iss.owner_id} · Status: ${iss.status}</div>
+            </div>
+          `;
+        }).join("");
+      } catch (e) {
+        console.error("Failed to load floor issues", e);
+      }
+    }
+
+    loadFloorIssues();
+    setInterval(loadFloorIssues, 5000);
+  </script>
+</body>
+</html>

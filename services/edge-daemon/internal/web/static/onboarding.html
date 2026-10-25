@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agiparel | Easy Factory Plan & Setup</title>
+  <style>
+    :root {
+      --bg: #F1F4F8; --surface: #FFFFFF; --brand: #1E3A8A; --text: #0F172A;
+      --muted: #475569; --line: #CBD5E1;
+      --green: #10B981; --green-bg: #ECFDF5;
+      --yellow: #F59E0B; --yellow-bg: #FFFBEB;
+      --red: #DC2626; --red-bg: #FEF2F2;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 24px; line-height: 1.4;
+    }
+    .container { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+
+    header {
+      background: var(--surface); padding: 24px; border-radius: var(--radius);
+      border: 2px solid var(--line); display: flex; justify-content: space-between; align-items: center;
+    }
+    header h1 { font-size: 28px; color: var(--brand); font-weight: 900; }
+    header p { font-size: 16px; color: var(--muted); margin-top: 4px; font-weight: 500; }
+
+    .step-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 2px solid var(--line); padding: 28px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+    .step-badge {
+      display: inline-block; background: var(--brand); color: #fff;
+      font-weight: 900; font-size: 14px; padding: 6px 14px; border-radius: 99px;
+      text-transform: uppercase; margin-bottom: 12px;
+    }
+    .step-title { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+    .step-sub { font-size: 16px; color: var(--muted); margin-bottom: 20px; }
+
+    /* Step 1: Big Upload Dropzone */
+    .drop-zone {
+      border: 3px dashed var(--brand); background: #EFF6FF;
+      border-radius: var(--radius); padding: 36px; text-align: center;
+      cursor: pointer; transition: transform 0.1s;
+    }
+    .drop-zone:hover { transform: scale(1.01); background: #DBEAFE; }
+    .drop-zone h3 { font-size: 22px; color: var(--brand); margin-bottom: 8px; }
+    .round-pills { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .round-pill {
+      background: var(--green-bg); border: 2px solid var(--green); color: #065F46;
+      padding: 8px 16px; border-radius: 10px; font-weight: 700; font-size: 15px;
+    }
+
+    /* Step 2: 3 Traffic Light Cards */
+    .traffic-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .light-card {
+      border-radius: 14px; padding: 22px; border: 3px solid var(--line);
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .light-card.GREEN { background: var(--green-bg); border-color: var(--green); }
+    .light-card.YELLOW { background: var(--yellow-bg); border-color: var(--yellow); }
+    .light-card.RED { background: var(--red-bg); border-color: var(--red); }
+
+    .light-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .light-label { font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; }
+    .light-dot {
+      padding: 6px 12px; border-radius: 8px; font-weight: 900; font-size: 13px; color: #fff;
+    }
+    .dot-GREEN { background: var(--green); }
+    .dot-YELLOW { background: var(--yellow); color: #000; }
+    .dot-RED { background: var(--red); }
+
+    .light-headline { font-size: 20px; font-weight: 900; margin-bottom: 10px; }
+    .light-list { list-style: none; font-size: 15px; margin-bottom: 16px; }
+    .light-list li { margin-bottom: 6px; padding-left: 14px; position: relative; }
+    .light-list li::before { content: "•"; position: absolute; left: 0; font-weight: 900; }
+
+    /* Step 3: Edit & Lock Form */
+    .edit-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+    .field-box { background: #F8FAFC; padding: 16px; border-radius: 12px; border: 2px solid var(--line); }
+    .field-box label { display: block; font-size: 14px; font-weight: 800; color: var(--muted); margin-bottom: 8px; }
+    .field-box input, .field-box select {
+      width: 100%; padding: 12px; font-size: 18px; font-weight: 800;
+      border: 2px solid var(--line); border-radius: 8px; background: #fff;
+    }
+
+    .btn-row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .btn-big {
+      border: none; padding: 18px 28px; border-radius: 12px;
+      font-size: 18px; font-weight: 900; cursor: pointer; color: #fff;
+      display: inline-flex; align-items: center; gap: 10px; text-decoration: none;
+    }
+    .btn-green { background: var(--green); }
+    .btn-blue { background: var(--brand); }
+    .btn-amber { background: var(--yellow); color: #000; }
+    .btn-dark { background: #0F172A; }
+
+    /* Print Stylesheet for Physical Factory Floor Handout */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .no-print { display: none !important; }
+      .step-card { border: 2px solid #000; box-shadow: none; page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Factory Order Planner</h1>
+        <p id="factory-subtitle">Noble Garments (OKHLA Unit 002/02) — Simple 3-Step Order Setup</p>
+      </div>
+      <div class="no-print" style="display:flex; gap:12px;">
+        <a href="/cutting" class="btn-big btn-blue" style="padding:12px 20px; font-size:15px;">Go to Cutting Table &rarr;</a>
+        <a href="/plant" class="btn-big btn-dark" style="padding:12px 20px; font-size:15px;">Go to Floor TV &rarr;</a>
+      </div>
+    </header>
+
+    <!-- STEP 1: CUMULATIVE UPLOAD -->
+    <div class="step-card no-print">
+      <span class="step-badge">Step 1 of 3</span>
+      <div class="step-title">Put Customer Files Here</div>
+      <div class="step-sub">Upload what you have now (Order Sheet, Sewing Steps, Machine List, or Worker List). You can add more files later!</div>
+
+      <label class="drop-zone" style="display:block;">
+        <h3>Tap Here to Pick Files (.csv, .xlsx, .pdf, or photo)</h3>
+        <p style="font-size:15px; color:var(--muted);">Every upload adds to your plan without erasing earlier work.</p>
+        <input type="file" multiple accept=".csv,.xlsx,.pdf,.png,.jpg" style="display:none;" onchange="handleUploadFiles(this)">
+      </label>
+
+      <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
+        <div class="round-pills" id="uploaded-pills">
+          <span class="round-pill">No documents uploaded in this session</span>
+        </div>
+        <a href="/api/v1/onboarding/template.csv" style="font-weight:700; color:var(--brand); font-size:14px;">Download Blank Sample Sheet</a>
+      </div>
+    </div>
+
+    <!-- STEP 2: TRAFFIC-LIGHT CAPACITY CHECK -->
+    <div class="step-card">
+      <span class="step-badge">Step 2 of 3</span>
+      <div class="step-title">Can Our Factory Make This Order Today?</div>
+      <div class="step-sub">Green means ready. Yellow means check. Red means stop. Upload verified updates before approving.</div>
+
+      <div class="traffic-grid" id="readiness-cards">
+        <!-- Populated dynamically from /api/v1/planning/assessment -->
+      </div>
+    </div>
+
+    <!-- STEP 3: EDIT, APPROVE, PRINT & EMAIL -->
+    <div class="step-card">
+      <span class="step-badge">Step 3 of 3</span>
+      <div class="step-title">Check Numbers, Lock Plan & Send to Team</div>
+      <div class="step-sub">Review the verified numbers below. Approval locks the database; print the plan only after checking every warning.</div>
+
+      <div class="edit-grid">
+        <div class="field-box">
+          <label>Customer Order (PO)</label>
+          <input type="text" id="plan-po" value="MK6574J9">
+        </div>
+        <div class="field-box">
+          <label>Garment Style</label>
+          <input type="text" id="plan-style" value="KK524867">
+        </div>
+        <div class="field-box">
+          <label>Sewing Line</label>
+          <select id="plan-line">
+            <option value="Line 14">Line 14 (Denim Trouser)</option>
+            <option value="Line 02">Line 02 (Knit Polo)</option>
+          </select>
+        </div>
+        <div class="field-box">
+          <label>Order Pieces (+2% Extra Cut)</label>
+          <input type="number" id="plan-qty" value="600" onchange="recalcCutTarget()">
+          <div id="cut-target-hint" style="font-size:13px; color:var(--brand); font-weight:700; margin-top:4px;">Will Cut: 612 pieces</div>
+        </div>
+      </div>
+
+      <div class="edit-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+        <div class="field-box">
+          <label>Daily Goal (Pieces / Day)</label>
+          <input type="number" id="plan-daily" value="600">
+        </div>
+        <div class="field-box">
+          <label>Team Emails (for Plan PDF)</label>
+          <input type="text" id="plan-emails" placeholder="Add recipients after SMTP is configured">
+        </div>
+        <div class="field-box no-print">
+          <label>Manager 4-Digit PIN to Lock</label>
+          <input type="password" id="plan-pin" autocomplete="off" maxlength="4" inputmode="numeric" pattern="[0-9]{4}">
+        </div>
+      </div>
+
+      <div class="btn-row no-print">
+        <button class="btn-big btn-green" onclick="approveAndLockPlan()">
+          ✓ 1. Approve & Lock Plan in Database
+        </button>
+        <button class="btn-big btn-blue" onclick="window.print()">
+          🖨️ 2. Print Plan for Floor
+        </button>
+        <button class="btn-big btn-dark" onclick="emailPlanToTeam()">
+          ✉️ 3. Email Plan to Team
+        </button>
+      </div>
+
+      <div id="lock-banner" style="display:none; margin-top:20px; padding:18px; border-radius:12px; background:var(--green-bg); border:2px solid var(--green); font-size:18px; font-weight:800; color:#065F46;">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Author: Sunil Jain, 2026-10-25 — DOM-safe rendering and structured multipart uploads.
+    function escapeHTML(value) {
+      return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function recalcCutTarget() {
+      const qty = parseInt(document.getElementById('plan-qty').value) || 0;
+      const extra = Math.min(15, Math.max(1, Math.round(qty * 0.02)));
+      document.getElementById('cut-target-hint').innerText = `Will Cut: ${qty + extra} pieces (includes ${extra} extra for safety)`;
+    }
+
+    async function loadAssessment() {
+      const po = document.getElementById('plan-po').value;
+      try {
+        const res = await fetch(`/api/v1/planning/assessment?po=${encodeURIComponent(po)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        document.getElementById('plan-po').value = data.po_number || '';
+        document.getElementById('plan-style').value = data.style_code || '';
+        document.getElementById('plan-qty').value = data.ordered_qty || 0;
+        recalcCutTarget();
+
+        const container = document.getElementById('readiness-cards');
+        container.innerHTML = (data.cards || []).map(c => {
+          const bullets = (c.details || []).map(d => `<li>${escapeHTML(d)}</li>`).join('');
+          let fixBtn = '';
+          if (c.status !== 'GREEN' && c.suggested_fix) {
+            fixBtn = `<div style="margin-top:12px;font-weight:700">Next: ${escapeHTML(c.suggested_fix)}</div>`;
+          }
+          return `
+            <div class="light-card ${c.status}">
+              <div>
+                <div class="light-header">
+                  <span class="light-label">${escapeHTML(c.category)}</span>
+                  <span class="light-dot dot-${c.status}">${c.status === 'GREEN' ? 'READY' : (c.status === 'YELLOW' ? 'NEEDS HELP' : 'STOP')}</span>
+                </div>
+                <div class="light-headline">${escapeHTML(c.headline)}</div>
+                <ul class="light-list">${bullets}</ul>
+              </div>
+              ${fixBtn}
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error("Failed loading assessment", e);
+      }
+    }
+
+    async function handleUploadFiles(input) {
+      if (!input.files || !input.files.length) return;
+      const form = new FormData();
+      for (const file of input.files) form.append('files', file, file.name);
+      try {
+        const response = await fetch('/api/v1/planning/upload-docs', {method:'POST', body:form});
+        if (!response.ok) throw new Error(await response.text());
+        const result = await response.json();
+        const pills = document.getElementById('uploaded-pills');
+        pills.replaceChildren();
+        for (const name of result.files || []) {
+          const item = document.createElement('span');
+          item.className = 'round-pill';
+          item.innerText = `Saved: ${name}`;
+          pills.appendChild(item);
+        }
+        if (result.conflicts?.length) {
+          alert(`${result.conflicts.length} mismatch(es) need manager review before plan approval.`);
+        }
+        await loadAssessment();
+      } catch (error) { alert(`Upload not completed: ${error.message}`); }
+      finally { input.value = ''; }
+    }
+
+    async function approveAndLockPlan() {
+      const payload = {
+        po_number: document.getElementById('plan-po').value,
+        style_code: document.getElementById('plan-style').value,
+        line_id: document.getElementById('plan-line').value,
+        ordered_qty: parseInt(document.getElementById('plan-qty').value) || 0,
+        daily_target: parseInt(document.getElementById('plan-daily').value) || 600,
+        pin: document.getElementById('plan-pin').value
+      };
+      const res = await fetch("/api/v1/planning/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const out = await res.json();
+        const banner = document.getElementById('lock-banner');
+        banner.style.display = 'block';
+        banner.innerText = `PLAN LOCKED in database: ${out.po_number}, ${out.target_cut_qty} target cut pieces, ${out.line_id}. Print and share the reviewed plan separately.`;
+      } else {
+        alert("Could not lock plan: " + await res.text());
+      }
+    }
+
+    async function emailPlanToTeam() {
+      const emails = document.getElementById('plan-emails').value;
+      const po = document.getElementById('plan-po').value;
+      const res = await fetch("/api/v1/planning/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ po_number: po, recipients: emails })
+      });
+      if (res.ok) {
+        const out = await res.json();
+        alert(`Plan Packet emailed to: ${out.recipients}`);
+      } else {
+        alert(`Email not sent: ${await res.text()}`);
+      }
+    }
+
+    loadAssessment();
+  </script>
+</body>
+</html>
