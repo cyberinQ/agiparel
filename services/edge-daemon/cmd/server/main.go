@@ -79,7 +79,7 @@ func main() {
 
 	secret := os.Getenv("LEDGER_SECRET")
 	if secret == "" {
-		secret = "DEV_INSECURE_SECRET_REPLACE_IN_PROD"
+		log.Fatal("FATAL: LEDGER_SECRET environment variable must be set")
 	}
 
 	walPath := os.Getenv("WAL_PATH")
