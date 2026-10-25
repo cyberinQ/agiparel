@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-// Author: Sunil Jain, 2026-10-25 — Deterministic intake, conflict detection, and commit-aware manifests.
-=======
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
+// Author: Sunil Jain, CyberinQ LLC
 package main
 
 import (
@@ -21,13 +18,9 @@ import (
 	"log"
 	"net/http"
 	"os"
-<<<<<<< HEAD
 	"os/exec"
 	"path/filepath"
 	"regexp"
-=======
-	"path/filepath"
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	"strconv"
 	"strings"
 	"time"
@@ -35,14 +28,6 @@ import (
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/onboarding"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
-
-// ============================================================================
-<<<<<<< HEAD
-// FLEXIBLE SCALAR TYPES (Tolerates LLM Type Drift on Unstructured Fallbacks)
-=======
-// FLEXIBLE SCALAR TYPES (Tolerates LLM Type Drift)
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
-// ============================================================================
 
 type FlexString string
 
@@ -53,11 +38,7 @@ func (f *FlexString) UnmarshalJSON(b []byte) error {
 	}
 	switch v := raw.(type) {
 	case string:
-<<<<<<< HEAD
 		*f = FlexString(strings.TrimSpace(v))
-=======
-		*f = FlexString(v)
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	case float64:
 		*f = FlexString(strconv.FormatInt(int64(v), 10))
 	case int:
@@ -72,13 +53,7 @@ func (f *FlexString) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-<<<<<<< HEAD
 func (f FlexString) String() string { return string(f) }
-=======
-func (f FlexString) String() string {
-	return string(f)
-}
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 
 type FlexInt int
 
@@ -94,34 +69,22 @@ func (f *FlexInt) UnmarshalJSON(b []byte) error {
 		*f = FlexInt(v)
 	case string:
 		s := strings.TrimSpace(v)
-<<<<<<< HEAD
-=======
 		if s == "" {
 			*f = 0
 			return nil
 		}
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 		if iv, err := strconv.Atoi(s); err == nil {
 			*f = FlexInt(iv)
 		} else if fv, err := strconv.ParseFloat(s, 64); err == nil {
 			*f = FlexInt(int(fv))
 		}
-<<<<<<< HEAD
-=======
 	case nil:
 		*f = 0
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	}
 	return nil
 }
 
-<<<<<<< HEAD
 func (f FlexInt) Int() int { return int(f) }
-=======
-func (f FlexInt) Int() int {
-	return int(f)
-}
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 
 type FlexFloat64 float64
 
@@ -136,11 +99,6 @@ func (f *FlexFloat64) UnmarshalJSON(b []byte) error {
 	case int:
 		*f = FlexFloat64(float64(v))
 	case string:
-<<<<<<< HEAD
-		if fv, err := strconv.ParseFloat(strings.TrimSpace(v), 64); err == nil {
-			*f = FlexFloat64(fv)
-		}
-=======
 		s := strings.TrimSpace(v)
 		if s == "" {
 			*f = 0.0
@@ -151,25 +109,11 @@ func (f *FlexFloat64) UnmarshalJSON(b []byte) error {
 		}
 	case nil:
 		*f = 0.0
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	}
 	return nil
 }
 
-<<<<<<< HEAD
 func (f FlexFloat64) Float64() float64 { return float64(f) }
-
-// ============================================================================
-// EXTRACTION DTOs & MANIFEST TRACKING
-=======
-func (f FlexFloat64) Float64() float64 {
-	return float64(f)
-}
-
-// ============================================================================
-// FLEXIBLE EXTRACTION DTOS
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
-// ============================================================================
 
 type RawExtractionResult struct {
 	FactoryProfile *struct {
@@ -178,7 +122,6 @@ type RawExtractionResult struct {
 		UnitCode       FlexString `json:"unit_code"`
 		ShiftStartHour FlexInt    `json:"shift_start_hour"`
 		BundleSize     FlexInt    `json:"bundle_size"`
-<<<<<<< HEAD
 	} `json:"factory_profile,omitempty"`
 	Lines         []onboarding.LineRow         `json:"lines,omitempty"`
 	Machines      []onboarding.MachineRow      `json:"machines,omitempty"`
@@ -190,103 +133,6 @@ type RawExtractionResult struct {
 	WorkOrders    []onboarding.WorkOrderRow    `json:"work_orders,omitempty"`
 }
 
-=======
-	} `json:"factory_profile"`
-	Lines []struct {
-		LineID              FlexString  `json:"line_id"`
-		DisplayName         FlexString  `json:"display_name"`
-		StationsCount       FlexInt     `json:"stations_count"`
-		TargetDailyCapacity FlexInt     `json:"target_daily_capacity"`
-		DwellFloorPct       FlexFloat64 `json:"dwell_floor_pct"`
-	} `json:"lines"`
-	Machines []struct {
-		MachineID      FlexString `json:"machine_id"`
-		LineID         FlexString `json:"line_id"`
-		StationID      FlexString `json:"station_id"`
-		Name           FlexString `json:"name"`
-		CanonicalClass FlexString `json:"canonical_class"`
-		CapacityUPH    FlexInt    `json:"capacity_uph"`
-		Status         FlexString `json:"status"`
-	} `json:"machines"`
-	Workers []struct {
-		WorkerID          FlexString  `json:"worker_id"`
-		EmployeeCode      FlexString  `json:"employee_code"`
-		Name              FlexString  `json:"name"`
-		PrimarySkill      FlexString  `json:"primary_skill"`
-		SkillGrade        FlexString  `json:"skill_grade"`
-		HourlyRateINR     FlexFloat64 `json:"hourly_rate_inr"`
-		AttendanceStatus  FlexString  `json:"attendance_status"`
-		AssignedLineID    FlexString  `json:"assigned_line_id"`
-		AssignedStationID FlexString  `json:"assigned_station_id"`
-	} `json:"workers"`
-	Styles []struct {
-		StyleID      FlexString  `json:"style_id"`
-		StyleCode    FlexString  `json:"style_code"`
-		Category     FlexString  `json:"category"`
-		FitProfile   FlexString  `json:"fit_profile"`
-		TargetSAMMin FlexFloat64 `json:"target_sam_min"`
-		FabricSKU    FlexString  `json:"fabric_sku"`
-	} `json:"styles"`
-	StyleParts []struct {
-		StyleCode      FlexString `json:"style_code"`
-		PartCode       FlexString `json:"part_code"`
-		PartName       FlexString `json:"part_name"`
-		SubBundleOrder FlexInt    `json:"sub_bundle_order"`
-		MaterialSKU    FlexString `json:"material_sku"`
-	} `json:"style_parts"`
-	OperationsDAG []struct {
-		StyleCode      FlexString  `json:"style_code"`
-		OperationID    FlexString  `json:"operation_id"`
-		OperationName  FlexString  `json:"operation_name"`
-		SAMMinutes     FlexFloat64 `json:"sam_minutes"`
-		MachineType    FlexString  `json:"machine_type"`
-		SourcePartCode FlexString  `json:"source_part_code"`
-		TargetPartCode FlexString  `json:"target_part_code"`
-	} `json:"operations_dag"`
-	StoreRolls []struct {
-		RollID        FlexString  `json:"roll_id"`
-		FactorySKU    FlexString  `json:"factory_sku"`
-		LengthM       FlexFloat64 `json:"length_m"`
-		WidthCM       FlexFloat64 `json:"width_cm"`
-		ShadeBand     FlexString  `json:"shade_band"`
-		BinLocation   FlexString  `json:"bin_location"`
-		Status        FlexString  `json:"status"`
-		ReservedOrder FlexString  `json:"reserved_order"`
-		ReservedCutNo FlexInt     `json:"reserved_cut_no"`
-	} `json:"store_rolls"`
-	WorkOrders []struct {
-		WorkOrderID  FlexString `json:"work_order_id"`
-		PONumber     FlexString `json:"po_number"`
-		StyleCode    FlexString `json:"style_code"`
-		LineID       FlexString `json:"line_id"`
-		SupervisorID FlexString `json:"supervisor_id"`
-		OrderedQty   FlexInt    `json:"ordered_qty"`
-		ColorJSON    FlexString `json:"color_json"`
-		SizeJSON     FlexString `json:"size_json"`
-		Status       FlexString `json:"status"`
-	} `json:"work_orders"`
-}
-
-const IngestionSystemPrompt = `You are an expert apparel factory data extraction engine.
-Extract manufacturing ground truth from the document into valid JSON.
-IMPORTANT INSTRUCTIONS:
-1. All identifiers and names MUST be strings enclosed in quotes (e.g. "M-01", "Line 14", "KK524867").
-2. ONLY return keys that actually exist in the source document. Do NOT output empty arrays for missing categories.
-
-Valid JSON Schema Format:
-{
-  "factory_profile": {"tenant_id":"TENANT_DEFAULT","factory_name":"Noble Garments","unit_code":"Unit 002/02","shift_start_hour":8,"bundle_size":20},
-  "lines": [{"line_id":"Line 14","display_name":"Line 14 - Assembly","stations_count":14,"target_daily_capacity":600,"dwell_floor_pct":0.40}],
-  "machines": [{"machine_id":"M-14-01","line_id":"Line 14","station_id":"ST-01","name":"Pegasus Overlock","canonical_class":"4-OL_SERGING","capacity_uph":130,"status":"ACTIVE"}],
-  "workers": [{"worker_id":"W-01","employee_code":"EMP_01","name":"Ram Kumar","primary_skill":"LINE_SUPERVISOR","skill_grade":"A","hourly_rate_inr":180.0,"attendance_status":"PRESENT","assigned_line_id":"Line 14","assigned_station_id":"SUPERVISOR_DESK"}],
-  "styles": [{"style_id":"STYLE_KK524867","style_code":"KK524867","category":"WOVEN_TROUSER","fit_profile":"REGULAR_FIT","target_sam_min":0.60,"fabric_sku":"DENIM-STRETCH-12OZ"}],
-  "style_parts": [{"style_code":"KK524867","part_code":"101","part_name":"Left Pocket","sub_bundle_order":1,"material_sku":"POCKETING-TWILL-WHITE"}],
-  "operations_dag": [{"style_code":"KK524867","operation_id":"OP-101","operation_name":"Attach Pocket","sam_minutes":0.50,"machine_type":"SNLS_LOCKSTITCH","source_part_code":"101","target_part_code":"102"}],
-  "store_rolls": [{"roll_id":"ROLL-007","factory_sku":"DENIM-STRETCH-12OZ","length_m":59.0,"width_cm":148.0,"shade_band":"A","bin_location":"BIN-A01","status":"RESERVED","reserved_order":"MK6574J9","reserved_cut_no":1}],
-  "work_orders": [{"work_order_id":"WO-01","po_number":"MK6574J9","style_code":"KK524867","line_id":"Line 14","supervisor_id":"W-01","ordered_qty":600,"color_json":"{}","size_json":"{}","status":"IN_PROGRESS"}]
-}`
-
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 type ProcessedManifest struct {
 	Files map[string]FileRecord `json:"files"`
 }
@@ -294,14 +140,10 @@ type ProcessedManifest struct {
 type FileRecord struct {
 	SHA256      string `json:"sha256"`
 	ProcessedAt int64  `json:"processed_at"`
-<<<<<<< HEAD
-	Mode        string `json:"mode"` // "DETERMINISTIC_PARSER" or "AI_LLM_FALLBACK"
+	Mode        string `json:"mode"`
 	Status      string `json:"status"`
 	DBApplied   bool   `json:"db_applied"`
 	Conflicts   int    `json:"conflicts,omitempty"`
-=======
-	Status      string `json:"status"`
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 }
 
 type OllamaChatRequest struct {
@@ -320,19 +162,14 @@ type OllamaChatMessage struct {
 
 type OllamaChatResponse struct {
 	Message struct {
-<<<<<<< HEAD
-=======
 		Role    string `json:"role"`
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 		Content string `json:"content"`
 	} `json:"message"`
 	Error string `json:"error,omitempty"`
 }
 
-<<<<<<< HEAD
 const IngestionSystemPrompt = `You are an expert garment factory data extraction engine. Extract manufacturing entities into valid JSON matching keys: factory_profile, lines, machines, workers, styles, style_parts, operations_dag, store_rolls, work_orders.`
 
-// An extraction success is distinct from a database commit; offline artifacts may never report SUCCESS.
 type IngestionConflict struct {
 	File       string      `json:"file"`
 	Entity     string      `json:"entity"`
@@ -342,20 +179,16 @@ type IngestionConflict struct {
 	Resolution string      `json:"resolution"`
 }
 
-=======
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 func main() {
 	stagingDir := flag.String("staging-dir", "./data/staging/docs", "Path to raw customer documents")
 	outputDir := flag.String("output-dir", "./data/staging/output", "Directory to write digitized artifacts")
 	ollamaHost := flag.String("ollama-host", "http://localhost:11434", "Base URL of Ollama")
-<<<<<<< HEAD
 	modelName := flag.String("model", "qwen3-coder:30b", "Ollama model identifier")
 	applyDB := flag.Bool("apply-db", true, "Require a successful PostgreSQL commit for SUCCESS status")
 	forceReprocess := flag.Bool("force", false, "Rebuild cumulative state from all source files")
 	dbURL := flag.String("db-url", "postgres://agiparel_app:app_secure_runtime_pass@localhost:5432/agiparel_dev?sslmode=disable", "PostgreSQL connection string")
 	flag.Parse()
 
-	// Fail before touching staging output if the requested database cannot be reached.
 	var db *sql.DB
 	if *applyDB {
 		var err error
@@ -371,6 +204,7 @@ func main() {
 			log.Fatalf("[FATAL] PostgreSQL unavailable: %v. Fix Compose first or explicitly run -apply-db=false for offline artifacts", err)
 		}
 	}
+
 	if err := os.MkdirAll(*outputDir, 0755); err != nil {
 		log.Fatal(err)
 	}
@@ -381,6 +215,7 @@ func main() {
 		manifest = &ProcessedManifest{Files: make(map[string]FileRecord)}
 		masterWorkbook = newWorkbook()
 	}
+
 	files, err := os.ReadDir(*stagingDir)
 	if err != nil {
 		log.Fatalf("[FATAL] Staging docs unreadable: %v", err)
@@ -390,6 +225,7 @@ func main() {
 	conflictSeen := map[string]bool{}
 	processed := []string{}
 	failureCount := 0
+
 	for _, file := range files {
 		if file.IsDir() || strings.HasPrefix(file.Name(), ".") {
 			continue
@@ -402,19 +238,22 @@ func main() {
 			continue
 		}
 		if !*forceReprocess {
-			if rec, ok := manifest.Files[file.Name()]; ok && rec.SHA256 == hash && (rec.Status == "SUCCESS" && rec.DBApplied || rec.Status == "ARTIFACT_ONLY" && !*applyDB) {
+			if rec, ok := manifest.Files[file.Name()]; ok && rec.SHA256 == hash && ((rec.Status == "SUCCESS" && rec.DBApplied) || (rec.Status == "ARTIFACT_ONLY" && !*applyDB)) {
 				log.Printf("[SKIP] Unchanged %s", file.Name())
 				processed = append(processed, file.Name())
 				continue
 			}
 		}
+
 		res, mode, extractErr := processFileHybrid(client, *ollamaHost, *modelName, path)
 		if extractErr != nil {
 			log.Printf("[ERROR] Extracting %s: %v", file.Name(), extractErr)
 			manifest.Files[file.Name()] = FileRecord{SHA256: hash, ProcessedAt: time.Now().UnixMilli(), Mode: mode, Status: "FAILED"}
+			saveManifest(manifestPath, manifest)
 			failureCount++
 			continue
 		}
+
 		these := mergeIntoWorkbook(masterWorkbook, res)
 		for i := range these {
 			these[i].File = file.Name()
@@ -424,62 +263,47 @@ func main() {
 				conflictSeen[key] = true
 			}
 		}
-		manifest.Files[file.Name()] = FileRecord{SHA256: hash, ProcessedAt: time.Now().UnixMilli(), Mode: mode, Status: "STAGED", Conflicts: len(these)}
+
+		// INSTANT INCREMENTAL FLUSH: Write onboarding JSON, CSV, conflicts, and DB state immediately after each file
+		if err := saveArtifacts(*outputDir, masterWorkbook); err != nil {
+			log.Printf("[ERROR] Saving incremental workbook after %s: %v", file.Name(), err)
+			failureCount++
+			continue
+		}
+		_ = writeJSON(filepath.Join(*outputDir, "conflicts.json"), conflicts)
+
+		dbCommitted := false
+		if db != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			dbErr := onboarding.ApplyToDatabase(ctx, db, masterWorkbook)
+			cancel()
+			if dbErr != nil {
+				log.Printf("[ERROR] PostgreSQL incremental sync failed on %s: %v", file.Name(), dbErr)
+				manifest.Files[file.Name()] = FileRecord{SHA256: hash, ProcessedAt: time.Now().UnixMilli(), Mode: mode, Status: "DB_FAILED", DBApplied: false, Conflicts: len(these)}
+				saveManifest(manifestPath, manifest)
+				failureCount++
+				continue
+			}
+			manifest.Files[file.Name()] = FileRecord{SHA256: hash, ProcessedAt: time.Now().UnixMilli(), Mode: mode, Status: "SUCCESS", DBApplied: true, Conflicts: len(these)}
+			ctxDoc, cancelDoc := context.WithTimeout(context.Background(), 10*time.Second)
+			_ = persistDocuments(ctxDoc, db, masterWorkbook.TenantID, manifest, []string{file.Name()}, conflicts)
+			cancelDoc()
+			dbCommitted = true
+		} else {
+			manifest.Files[file.Name()] = FileRecord{SHA256: hash, ProcessedAt: time.Now().UnixMilli(), Mode: mode, Status: "ARTIFACT_ONLY", DBApplied: false, Conflicts: len(these)}
+		}
+
+		saveManifest(manifestPath, manifest)
 		processed = append(processed, file.Name())
-		log.Printf("[PARSED] %s via %s: %d operation(s), %d machine(s), %d worker(s), %d roll(s), %d PO(s), %d conflict(s)", file.Name(), mode, len(res.OperationsDAG), len(res.Machines), len(res.Workers), len(res.StoreRolls), len(res.WorkOrders), len(these))
-	}
-	if failureCount > 0 {
-		// Do not replace the last committed artifacts or success manifest on failed extraction.
-		log.Fatalf("[FATAL] %d documents failed extraction; previously committed state retained", failureCount)
+		log.Printf("[CHECKPOINT] %s via %s flushed: %d ops, %d machines, %d workers, %d rolls, %d POs (db=%t)",
+			file.Name(), mode, len(res.OperationsDAG), len(res.Machines), len(res.Workers), len(res.StoreRolls), len(res.WorkOrders), dbCommitted)
 	}
 
-	if db != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		err = onboarding.ApplyToDatabase(ctx, db, masterWorkbook)
-		cancel()
-		if err != nil {
-			for _, name := range processed {
-				rec := manifest.Files[name]
-				rec.Status = "DB_FAILED"
-				rec.DBApplied = false
-				manifest.Files[name] = rec
-			}
-			log.Fatalf("[FATAL] PostgreSQL transaction rolled back: %v", err)
-		}
-		ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
-		err = persistDocuments(ctx, db, masterWorkbook.TenantID, manifest, processed, conflicts)
-		cancel()
-		if err != nil {
-			for _, name := range processed {
-				rec := manifest.Files[name]
-				rec.Status = "DB_FAILED"
-				rec.DBApplied = false
-				manifest.Files[name] = rec
-			}
-			log.Fatalf("[FATAL] Document provenance could not be committed: %v", err)
-		}
-		log.Printf("[DB COMMIT] Successfully synchronized %d source document(s), tenant=%s", len(processed), masterWorkbook.TenantID)
+	if failureCount > 0 {
+		log.Fatalf("[FATAL] %d documents failed extraction; valid incremental checkpoints were preserved", failureCount)
 	}
-	// Publish derived artifacts only after successful extraction and database synchronization.
-	if err := saveArtifacts(*outputDir, masterWorkbook); err != nil {
-		log.Fatalf("[FATAL] Saving committed workbook: %v", err)
-	}
-	if err := writeJSON(filepath.Join(*outputDir, "conflicts.json"), conflicts); err != nil {
-		log.Fatalf("[FATAL] Saving committed conflicts: %v", err)
-	}
-	for _, name := range processed {
-		rec := manifest.Files[name]
-		if db == nil {
-			rec.Status = "ARTIFACT_ONLY"
-			rec.DBApplied = false
-		} else {
-			rec.Status = "SUCCESS"
-			rec.DBApplied = true
-		}
-		manifest.Files[name] = rec
-	}
-	saveManifest(manifestPath, manifest)
-	log.Printf("[COMPLETE] %d files, %d operations, %d machines, %d workers, %d rolls, %d orders, %d conflicts, db_applied=%t", len(processed), len(masterWorkbook.OperationsDAG), len(masterWorkbook.Machines), len(masterWorkbook.Workers), len(masterWorkbook.StoreRolls), len(masterWorkbook.WorkOrders), len(conflicts), db != nil)
+	log.Printf("[COMPLETE] %d files, %d operations, %d machines, %d workers, %d rolls, %d orders, %d conflicts, db_applied=%t",
+		len(processed), len(masterWorkbook.OperationsDAG), len(masterWorkbook.Machines), len(masterWorkbook.Workers), len(masterWorkbook.StoreRolls), len(masterWorkbook.WorkOrders), len(conflicts), db != nil)
 }
 
 func writeJSON(path string, v any) error {
@@ -490,13 +314,8 @@ func writeJSON(path string, v any) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-// ============================================================================
-// HYBRID ROUTER: DETERMINISTIC FIRST -> LLM FALLBACK SECOND
-// ============================================================================
-
 func processFileHybrid(client *http.Client, host, model, filePath string) (*RawExtractionResult, string, error) {
 	ext := strings.ToLower(filepath.Ext(filePath))
-
 	switch ext {
 	case ".csv":
 		res, err := parseDeterministicCSV(filePath)
@@ -509,8 +328,6 @@ func processFileHybrid(client *http.Client, host, model, filePath string) (*RawE
 			return res, "DETERMINISTIC_XLSX", nil
 		}
 	}
-
-	// Fallback to AI/LLM for unstructured PDFs, images, or unrecognized layouts
 	res, err := processWithLLM(client, host, model, filePath)
 	return res, "AI_LLM_FALLBACK", err
 }
@@ -519,20 +336,10 @@ func hasExtractedEntities(r *RawExtractionResult) bool {
 	if r == nil {
 		return false
 	}
-	return r.FactoryProfile != nil ||
-		len(r.Lines) > 0 ||
-		len(r.Machines) > 0 ||
-		len(r.Workers) > 0 ||
-		len(r.Styles) > 0 ||
-		len(r.StyleParts) > 0 ||
-		len(r.OperationsDAG) > 0 ||
-		len(r.StoreRolls) > 0 ||
-		len(r.WorkOrders) > 0
+	return r.FactoryProfile != nil || len(r.Lines) > 0 || len(r.Machines) > 0 ||
+		len(r.Workers) > 0 || len(r.Styles) > 0 || len(r.StyleParts) > 0 ||
+		len(r.OperationsDAG) > 0 || len(r.StoreRolls) > 0 || len(r.WorkOrders) > 0
 }
-
-// ============================================================================
-// DETERMINISTIC CSV & MULTI-SHEET XLSX PARSERS (HANDLES ALL STAGING FILES)
-// ============================================================================
 
 func parseDeterministicCSV(path string) (*RawExtractionResult, error) {
 	rawBytes, err := os.ReadFile(path)
@@ -563,10 +370,6 @@ func parseDeterministicXLSX(path string) (*RawExtractionResult, error) {
 	return res, nil
 }
 
-// parseTabularRows inspects headers dynamically so multi-section CSVs (like 02_Buyer_Purchase_Order)
-// and multi-tab Excel workbooks (like 01, 03, 05, and agiparel SAMPLE DATA) parse without LLM failure.
-// Header-specific parsing: no fabricated workers, machines, operations, rolls or POs.
-// In particular, operation bulletins use numeric sequence IDs, NOT OP-* IDs.
 func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 	attendanceDate := ""
 	header := map[string]int{}
@@ -577,6 +380,9 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 	colors := map[string]int{}
 	sizes := map[string]int{}
 	cartons := []map[string]string{}
+	seenParts := map[string]bool{}
+	nextPartOrder := 1
+
 	for _, raw := range rows {
 		row := cleanRow(raw)
 		if len(row) == 0 {
@@ -605,6 +411,7 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 		if strings.HasPrefix(strings.ToUpper(row[0]), "TOTAL ORDER QTY") {
 			legacyQty, _ = strconv.Atoi(firstToken(valueAfterColon(row[0])))
 		}
+
 		normalized := map[string]int{}
 		for i, k := range row {
 			normalized[normalizeColumn(k)] = i
@@ -639,7 +446,6 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 			kind = "cartons"
 			continue
 		}
-		// Empty or new commented section terminates the preceding table.
 		if strings.HasPrefix(strings.TrimSpace(row[0]), "#") {
 			kind = ""
 			continue
@@ -650,6 +456,7 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 			}
 			return ""
 		}
+
 		switch kind {
 		case "operations":
 			seq, e := strconv.Atoi(get("SEQ"))
@@ -663,13 +470,29 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 			code := style
 			if code == "" {
 				continue
-			} // missing identity must not be replaced by a guessed style
+			}
 			srcCode, srcName := splitPart(get("SOURCEPART"))
 			dstCode, dstName := splitPart(get("TARGETPART"))
-			out.OperationsDAG = append(out.OperationsDAG, onboarding.OperationDAGRow{StyleCode: code, OperationID: fmt.Sprintf("%s-OP-%03d", code, seq), OperationName: get("OPERATIONNAME"), SAMMinutes: sam, MachineType: get("MACHINECLASSREQUIRED"), SourcePartCode: srcCode, TargetPartCode: dstCode})
+			out.OperationsDAG = append(out.OperationsDAG, onboarding.OperationDAGRow{
+				StyleCode:      code,
+				OperationID:    fmt.Sprintf("%s-OP-%03d", code, seq),
+				OperationName:  get("OPERATIONNAME"),
+				SAMMinutes:     sam,
+				MachineType:    get("MACHINECLASSREQUIRED"),
+				SourcePartCode: srcCode,
+				TargetPartCode: dstCode,
+			})
 			for _, part := range []struct{ code, name string }{{srcCode, srcName}, {dstCode, dstName}} {
-				if part.code != "" {
-					out.StyleParts = append(out.StyleParts, onboarding.StylePartRow{StyleCode: code, PartCode: part.code, PartName: defaultStr(part.name, "Part "+part.code), SubBundleOrder: 1})
+				partKey := code + ":" + part.code
+				if part.code != "" && !seenParts[partKey] {
+					seenParts[partKey] = true
+					out.StyleParts = append(out.StyleParts, onboarding.StylePartRow{
+						StyleCode:      code,
+						PartCode:       part.code,
+						PartName:       defaultStr(part.name, "Part "+part.code),
+						SubBundleOrder: nextPartOrder,
+					})
+					nextPartOrder++
 				}
 			}
 		case "machines":
@@ -679,16 +502,35 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 			}
 			capacity, _ := strconv.Atoi(get("RATEDUPH"))
 			if capacity <= 0 {
-				capacity = 1
+				capacity = 100
 			}
-			out.Machines = append(out.Machines, onboarding.MachineRow{MachineID: id, LineID: get("LINEID"), StationID: get("STATIONID"), Name: get("MACHINENAMEMODEL"), CanonicalClass: get("CANONICALCLASS"), CapacityUPH: capacity, Status: get("HARDWAREASSETSTATUS")})
+			out.Machines = append(out.Machines, onboarding.MachineRow{
+				MachineID:      id,
+				LineID:         get("LINEID"),
+				StationID:      get("STATIONID"),
+				Name:           get("MACHINENAMEMODEL"),
+				CanonicalClass: get("CANONICALCLASS"),
+				CapacityUPH:    capacity,
+				Status:         get("HARDWAREASSETSTATUS"),
+			})
 		case "workers":
 			id := get("WORKERID")
 			if !strings.HasPrefix(strings.ToUpper(id), "W-") {
 				continue
 			}
 			rate, _ := strconv.ParseFloat(get("HOURLYRATEINR"), 64)
-			out.Workers = append(out.Workers, onboarding.WorkerRow{WorkerID: id, EmployeeCode: get("EMPLOYEECODE"), Name: get("FULLNAME"), PrimarySkill: get("PRIMARYSKILL"), SkillGrade: get("SKILLGRADE"), HourlyRateINR: rate, AttendanceStatus: get("ATTENDANCESTATUS"), AttendanceDate: attendanceDate, AssignedLineID: get("ASSIGNEDLINE"), AssignedStationID: get("ASSIGNEDSTATION")})
+			out.Workers = append(out.Workers, onboarding.WorkerRow{
+				WorkerID:          id,
+				EmployeeCode:      get("EMPLOYEECODE"),
+				Name:              get("FULLNAME"),
+				PrimarySkill:      get("PRIMARYSKILL"),
+				SkillGrade:        get("SKILLGRADE"),
+				HourlyRateINR:     rate,
+				AttendanceStatus:  get("ATTENDANCESTATUS"),
+				AttendanceDate:    attendanceDate,
+				AssignedLineID:    get("ASSIGNEDLINE"),
+				AssignedStationID: get("ASSIGNEDSTATION"),
+			})
 		case "rolls":
 			id := get("ROLLID")
 			if !strings.HasPrefix(strings.ToUpper(id), "ROLL-") {
@@ -697,9 +539,18 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 			length, _ := strconv.ParseFloat(get("MEASUREDLM"), 64)
 			width, _ := strconv.ParseFloat(get("USABLEWIDTHCM"), 64)
 			cut, _ := strconv.Atoi(get("RESERVEDCUT"))
-			sku := get("FACTORYSKUDESCRIPTION")
-			sku = firstToken(sku)
-			out.StoreRolls = append(out.StoreRolls, onboarding.StoreRollRow{RollID: id, FactorySKU: sku, LengthM: length, WidthCM: width, ShadeBand: get("SHADEBAND"), BinLocation: get("WAREHOUSEBIN"), Status: get("ALLOCATIONSTATUS"), ReservedOrder: get("RESERVEDPO"), ReservedCutNo: cut})
+			sku := firstToken(get("FACTORYSKUDESCRIPTION"))
+			out.StoreRolls = append(out.StoreRolls, onboarding.StoreRollRow{
+				RollID:        id,
+				FactorySKU:    sku,
+				LengthM:       length,
+				WidthCM:       width,
+				ShadeBand:     get("SHADEBAND"),
+				BinLocation:   get("WAREHOUSEBIN"),
+				Status:        get("ALLOCATIONSTATUS"),
+				ReservedOrder: get("RESERVEDPO"),
+				ReservedCutNo: cut,
+			})
 		case "purchaseorder":
 			ref := get("PURCHASEORDER")
 			qty, _ := strconv.Atoi(get("TOTALORDERQTY"))
@@ -708,12 +559,32 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 			}
 			po = ref
 			style = get("STYLECODE")
-			out.WorkOrders = append(out.WorkOrders, onboarding.WorkOrderRow{WorkOrderID: "WO-" + po + "-01", PONumber: po, StyleCode: style, LineID: get("FACTORYLINE"), SupervisorID: get("SUPERVISORCODE"), OrderedQty: qty, Status: "PROPOSED"})
+			out.WorkOrders = append(out.WorkOrders, onboarding.WorkOrderRow{
+				WorkOrderID:  "WO-" + po + "-01",
+				PONumber:     po,
+				StyleCode:    style,
+				LineID:       get("FACTORYLINE"),
+				SupervisorID: get("SUPERVISORCODE"),
+				OrderedQty:   qty,
+				Status:       "PROPOSED",
+			})
 			target, _ := strconv.Atoi(get("TARGETDAILYOUTPUT"))
 			if target > 0 {
-				out.Lines = append(out.Lines, onboarding.LineRow{LineID: get("FACTORYLINE"), DisplayName: get("FACTORYLINE"), TargetDailyCapacity: target})
+				out.Lines = append(out.Lines, onboarding.LineRow{
+					LineID:              get("FACTORYLINE"),
+					DisplayName:         get("FACTORYLINE"),
+					StationsCount:       14,
+					TargetDailyCapacity: target,
+					DwellFloorPct:       0.40,
+				})
 			}
-			out.Styles = append(out.Styles, onboarding.StyleRow{StyleID: "STYLE_" + style, StyleCode: style, Category: get("CATEGORY"), FitProfile: "REGULAR_FIT", TargetSAMMin: 14.85})
+			out.Styles = append(out.Styles, onboarding.StyleRow{
+				StyleID:      "STYLE_" + style,
+				StyleCode:    style,
+				Category:     get("CATEGORY"),
+				FitProfile:   "REGULAR_FIT",
+				TargetSAMMin: 14.85,
+			})
 		case "skus":
 			if get("PONUMBER") == "" {
 				continue
@@ -735,6 +606,7 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 			cartons = append(cartons, entry)
 		}
 	}
+
 	if len(colors) > 0 {
 		for i := range out.WorkOrders {
 			b, _ := json.Marshal(colors)
@@ -745,13 +617,29 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 	}
 	if len(cartons) > 0 && po != "" {
 		b, _ := json.Marshal(cartons)
-		out.WorkOrders = append(out.WorkOrders, onboarding.WorkOrderRow{WorkOrderID: "WO-" + po + "-01", PONumber: po, PackagingJSON: string(b)})
+		out.WorkOrders = append(out.WorkOrders, onboarding.WorkOrderRow{
+			WorkOrderID:   "WO-" + po + "-01",
+			PONumber:      po,
+			PackagingJSON: string(b),
+		})
 	}
 	if legacyQty > 0 && po != "" && style != "" {
-		out.WorkOrders = append(out.WorkOrders, onboarding.WorkOrderRow{WorkOrderID: "WO-" + po + "-01", PONumber: po, StyleCode: style, OrderedQty: legacyQty, Status: "PROPOSED"})
+		out.WorkOrders = append(out.WorkOrders, onboarding.WorkOrderRow{
+			WorkOrderID: "WO-" + po + "-01",
+			PONumber:    po,
+			StyleCode:   style,
+			OrderedQty:  legacyQty,
+			Status:      "PROPOSED",
+		})
 	}
 	if style != "" && len(out.OperationsDAG) > 0 && len(out.Styles) == 0 {
-		out.Styles = append(out.Styles, onboarding.StyleRow{StyleID: "STYLE_" + style, StyleCode: style, Category: "WOVEN_TROUSER", FitProfile: "REGULAR_FIT", TargetSAMMin: 14.85})
+		out.Styles = append(out.Styles, onboarding.StyleRow{
+			StyleID:      "STYLE_" + style,
+			StyleCode:    style,
+			Category:     "WOVEN_TROUSER",
+			FitProfile:   "REGULAR_FIT",
+			TargetSAMMin: 14.85,
+		})
 	}
 }
 
@@ -764,6 +652,7 @@ func splitPart(v string) (string, string) {
 	}
 	return m[1], m[2]
 }
+
 func valueAfterColon(s string) string {
 	idx := strings.Index(s, ":")
 	if idx < 0 {
@@ -771,6 +660,7 @@ func valueAfterColon(s string) string {
 	}
 	return strings.TrimSpace(s[idx+1:])
 }
+
 func valueAfterMarker(s, marker string) string {
 	idx := strings.Index(strings.ToUpper(s), strings.ToUpper(marker))
 	if idx < 0 {
@@ -778,6 +668,7 @@ func valueAfterMarker(s, marker string) string {
 	}
 	return strings.TrimSpace(s[idx+len(marker):])
 }
+
 func firstToken(s string) string {
 	fields := strings.Fields(s)
 	if len(fields) == 0 {
@@ -785,25 +676,20 @@ func firstToken(s string) string {
 	}
 	return fields[0]
 }
+
 func normalizeColumn(s string) string {
 	return strings.Map(func(r rune) rune {
 		if r >= 'a' && r <= 'z' {
 			return r - 32
 		}
-		if r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
 			return r
 		}
 		return -1
 	}, s)
 }
-func hasColumn(m map[string]int, k string) bool { _, ok := m[k]; return ok }
 
-func defaultHeaderForWidth(width int) []string {
-	if width >= 8 {
-		return []string{"ROLL_ID", "FACTORY_SKU", "LENGTH_M", "WIDTH_CM", "SHADE_BAND", "BIN_LOCATION", "STATUS", "RESERVED_ORDER"}
-	}
-	return []string{"COL_1", "COL_2", "COL_3", "COL_4", "COL_5", "COL_6", "COL_7", "COL_8"}
-}
+func hasColumn(m map[string]int, k string) bool { _, ok := m[k]; return ok }
 
 func extractSheetsFromXLSX(path string) ([][][]string, error) {
 	r, err := zip.OpenReader(path)
@@ -901,10 +787,6 @@ func extractSheetsFromXLSX(path string) ([][][]string, error) {
 	return allSheets, nil
 }
 
-// ============================================================================
-// CUMULATIVE WORKBOOK MERGER (IDEMPOTENT UPSERT BY ENTITY KEY)
-// ============================================================================
-
 func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult) []IngestionConflict {
 	conflicts := []IngestionConflict{}
 	if res == nil {
@@ -922,7 +804,6 @@ func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult)
 		}
 	}
 
-	// Upsert Lines
 	lineIdx := make(map[string]int)
 	for i, l := range wb.Lines {
 		lineIdx[l.LineID] = i
@@ -930,6 +811,12 @@ func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult)
 	for _, l := range res.Lines {
 		if l.LineID == "" {
 			continue
+		}
+		if l.DwellFloorPct <= 0 {
+			l.DwellFloorPct = 0.40
+		}
+		if l.StationsCount <= 0 {
+			l.StationsCount = 14
 		}
 		if idx, exists := lineIdx[l.LineID]; exists {
 			wb.Lines[idx] = l
@@ -939,7 +826,6 @@ func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult)
 		}
 	}
 
-	// Upsert Machines
 	machIdx := make(map[string]int)
 	for i, m := range wb.Machines {
 		machIdx[m.MachineID] = i
@@ -956,7 +842,6 @@ func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult)
 		}
 	}
 
-	// Upsert Workers
 	workerIdx := make(map[string]int)
 	for i, w := range wb.Workers {
 		workerIdx[w.WorkerID] = i
@@ -973,7 +858,6 @@ func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult)
 		}
 	}
 
-	// Upsert Styles
 	styleIdx := make(map[string]int)
 	for i, s := range wb.Styles {
 		styleIdx[s.StyleCode] = i
@@ -990,7 +874,6 @@ func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult)
 		}
 	}
 
-	// Upsert Style Parts
 	partIdx := make(map[string]int)
 	for i, p := range wb.StyleParts {
 		partIdx[p.StyleCode+":"+p.PartCode] = i
@@ -1008,7 +891,6 @@ func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult)
 		}
 	}
 
-	// Upsert Operations DAG
 	dagIdx := make(map[string]int)
 	for i, d := range wb.OperationsDAG {
 		dagIdx[d.StyleCode+":"+d.OperationID] = i
@@ -1026,7 +908,6 @@ func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult)
 		}
 	}
 
-	// Upsert Store Rolls
 	rollIdx := make(map[string]int)
 	for i, r := range wb.StoreRolls {
 		rollIdx[r.RollID] = i
@@ -1043,7 +924,6 @@ func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult)
 		}
 	}
 
-	// Field-level cumulative PO merge; conflicting quantities require human review.
 	woIdx := make(map[string]int)
 	for i, wo := range wb.WorkOrders {
 		woIdx[wo.WorkOrderID] = i
@@ -1055,7 +935,13 @@ func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult)
 		if idx, ok := woIdx[incoming.WorkOrderID]; ok {
 			old := wb.WorkOrders[idx]
 			if incoming.OrderedQty > 0 && old.OrderedQty > 0 && incoming.OrderedQty != old.OrderedQty {
-				conflicts = append(conflicts, IngestionConflict{Entity: incoming.WorkOrderID, Field: "ordered_qty", Existing: old.OrderedQty, Incoming: incoming.OrderedQty, Resolution: "REVIEW_REQUIRED: existing quantity preserved"})
+				conflicts = append(conflicts, IngestionConflict{
+					Entity:     incoming.WorkOrderID,
+					Field:      "ordered_qty",
+					Existing:   old.OrderedQty,
+					Incoming:   incoming.OrderedQty,
+					Resolution: "REVIEW_REQUIRED: existing quantity preserved",
+				})
 			} else if incoming.OrderedQty > 0 {
 				old.OrderedQty = incoming.OrderedQty
 			}
@@ -1088,7 +974,13 @@ func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult)
 						packed += count * per
 					}
 					if packed != old.OrderedQty {
-						conflicts = append(conflicts, IngestionConflict{Entity: old.WorkOrderID, Field: "packing_piece_total", Existing: old.OrderedQty, Incoming: packed, Resolution: "REVIEW_REQUIRED: packing specification does not conserve PO pieces"})
+						conflicts = append(conflicts, IngestionConflict{
+							Entity:     old.WorkOrderID,
+							Field:      "packing_piece_total",
+							Existing:   old.OrderedQty,
+							Incoming:   packed,
+							Resolution: "REVIEW_REQUIRED: packing specification does not conserve PO pieces",
+						})
 					}
 				}
 			}
@@ -1107,10 +999,6 @@ func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult)
 	return conflicts
 }
 
-// ============================================================================
-// HELPERS & LLM FALLBACK
-// ============================================================================
-
 func cleanRow(r []string) []string {
 	var out []string
 	nonEmpty := false
@@ -1125,47 +1013,6 @@ func cleanRow(r []string) []string {
 		return nil
 	}
 	return out
-}
-
-func isHeaderRow(row []string) bool {
-	knownHeaders := map[string]bool{
-		"WORKER_ID": true, "MACHINE_ID": true, "OPERATION_ID": true, "OP_CODE": true,
-		"PURCHASE_ORDER": true, "PO_NUMBER": true, "ROLL_ID": true, "CARTON_RANGE": true,
-	}
-	for _, c := range row {
-		norm := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(c), " ", "_"))
-		if knownHeaders[norm] {
-			return true
-		}
-	}
-	return false
-}
-
-func normalizeHeaders(row []string) []string {
-	out := make([]string, len(row))
-	for i, c := range row {
-		out[i] = strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(c), " ", "_"))
-	}
-	return out
-}
-
-func mapRowByHeader(headers, row []string) map[string]string {
-	m := make(map[string]string, len(headers))
-	for i, h := range headers {
-		if i < len(row) {
-			m[h] = strings.TrimSpace(row[i])
-		}
-	}
-	return m
-}
-
-func hasKeys(m map[string]string, keys ...string) bool {
-	for _, k := range keys {
-		if strings.TrimSpace(m[k]) == "" {
-			return false
-		}
-	}
-	return true
 }
 
 func defaultStr(val, fallback string) string {
@@ -1195,8 +1042,6 @@ func processWithLLM(client *http.Client, host, model, filePath string) (*RawExtr
 	} else {
 		var documentText string
 		if ext == ".pdf" {
-			// Poppler is installed in the Docker runtime image. Never send raw PDF
-			// bytes to a text-only language model as though they were plain text.
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			output, err := exec.CommandContext(ctx, "pdftotext", "-layout", "-enc", "UTF-8", filePath, "-").Output()
@@ -1208,8 +1053,6 @@ func processWithLLM(client *http.Client, host, model, filePath string) (*RawExtr
 				return nil, fmt.Errorf("PDF contains no extractable text; scanned PDFs require OCR/vision processing")
 			}
 		} else if ext == ".xlsx" {
-			// An Excel file is a ZIP archive. Passing its raw bytes as text
-			// cannot work reliably, even if Ollama has the requested model.
 			var err error
 			documentText, err = xlsxAsWorksheetText(filePath)
 			if err != nil {
@@ -1235,14 +1078,12 @@ func processWithLLM(client *http.Client, host, model, filePath string) (*RawExtr
 		Stream:  false,
 		Options: map[string]any{"temperature": 0.0},
 	}
-
 	body, _ := json.Marshal(reqPayload)
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/chat", host), bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -1253,7 +1094,7 @@ func processWithLLM(client *http.Client, host, model, filePath string) (*RawExtr
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 		if resp.StatusCode == http.StatusNotFound && strings.Contains(strings.ToLower(string(b)), "model") {
-			return nil, fmt.Errorf("Ollama model %q is missing on the host; run 'ollama pull %s' on your Mac, or set AGIE_MODEL/OLLAMA_VISION_MODEL to an installed compatible model", selectedModel, selectedModel)
+			return nil, fmt.Errorf("Ollama model %q is missing on the host; run 'ollama pull %s' on your Mac", selectedModel, selectedModel)
 		}
 		return nil, fmt.Errorf("Ollama %s model %s returned HTTP %d: %s", host, selectedModel, resp.StatusCode, strings.TrimSpace(string(b)))
 	}
@@ -1271,104 +1112,6 @@ func processWithLLM(client *http.Client, host, model, filePath string) (*RawExtr
 		return nil, fmt.Errorf("document extraction produced no verifiable manufacturing entities")
 	}
 	return &res, nil
-=======
-	modelName := flag.String("model", "qwen2.5-coder:7b", "Ollama model identifier")
-	applyDB := flag.Bool("apply-db", false, "Commit extracted entities into PostgreSQL after each file")
-	dbURL := flag.String("db-url", "postgres://agiparel_app:app_secure_runtime_pass@localhost:5432/agiparel_dev?sslmode=disable", "PostgreSQL connection string")
-	flag.Parse()
-
-	if err := os.MkdirAll(*outputDir, 0755); err != nil {
-		log.Fatalf("Fatal: failed to create output directory: %v", err)
-	}
-
-	manifestPath := filepath.Join(*outputDir, ".processed_manifest.json")
-	manifest := loadManifest(manifestPath)
-	masterWorkbook := loadExistingWorkbook(filepath.Join(*outputDir, "factory_workbook.json"))
-
-	files, err := os.ReadDir(*stagingDir)
-	if err != nil {
-		log.Fatalf("Fatal: failed to read staging directory: %v", err)
-	}
-
-	transport := &http.Transport{
-		MaxIdleConns:       10,
-		IdleConnTimeout:    60 * time.Second,
-		DisableCompression: true,
-	}
-	client := &http.Client{
-		Transport: transport,
-		Timeout:   300 * time.Second,
-	}
-
-	var db *sql.DB
-	if *applyDB {
-		var dbErr error
-		db, dbErr = sql.Open("pgx", *dbURL)
-		if dbErr != nil {
-			log.Fatalf("Fatal: DB connection failed: %v", dbErr)
-		}
-		defer db.Close()
-	}
-
-	for idx, file := range files {
-		if file.IsDir() || strings.HasPrefix(file.Name(), ".") {
-			continue
-		}
-
-		fullPath := filepath.Join(*stagingDir, file.Name())
-		hash, err := calculateSHA256(fullPath)
-		if err != nil {
-			log.Printf("[WARN] Skipping %s: unable to compute hash: %v", file.Name(), err)
-			continue
-		}
-
-		if rec, exists := manifest.Files[file.Name()]; exists && rec.SHA256 == hash && rec.Status == "SUCCESS" {
-			log.Printf("[SKIP %d/%d] %s already processed (SHA: %s)", idx+1, len(files), file.Name(), hash[:8])
-			continue
-		}
-
-		log.Printf("[INGEST %d/%d] Processing artifact: %s (SHA: %s)", idx+1, len(files), file.Name(), hash[:8])
-
-		rawResult, err := processFile(client, *ollamaHost, *modelName, fullPath)
-		if err != nil {
-			log.Printf("[ERROR] Extraction failed for %s: %v", file.Name(), err)
-			manifest.Files[file.Name()] = FileRecord{
-				SHA256:      hash,
-				ProcessedAt: time.Now().UTC().UnixMilli(),
-				Status:      "FAILED",
-			}
-			saveManifest(manifestPath, manifest)
-			continue
-		}
-
-		mergeIntoWorkbook(masterWorkbook, rawResult)
-
-		if err := saveArtifacts(*outputDir, masterWorkbook); err != nil {
-			log.Printf("[ERROR] Failed writing artifacts after %s: %v", file.Name(), err)
-		} else {
-			log.Printf("[CHECKPOINT] Incremental state flushed to disk after %s", file.Name())
-		}
-
-		if db != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			if err := onboarding.ApplyToDatabase(ctx, db, masterWorkbook); err != nil {
-				log.Printf("[WARN] Incremental DB sync failed: %v", err)
-			} else {
-				log.Printf("[DB] Synchronized incremental state to tenant: %s", masterWorkbook.TenantID)
-			}
-			cancel()
-		}
-
-		manifest.Files[file.Name()] = FileRecord{
-			SHA256:      hash,
-			ProcessedAt: time.Now().UTC().UnixMilli(),
-			Status:      "SUCCESS",
-		}
-		saveManifest(manifestPath, manifest)
-	}
-
-	log.Println("[INGEST] Incremental batch run complete.")
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 }
 
 func calculateSHA256(path string) (string, error) {
@@ -1377,10 +1120,6 @@ func calculateSHA256(path string) (string, error) {
 		return "", err
 	}
 	defer f.Close()
-<<<<<<< HEAD
-=======
-
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return "", err
@@ -1390,48 +1129,22 @@ func calculateSHA256(path string) (string, error) {
 
 func loadManifest(path string) *ProcessedManifest {
 	m := &ProcessedManifest{Files: make(map[string]FileRecord)}
-<<<<<<< HEAD
 	if data, err := os.ReadFile(path); err == nil {
-=======
-	data, err := os.ReadFile(path)
-	if err == nil {
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 		_ = json.Unmarshal(data, m)
 	}
 	return m
 }
 
 func saveManifest(path string, m *ProcessedManifest) {
-<<<<<<< HEAD
 	if data, err := json.MarshalIndent(m, "", "  "); err == nil {
-=======
-	data, err := json.MarshalIndent(m, "", "  ")
-	if err == nil {
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 		_ = os.WriteFile(path, data, 0644)
 	}
 }
 
 func loadExistingWorkbook(path string) *onboarding.FactoryWorkbook {
-<<<<<<< HEAD
 	wb := newWorkbook()
 	if data, err := os.ReadFile(path); err == nil {
 		_ = json.Unmarshal(data, wb)
-=======
-	wb := &onboarding.FactoryWorkbook{
-		TenantID:       "TENANT_DEFAULT",
-		FactoryName:    "Unconfigured Factory",
-		UnitCode:       "Unit 001",
-		ShiftStartHour: 8,
-		BundleSize:     20,
-	}
-	data, err := os.ReadFile(path)
-	if err == nil {
-		if err := json.Unmarshal(data, wb); err == nil {
-			log.Printf("[RESUME] Hydrated existing state: %d lines, %d machines, %d workers, %d ops",
-				len(wb.Lines), len(wb.Machines), len(wb.Workers), len(wb.OperationsDAG))
-		}
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	}
 	return wb
 }
@@ -1442,11 +1155,52 @@ func saveArtifacts(outputDir string, wb *onboarding.FactoryWorkbook) error {
 	if err != nil {
 		return err
 	}
-<<<<<<< HEAD
-	return os.WriteFile(jsonPath, jsonData, 0644)
+	if err := os.WriteFile(jsonPath, jsonData, 0644); err != nil {
+		return err
+	}
+	csvPath := filepath.Join(outputDir, "factory_onboarding.csv")
+	return os.WriteFile(csvPath, []byte(serializeWorkbookToCSV(wb)), 0644)
 }
+
+func serializeWorkbookToCSV(wb *onboarding.FactoryWorkbook) string {
+	var b strings.Builder
+	b.WriteString("RECORD_TYPE,COL_1,COL_2,COL_3,COL_4,COL_5,COL_6,COL_7,COL_8,COL_9\n")
+	fmt.Fprintf(&b, "FACTORY_PROFILE,%s,%s,%s,%d,%d\n", wb.TenantID, wb.FactoryName, wb.UnitCode, wb.ShiftStartHour, wb.BundleSize)
+	for _, l := range wb.Lines {
+		fmt.Fprintf(&b, "LINE_ROSTER,%s,%s,%d,%d,%.2f\n", l.LineID, l.DisplayName, l.StationsCount, l.TargetDailyCapacity, l.DwellFloorPct)
+	}
+	for _, m := range wb.Machines {
+		fmt.Fprintf(&b, "MACHINE_ROSTER,%s,%s,%s,%s,%s,%d,%s\n", m.MachineID, m.LineID, m.StationID, m.Name, m.CanonicalClass, m.CapacityUPH, m.Status)
+	}
+	for _, w := range wb.Workers {
+		fmt.Fprintf(&b, "WORKER_ROSTER,%s,%s,%s,%s,%s,%.2f,%s,%s,%s\n", w.WorkerID, w.EmployeeCode, w.Name, w.PrimarySkill, w.SkillGrade, w.HourlyRateINR, w.AttendanceStatus, w.AssignedLineID, w.AssignedStationID)
+	}
+	for _, s := range wb.Styles {
+		fmt.Fprintf(&b, "STYLE_MASTER,%s,%s,%s,%s,%.2f,%s\n", s.StyleID, s.StyleCode, s.Category, s.FitProfile, s.TargetSAMMin, s.FabricSKU)
+	}
+	for _, p := range wb.StyleParts {
+		fmt.Fprintf(&b, "STYLE_PARTS,%s,%s,%s,%d,%s\n", p.StyleCode, p.PartCode, p.PartName, p.SubBundleOrder, p.MaterialSKU)
+	}
+	for _, op := range wb.OperationsDAG {
+		fmt.Fprintf(&b, "OPERATION_DAG,%s,%s,%s,%.2f,%s,%s,%s\n", op.StyleCode, op.OperationID, op.OperationName, op.SAMMinutes, op.MachineType, op.SourcePartCode, op.TargetPartCode)
+	}
+	for _, r := range wb.StoreRolls {
+		fmt.Fprintf(&b, "STORE_ROLLS,%s,%s,%.2f,%.2f,%s,%s,%s,%s,%d\n", r.RollID, r.FactorySKU, r.LengthM, r.WidthCM, r.ShadeBand, r.BinLocation, r.Status, r.ReservedOrder, r.ReservedCutNo)
+	}
+	for _, wo := range wb.WorkOrders {
+		fmt.Fprintf(&b, "WORK_ORDERS,%s,%s,%s,%s,%s,%d,%q,%q,%s\n", wo.WorkOrderID, wo.PONumber, wo.StyleCode, wo.LineID, wo.SupervisorID, wo.OrderedQty, wo.ColorJSON, wo.SizeJSON, wo.Status)
+	}
+	return b.String()
+}
+
 func newWorkbook() *onboarding.FactoryWorkbook {
-	return &onboarding.FactoryWorkbook{TenantID: "TENANT_DEFAULT", FactoryName: "Noble Garments", UnitCode: "OKHLA Unit 002/02", ShiftStartHour: 8, BundleSize: 20}
+	return &onboarding.FactoryWorkbook{
+		TenantID:       "TENANT_DEFAULT",
+		FactoryName:    "Noble Garments",
+		UnitCode:       "OKHLA Unit 002/02",
+		ShiftStartHour: 8,
+		BundleSize:     20,
+	}
 }
 
 func persistDocuments(ctx context.Context, db *sql.DB, tenant string, manifest *ProcessedManifest, files []string, conflicts []IngestionConflict) error {
@@ -1474,9 +1228,10 @@ func persistDocuments(ctx context.Context, db *sql.DB, tenant string, manifest *
 		if err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO documents(id,tenant_id,filename,file_checksum,source_mode,status,conflicts_json)
-           VALUES ($1,$2,$3,$4,$5,'PROPOSED',$6::jsonb)
-           ON CONFLICT(id) DO UPDATE SET source_mode=EXCLUDED.source_mode,conflicts_json=EXCLUDED.conflicts_json,imported_at=CURRENT_TIMESTAMP`,
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO documents(id,tenant_id,filename,file_checksum,source_mode,status,conflicts_json)
+			 VALUES ($1,$2,$3,$4,$5,'PROPOSED',$6::jsonb)
+			 ON CONFLICT(id) DO UPDATE SET source_mode=EXCLUDED.source_mode,conflicts_json=EXCLUDED.conflicts_json,imported_at=CURRENT_TIMESTAMP`,
 			hex.EncodeToString(identity[:]), tenant, name, rec.SHA256, rec.Mode, string(issues))
 		if err != nil {
 			return fmt.Errorf("document metadata %s: %w", name, err)
@@ -1485,9 +1240,6 @@ func persistDocuments(ctx context.Context, db *sql.DB, tenant string, manifest *
 	return tx.Commit()
 }
 
-// xlsxAsWorksheetText preserves worksheet order, row numbers and cell boundaries
-// when an unfamiliar XLSX must be sent to a local language model for interpretation.
-// It rejects oversized prompts explicitly instead of silently discarding rows.
 func xlsxAsWorksheetText(path string) (string, error) {
 	sheets, err := extractSheetsFromXLSX(path)
 	if err != nil {
@@ -1507,7 +1259,7 @@ func xlsxAsWorksheetText(path string) (string, error) {
 			}
 			fmt.Fprintf(&b, "%d\t%s\n", ri+1, strings.Join(cells, "\t"))
 			if b.Len() > maxTextBytes {
-				return "", fmt.Errorf("XLSX worksheet text exceeds %d bytes; split the workbook into smaller files, then upload each (no data was silently truncated)", maxTextBytes)
+				return "", fmt.Errorf("XLSX worksheet text exceeds %d bytes; split the workbook into smaller files", maxTextBytes)
 			}
 		}
 	}
@@ -1517,472 +1269,3 @@ func xlsxAsWorksheetText(path string) (string, error) {
 	}
 	return result, nil
 }
-=======
-	if err := os.WriteFile(jsonPath, jsonData, 0644); err != nil {
-		return err
-	}
-
-	csvPath := filepath.Join(outputDir, "factory_onboarding.csv")
-	csvData := serializeWorkbookToCSV(wb)
-	return os.WriteFile(csvPath, []byte(csvData), 0644)
-}
-
-func processFile(client *http.Client, host, model, filePath string) (*RawExtractionResult, error) {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	var userMsg OllamaChatMessage
-	userMsg.Role = "user"
-
-	selectedModel := model
-	switch ext {
-	case ".png", ".jpg", ".jpeg", ".webp":
-		selectedModel = "qwen3-vl:8b"
-		rawBytes, err := os.ReadFile(filePath)
-		if err != nil {
-			return nil, err
-		}
-		userMsg.Content = "Extract manufacturing operations, machine layouts, worker rosters, or POs from this image."
-		userMsg.Images = []string{base64.StdEncoding.EncodeToString(rawBytes)}
-
-	case ".csv", ".tsv", ".txt", ".json":
-		textBytes, err := os.ReadFile(filePath)
-		if err != nil {
-			return nil, err
-		}
-		content := string(textBytes)
-		if len(content) > 16000 {
-			content = content[:16000]
-		}
-		userMsg.Content = fmt.Sprintf("Extract manufacturing entities from this file:\n\n%s", content)
-
-	case ".xlsx":
-		extractedText, err := extractTextFromXLSX(filePath)
-		if err != nil {
-			return nil, err
-		}
-		if len(extractedText) > 16000 {
-			extractedText = extractedText[:16000]
-		}
-		userMsg.Content = fmt.Sprintf("Extract manufacturing entities from this spreadsheet:\n\n%s", extractedText)
-
-	case ".pdf":
-		extractedText, err := extractTextFromPDF(filePath)
-		if err != nil {
-			return nil, err
-		}
-		if len(extractedText) > 16000 {
-			extractedText = extractedText[:16000]
-		}
-		userMsg.Content = fmt.Sprintf("Extract manufacturing entities from this PDF document:\n\n%s", extractedText)
-
-	default:
-		return nil, fmt.Errorf("unsupported file extension: %s", ext)
-	}
-
-	reqPayload := OllamaChatRequest{
-		Model: selectedModel,
-		Messages: []OllamaChatMessage{
-			{Role: "system", Content: IngestionSystemPrompt},
-			userMsg,
-		},
-		Format: "json",
-		Stream: false,
-		Options: map[string]any{
-			"temperature": 0.0,
-			"num_predict": 4096,
-			"num_ctx":     16384,
-		},
-	}
-
-	body, err := json.Marshal(reqPayload)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/chat", host), bytes.NewBuffer(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("ollama call failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ollama HTTP %d: %s", resp.StatusCode, string(respBytes))
-	}
-
-	var chatResp OllamaChatResponse
-	if err := json.NewDecoder(resp.Body).Decode(&chatResp); err != nil {
-		return nil, fmt.Errorf("failed decoding response: %w", err)
-	}
-	if chatResp.Error != "" {
-		return nil, fmt.Errorf("ollama runtime error: %s", chatResp.Error)
-	}
-
-	var rawResult RawExtractionResult
-	if err := json.Unmarshal([]byte(chatResp.Message.Content), &rawResult); err != nil {
-		return nil, fmt.Errorf("invalid extracted JSON (%s): %w", chatResp.Message.Content, err)
-	}
-
-	return &rawResult, nil
-}
-
-func mergeIntoWorkbook(wb *onboarding.FactoryWorkbook, res *RawExtractionResult) {
-	if res == nil {
-		return
-	}
-	if res.FactoryProfile != nil {
-		if res.FactoryProfile.TenantID.String() != "" {
-			wb.TenantID = res.FactoryProfile.TenantID.String()
-		}
-		if res.FactoryProfile.FactoryName.String() != "" {
-			wb.FactoryName = res.FactoryProfile.FactoryName.String()
-		}
-		if res.FactoryProfile.UnitCode.String() != "" {
-			wb.UnitCode = res.FactoryProfile.UnitCode.String()
-		}
-		if res.FactoryProfile.ShiftStartHour.Int() > 0 {
-			wb.ShiftStartHour = res.FactoryProfile.ShiftStartHour.Int()
-		}
-		if res.FactoryProfile.BundleSize.Int() > 0 {
-			wb.BundleSize = res.FactoryProfile.BundleSize.Int()
-		}
-	}
-
-	lineSeen := make(map[string]bool)
-	for _, l := range wb.Lines {
-		lineSeen[l.LineID] = true
-	}
-	for _, l := range res.Lines {
-		lid := l.LineID.String()
-		if lid != "" && !lineSeen[lid] {
-			dwell := l.DwellFloorPct.Float64()
-			if dwell <= 0 {
-				dwell = 0.40
-			}
-			wb.Lines = append(wb.Lines, onboarding.LineRow{
-				LineID:              lid,
-				DisplayName:         l.DisplayName.String(),
-				StationsCount:       l.StationsCount.Int(),
-				TargetDailyCapacity: l.TargetDailyCapacity.Int(),
-				DwellFloorPct:       dwell,
-			})
-			lineSeen[lid] = true
-		}
-	}
-
-	machineSeen := make(map[string]bool)
-	for _, m := range wb.Machines {
-		machineSeen[m.MachineID] = true
-	}
-	for _, m := range res.Machines {
-		mid := m.MachineID.String()
-		if mid != "" && !machineSeen[mid] {
-			status := strings.ToUpper(m.Status.String())
-			if status == "" {
-				status = "ACTIVE"
-			}
-			uph := m.CapacityUPH.Int()
-			if uph <= 0 {
-				uph = 100
-			}
-			wb.Machines = append(wb.Machines, onboarding.MachineRow{
-				MachineID:      mid,
-				LineID:         m.LineID.String(),
-				StationID:      m.StationID.String(),
-				Name:           m.Name.String(),
-				CanonicalClass: m.CanonicalClass.String(),
-				CapacityUPH:    uph,
-				Status:         status,
-			})
-			machineSeen[mid] = true
-		}
-	}
-
-	workerSeen := make(map[string]bool)
-	for _, w := range wb.Workers {
-		workerSeen[w.WorkerID] = true
-	}
-	for _, w := range res.Workers {
-		wid := w.WorkerID.String()
-		if wid != "" && !workerSeen[wid] {
-			grade := strings.ToUpper(w.SkillGrade.String())
-			if grade == "" {
-				grade = "A"
-			}
-			att := strings.ToUpper(w.AttendanceStatus.String())
-			if att == "" {
-				att = "PRESENT"
-			}
-			wb.Workers = append(wb.Workers, onboarding.WorkerRow{
-				WorkerID:          wid,
-				EmployeeCode:      w.EmployeeCode.String(),
-				Name:              w.Name.String(),
-				PrimarySkill:      w.PrimarySkill.String(),
-				SkillGrade:        grade,
-				HourlyRateINR:     w.HourlyRateINR.Float64(),
-				AttendanceStatus:  att,
-				AssignedLineID:    w.AssignedLineID.String(),
-				AssignedStationID: w.AssignedStationID.String(),
-			})
-			workerSeen[wid] = true
-		}
-	}
-
-	styleSeen := make(map[string]bool)
-	for _, s := range wb.Styles {
-		styleSeen[s.StyleCode] = true
-	}
-	for _, s := range res.Styles {
-		code := s.StyleCode.String()
-		if code != "" && !styleSeen[code] {
-			sid := s.StyleID.String()
-			if sid == "" {
-				sid = "STYLE_" + code
-			}
-			wb.Styles = append(wb.Styles, onboarding.StyleRow{
-				StyleID:      sid,
-				StyleCode:    code,
-				Category:     s.Category.String(),
-				FitProfile:   s.FitProfile.String(),
-				TargetSAMMin: s.TargetSAMMin.Float64(),
-				FabricSKU:    s.FabricSKU.String(),
-			})
-			styleSeen[code] = true
-		}
-	}
-
-	partSeen := make(map[string]bool)
-	for _, p := range wb.StyleParts {
-		partSeen[p.StyleCode+":"+p.PartCode] = true
-	}
-	for _, p := range res.StyleParts {
-		key := p.StyleCode.String() + ":" + p.PartCode.String()
-		if p.PartCode.String() != "" && !partSeen[key] {
-			order := p.SubBundleOrder.Int()
-			if order <= 0 {
-				order = 1
-			}
-			wb.StyleParts = append(wb.StyleParts, onboarding.StylePartRow{
-				StyleCode:      p.StyleCode.String(),
-				PartCode:       p.PartCode.String(),
-				PartName:       p.PartName.String(),
-				SubBundleOrder: order,
-				MaterialSKU:    p.MaterialSKU.String(),
-			})
-			partSeen[key] = true
-		}
-	}
-
-	dagSeen := make(map[string]bool)
-	for _, d := range wb.OperationsDAG {
-		dagSeen[d.StyleCode+":"+d.OperationID] = true
-	}
-	for _, d := range res.OperationsDAG {
-		key := d.StyleCode.String() + ":" + d.OperationID.String()
-		if d.OperationID.String() != "" && !dagSeen[key] {
-			sam := d.SAMMinutes.Float64()
-			if sam <= 0 {
-				sam = 0.50
-			}
-			wb.OperationsDAG = append(wb.OperationsDAG, onboarding.OperationDAGRow{
-				StyleCode:      d.StyleCode.String(),
-				OperationID:    d.OperationID.String(),
-				OperationName:  d.OperationName.String(),
-				SAMMinutes:     sam,
-				MachineType:    d.MachineType.String(),
-				SourcePartCode: d.SourcePartCode.String(),
-				TargetPartCode: d.TargetPartCode.String(),
-			})
-			dagSeen[key] = true
-		}
-	}
-
-	rollSeen := make(map[string]bool)
-	for _, r := range wb.StoreRolls {
-		rollSeen[r.RollID] = true
-	}
-	for _, r := range res.StoreRolls {
-		rid := r.RollID.String()
-		if rid != "" && !rollSeen[rid] {
-			status := strings.ToUpper(r.Status.String())
-			if status == "" {
-				status = "AVAILABLE"
-			}
-			wb.StoreRolls = append(wb.StoreRolls, onboarding.StoreRollRow{
-				RollID:        rid,
-				FactorySKU:    r.FactorySKU.String(),
-				LengthM:       r.LengthM.Float64(),
-				WidthCM:       r.WidthCM.Float64(),
-				ShadeBand:     r.ShadeBand.String(),
-				BinLocation:   r.BinLocation.String(),
-				Status:        status,
-				ReservedOrder: r.ReservedOrder.String(),
-				ReservedCutNo: r.ReservedCutNo.Int(),
-			})
-			rollSeen[rid] = true
-		}
-	}
-
-	woSeen := make(map[string]bool)
-	for _, wo := range wb.WorkOrders {
-		woSeen[wo.WorkOrderID] = true
-	}
-	for _, wo := range res.WorkOrders {
-		woid := wo.WorkOrderID.String()
-		if woid != "" && !woSeen[woid] {
-			status := strings.ToUpper(wo.Status.String())
-			if status == "" {
-				status = "IN_PROGRESS"
-			}
-			cJSON := wo.ColorJSON.String()
-			if cJSON == "" {
-				cJSON = "{}"
-			}
-			sJSON := wo.SizeJSON.String()
-			if sJSON == "" {
-				sJSON = "{}"
-			}
-			wb.WorkOrders = append(wb.WorkOrders, onboarding.WorkOrderRow{
-				WorkOrderID:  woid,
-				PONumber:     wo.PONumber.String(),
-				StyleCode:    wo.StyleCode.String(),
-				LineID:       wo.LineID.String(),
-				SupervisorID: wo.SupervisorID.String(),
-				OrderedQty:   wo.OrderedQty.Int(),
-				ColorJSON:    cJSON,
-				SizeJSON:     sJSON,
-				Status:       status,
-			})
-			woSeen[woid] = true
-		}
-	}
-}
-
-func extractTextFromXLSX(path string) (string, error) {
-	r, err := zip.OpenReader(path)
-	if err != nil {
-		return "", err
-	}
-	defer r.Close()
-
-	var sharedStrings []string
-	for _, f := range r.File {
-		if f.Name == "xl/sharedStrings.xml" {
-			rc, err := f.Open()
-			if err != nil {
-				return "", err
-			}
-			type SST struct {
-				SI []struct {
-					T string `xml:"t"`
-				} `xml:"si"`
-			}
-			var sst SST
-			_ = xml.NewDecoder(rc).Decode(&sst)
-			rc.Close()
-			for _, item := range sst.SI {
-				sharedStrings = append(sharedStrings, item.T)
-			}
-			break
-		}
-	}
-
-	var sb strings.Builder
-	for _, f := range r.File {
-		if strings.HasPrefix(f.Name, "xl/worksheets/sheet") && strings.HasSuffix(f.Name, ".xml") {
-			rc, err := f.Open()
-			if err != nil {
-				continue
-			}
-			type SheetData struct {
-				Row []struct {
-					C []struct {
-						T string `xml:"t,attr"`
-						V string `xml:"v"`
-					} `xml:"c"`
-				} `xml:"sheetData>row"`
-			}
-			var data SheetData
-			_ = xml.NewDecoder(rc).Decode(&data)
-			rc.Close()
-
-			sb.WriteString(fmt.Sprintf("--- Sheet: %s ---\n", f.Name))
-			for _, row := range data.Row {
-				var cellVals []string
-				for _, c := range row.C {
-					val := c.V
-					if c.T == "s" {
-						idx, err := strconv.Atoi(c.V)
-						if err == nil && idx >= 0 && idx < len(sharedStrings) {
-							val = sharedStrings[idx]
-						}
-					}
-					cellVals = append(cellVals, val)
-				}
-				sb.WriteString(strings.Join(cellVals, ", ") + "\n")
-			}
-		}
-	}
-	return sb.String(), nil
-}
-
-func extractTextFromPDF(path string) (string, error) {
-	bytesData, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	var sb strings.Builder
-	lines := strings.Split(string(bytesData), "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "(") && strings.HasSuffix(trimmed, ")") {
-			sb.WriteString(strings.Trim(trimmed, "()") + " ")
-		}
-	}
-	text := sb.String()
-	if len(strings.TrimSpace(text)) < 50 {
-		return fmt.Sprintf("RAW_BINARY_PDF_SIZE_%d", len(bytesData)), nil
-	}
-	return text, nil
-}
-
-func serializeWorkbookToCSV(wb *onboarding.FactoryWorkbook) string {
-	var buf bytes.Buffer
-	writer := csv.NewWriter(&buf)
-	_ = writer.Write([]string{"RECORD_TYPE", "COL_1", "COL_2", "COL_3", "COL_4", "COL_5", "COL_6", "COL_7", "COL_8", "COL_9"})
-	_ = writer.Write([]string{"FACTORY_PROFILE", wb.TenantID, wb.FactoryName, wb.UnitCode, strconv.Itoa(wb.ShiftStartHour), strconv.Itoa(wb.BundleSize)})
-
-	for _, l := range wb.Lines {
-		_ = writer.Write([]string{"LINE_ROSTER", l.LineID, l.DisplayName, strconv.Itoa(l.StationsCount), strconv.Itoa(l.TargetDailyCapacity), fmt.Sprintf("%.2f", l.DwellFloorPct)})
-	}
-	for _, m := range wb.Machines {
-		_ = writer.Write([]string{"MACHINE_ROSTER", m.MachineID, m.LineID, m.StationID, m.Name, m.CanonicalClass, strconv.Itoa(m.CapacityUPH), m.Status})
-	}
-	for _, w := range wb.Workers {
-		_ = writer.Write([]string{"WORKER_ROSTER", w.WorkerID, w.EmployeeCode, w.Name, w.PrimarySkill, w.SkillGrade, fmt.Sprintf("%.2f", w.HourlyRateINR), w.AttendanceStatus, w.AssignedLineID, w.AssignedStationID})
-	}
-	for _, s := range wb.Styles {
-		_ = writer.Write([]string{"STYLE_MASTER", s.StyleID, s.StyleCode, s.Category, s.FitProfile, fmt.Sprintf("%.2f", s.TargetSAMMin), s.FabricSKU})
-	}
-	for _, p := range wb.StyleParts {
-		_ = writer.Write([]string{"STYLE_PARTS", p.StyleCode, p.PartCode, p.PartName, strconv.Itoa(p.SubBundleOrder), p.MaterialSKU})
-	}
-	for _, d := range wb.OperationsDAG {
-		_ = writer.Write([]string{"OPERATION_DAG", d.StyleCode, d.OperationID, d.OperationName, fmt.Sprintf("%.2f", d.SAMMinutes), d.MachineType, d.SourcePartCode, d.TargetPartCode})
-	}
-	for _, r := range wb.StoreRolls {
-		_ = writer.Write([]string{"STORE_ROLLS", r.RollID, r.FactorySKU, fmt.Sprintf("%.2f", r.LengthM), fmt.Sprintf("%.2f", r.WidthCM), r.ShadeBand, r.BinLocation, r.Status, r.ReservedOrder, strconv.Itoa(r.ReservedCutNo)})
-	}
-	for _, wo := range wb.WorkOrders {
-		_ = writer.Write([]string{"WORK_ORDERS", wo.WorkOrderID, wo.PONumber, wo.StyleCode, wo.LineID, wo.SupervisorID, strconv.Itoa(wo.OrderedQty), wo.ColorJSON, wo.SizeJSON, wo.Status})
-	}
-
-	writer.Flush()
-	return buf.String()
-}
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1

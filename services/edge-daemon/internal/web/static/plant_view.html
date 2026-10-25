@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PM-01 · Plant Overview Situation Room</title>
+  <title>PM-01 | Plant Overview Situation Room</title>
   <style>
     :root {
       --bg: #F1F4F8;
@@ -13,6 +13,7 @@
       --muted: #64748B;
       --line: #E2E8F0;
       --ok: #10B981;
+      --green: #10B981;
       --warn: #F59E0B;
       --crit: #DC2626;
       --info: #2563EB;
@@ -66,7 +67,6 @@
     }
     .btn-agie-trigger:hover { background: #172e6e; }
 
-    /* Top KPI Row */
     .kpi-row {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
@@ -98,14 +98,12 @@
       margin-top: 4px;
     }
 
-    /* Main Grid Layout */
     .dashboard-layout {
       display: grid;
       grid-template-columns: 1fr 340px;
       gap: 24px;
     }
 
-    /* 14-Line Matrix */
     .line-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -129,6 +127,7 @@
     }
     .line-card.warn { border-left-color: var(--warn); }
     .line-card.crit { border-left-color: var(--crit); }
+
     .line-header {
       display: flex;
       justify-content: space-between;
@@ -171,7 +170,6 @@
       transition: width 0.3s ease;
     }
 
-    /* Right Triage Rail */
     .triage-rail {
       display: flex;
       flex-direction: column;
@@ -213,7 +211,6 @@
     .issue-tag.warn { background: #FEF3C7; color: var(--warn); }
     .issue-tag.info { background: #E0E7FF; color: var(--info); }
 
-    /* Slide-Out Drawer for Agie */
     .drawer-overlay {
       position: fixed;
       top: 0;
@@ -311,115 +308,75 @@
   </style>
 </head>
 <body>
-
   <header>
     <div class="header-left">
-      <h1 id="plant-header-title">PM-01 · Plant Overview Situation Room</h1>
+      <h1 id="plant-header-title">PM-01 | Plant Overview Situation Room</h1>
       <p id="plant-header-sub">Loading factory profile...</p>
     </div>
     <div class="header-right">
       <a href="/api/v1/onboarding/template.csv" class="btn-agie-trigger" style="background:#0F172A;text-decoration:none;">
-        ⬇ Pre-Boarding Template (.csv)
+        Pre-Boarding Template (.csv)
       </a>
       <label class="btn-agie-trigger" style="background:#10B981;">
-        ⬆ Upload Onboarding Sheet
+        Upload Onboarding Sheet
         <input type="file" accept=".csv" style="display:none;" onchange="uploadOnboardingSheet(this)">
       </label>
       <button class="btn-agie-trigger" onclick="toggleAgieDrawer()">
-        ✦ Ask Agie (Executive AI)
+        Ask Agie (Executive AI)
       </button>
     </div>
   </header>
 
-  <!-- 5 Hero KPIs -->
   <div class="kpi-row">
     <div class="kpi-card">
       <div class="kpi-caption">Plant Output (Achieved / Target)</div>
-      <div class="kpi-val" id="kpi-output">420 / 600</div>
-      <div class="kpi-sub">70.0% Shift Target</div>
+      <div class="kpi-val" id="kpi-output">0 / 600</div>
+      <div class="kpi-sub">Active Shift Target</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-caption">Plant DHU (Defect Rate)</div>
-      <div class="kpi-val" style="color: var(--ok);" id="kpi-dhu">1.2%</div>
-      <div class="kpi-sub">Target: ≤ 2.5%</div>
+      <div class="kpi-val" style="color: var(--ok);" id="kpi-dhu">0.0%</div>
+      <div class="kpi-sub">Target: &le; 2.5%</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-caption">Active Lines</div>
-      <div class="kpi-val">14 / 14</div>
-      <div class="kpi-sub">100% Floor Utilization</div>
+      <div class="kpi-val" id="kpi-lines">1 / 1</div>
+      <div class="kpi-sub">Floor Utilization</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-caption">Active Issues</div>
-      <div class="kpi-val" style="color: var(--warn);" id="kpi-issues">2</div>
-      <div class="kpi-sub">1 Quality · 1 Mechanic</div>
+      <div class="kpi-val" style="color: var(--warn);" id="kpi-issues">0</div>
+      <div class="kpi-sub">Live Floor Exceptions</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-caption">Ready for Packing (Pass Rate)</div>
-      <div class="kpi-val" id="kpi-finish">98.4%</div>
-      <div class="kpi-sub">Target: ≥ 98.0%</div>
+      <div class="kpi-val" id="kpi-finish">100.0%</div>
+      <div class="kpi-sub">Target: &ge; 98.0%</div>
     </div>
   </div>
 
-  <!-- Main Grid + Triage Rail -->
   <div class="dashboard-layout">
-    <div class="line-grid" id="line-grid-container">
-      <!-- 14 Lines populated dynamically -->
-    </div>
+    <div class="line-grid" id="line-grid-container"></div>
 
     <div class="triage-rail">
-<<<<<<< HEAD
-      <!-- Inside triage-card in plant_view.html -->
-=======
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
       <div class="triage-card">
         <h3>Live Floor Issues (PM-02)</h3>
         <div id="issue-list">
-          <div class="issue-item">
-            <div class="issue-header">
-<<<<<<< HEAD
-              <strong>Line 14 - ST-03</strong>
-              <span class="issue-tag warn">ATTENTION</span>
-            </div>
-            <div>Sunita Sharma absent; station hem bottlenecking pace.</div>
-            <button class="btn-agie-trigger" style="margin-top:8px; background:var(--green); font-size:12px; padding:6px 12px;" onclick="resolveIssue('ISS-ATT-W-03', 'ASSIGN_FLOAT')">
-              ✓ Assign Float Worker Deepak
-            </button>
-          </div>
-          <div class="issue-item">
-            <div class="issue-header">
-              <strong>Line 02 - ST-08</strong>
-              <span class="issue-tag crit">MAINTENANCE</span>
-            </div>
-            <div>Needle timing slippage on Kansai flatlock.</div>
-            <button class="btn-agie-trigger" style="margin-top:8px; background:var(--brand); font-size:12px; padding:6px 12px;" onclick="resolveIssue('ISS-MACH-M-02', 'DISPATCH_MECHANIC')">
-              🔧 Dispatch Mechanic Ramesh
-            </button>
-=======
-              <strong>Line 14 · ST-03</strong>
-              <span class="issue-tag">ATTENTION</span>
-            </div>
-            <div>Sunita Sharma absent; station hem bottlenecking pace.</div>
-          </div>
-          <div class="issue-item">
-            <div class="issue-header">
-              <strong>Line 02 · ST-08</strong>
-              <span class="issue-tag">MAINTENANCE</span>
-            </div>
-            <div>Needle timing slippage on Kansai flatlock.</div>
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
-          </div>
+          <div style="color: var(--muted); font-size: 13px; padding: 12px 0;">Loading floor issues...</div>
         </div>
       </div>
+
       <div class="triage-card">
         <h3>Quick Links</h3>
         <div style="display: flex; flex-direction: column; gap: 8px;">
-          <a href="/sew01" target="_blank" style="color: var(--brand); text-decoration: none; font-size: 13px; font-weight: 600;">➔ SEW-01 Operator Terminal</a>
+          <a href="/onboarding" style="color: var(--brand); text-decoration: none; font-size: 13px; font-weight: 600;">&rarr; Planning &amp; Onboarding</a>
+          <a href="/cutting" style="color: var(--brand); text-decoration: none; font-size: 13px; font-weight: 600;">&rarr; CUT-01 Smart Cutting Table</a>
+          <a href="/sew01" target="_blank" style="color: var(--brand); text-decoration: none; font-size: 13px; font-weight: 600;">&rarr; SEW-01 Operator Terminal</a>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Agie Drawer -->
   <div class="drawer-overlay" id="drawer-overlay" onclick="toggleAgieDrawer()"></div>
   <div class="drawer" id="agie-drawer">
     <div class="drawer-header">
@@ -431,20 +388,20 @@
     </div>
     <div class="chat-box" id="chat-stream">
       <div class="msg msg-agie">
-<<<<<<< HEAD
         Ask about attendance, orders, or bottlenecks. Answers are provided only when verified against available factory records.
-=======
-        Good day. I am AGIE, connected live to your factory floor execution database. Ask me any question regarding attendance, pacing, work orders, or bottlenecks.
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
       </div>
     </div>
     <div class="chat-bar">
-      <input type="text" id="agie-input" class="chat-input" placeholder="e.g. Who is absent today and what is the line impact?" onkeydown="if(event.key==='Enter') sendAgieMessage()">
+      <input type="text" id="agie-input" class="chat-input" placeholder="e.g. How many workers are present today?" onkeydown="if(event.key==='Enter') sendAgieMessage()">
       <button class="chat-send" onclick="sendAgieMessage()">Send</button>
     </div>
   </div>
 
   <script>
+    function escapeHTML(val) {
+      return String(val ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
     async function loadPlantOverview() {
       try {
         const res = await fetch("/api/v1/plant/overview");
@@ -452,30 +409,32 @@
         const data = await res.json();
         const cfg = data.config || {};
         document.getElementById("plant-header-sub").innerText =
-          `${cfg.plant_name || 'Unconfigured Factory'} · ${cfg.unit_code || ''} · Active Shift`;
+          `${cfg.plant_name || 'Unconfigured Factory'} | ${cfg.unit_code || ''} | Active Shift`;
 
         const lines = data.lines || [];
+        document.getElementById("kpi-lines").innerText = `${lines.length} / ${lines.length || 1}`;
         const grid = document.getElementById("line-grid-container");
         if (lines.length === 0) {
           grid.innerHTML = '<div style="grid-column: 1/-1; padding: 24px; background: #fff; border-radius: 14px; border: 1px solid var(--line);">No active lines configured. Download the <strong>Pre-Boarding Template (.csv)</strong> above, fill in your factory details, and click <strong>Upload Onboarding Sheet</strong>.</div>';
           return;
         }
 
-        let totalAchieved = 0, totalTarget = 0;
+        let totalAchieved = 0, totalTarget = 0, weightedDefects = 0;
         grid.innerHTML = "";
         lines.forEach(l => {
           totalAchieved += l.achieved;
           totalTarget += l.target;
+          weightedDefects += (l.achieved * (Number(l.dhu) || 0)) / 100.0;
           const pct = l.target > 0 ? Math.round((l.achieved / l.target) * 100) : 0;
           const card = document.createElement("div");
           card.className = `line-card ${l.status}`;
           card.innerHTML = `
             <div class="line-header">
-              <span class="line-title">${l.line_id}</span>
+              <span class="line-title">${escapeHTML(l.line_id)}</span>
               <span class="status-pill ${l.status === 'ok' ? 'pill-ok' : 'pill-warn'}">${l.status === 'ok' ? 'ON PACE' : 'ATTENTION'}</span>
             </div>
             <div class="line-stats">
-              <span style="color: var(--muted);">Style: <strong>${l.style}</strong></span>
+              <span style="color: var(--muted);">Style: <strong>${escapeHTML(l.style)}</strong></span>
               <span>DHU: <strong>${Number(l.dhu).toFixed(1)}%</strong></span>
             </div>
             <div class="progress-bar-bg">
@@ -489,6 +448,13 @@
           grid.appendChild(card);
         });
         document.getElementById("kpi-output").innerText = `${totalAchieved} / ${totalTarget}`;
+        const plantDhu = totalAchieved > 0 ? (weightedDefects / totalAchieved) * 100.0 : 0.0;
+        const passRate = Math.max(0.0, 100.0 - plantDhu);
+        const dhuEl = document.getElementById("kpi-dhu");
+        dhuEl.innerText = `${plantDhu.toFixed(1)}%`;
+        dhuEl.style.color = plantDhu > 2.5 ? 'var(--crit)' : 'var(--ok)';
+        document.getElementById("kpi-finish").innerText = `${passRate.toFixed(1)}%`;  
+      
       } catch (e) {
         console.error("Failed to load plant overview", e);
       }
@@ -515,10 +481,6 @@
       input.value = "";
     }
 
-    loadPlantOverview();
-    setInterval(loadPlantOverview, 5000);
-
-    // Drawer Interaction
     function toggleAgieDrawer() {
       const drawer = document.getElementById("agie-drawer");
       const overlay = document.getElementById("drawer-overlay");
@@ -560,7 +522,6 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: chatHistory })
         });
-<<<<<<< HEAD
         if (!res.ok) throw new Error((await res.text()).trim() || `HTTP ${res.status}`);
         const data = await res.json();
         if (typeof data.reply !== 'string' || !data.reply.trim()) throw new Error('AGIE returned an empty answer');
@@ -568,47 +529,53 @@
         chatHistory.push({ role: "assistant", content: data.reply });
       } catch (e) {
         loadDiv.innerText = `AGIE unavailable: ${e.message}`;
-=======
-        const data = await res.json();
-        loadDiv.innerText = data.reply;
-        chatHistory.push({ role: "assistant", content: data.reply });
-      } catch (e) {
-        loadDiv.innerText = "Error communicating with Agie ReAct engine.";
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
       }
       stream.scrollTop = stream.scrollHeight;
     }
-    
+
+    async function resolveIssue(issueId, action) {
+      try {
+        const res = await fetch("/api/v1/issues/resolve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ issue_id: issueId, action: action })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        await loadFloorIssues();
+        await loadPlantOverview();
+      } catch (e) {
+        alert("Could not resolve issue: " + e.message);
+      }
+    }
+
     async function loadFloorIssues() {
       try {
         const res = await fetch("/api/v1/issues");
         if (!res.ok) return;
         const issues = await res.json();
-
-        // Update KPI Counter Card
         const kpiVal = document.getElementById("kpi-issues");
         if (kpiVal) kpiVal.innerText = issues.length;
 
-        // Render Issue List
         const container = document.getElementById("issue-list");
         if (!container) return;
-
         if (issues.length === 0) {
           container.innerHTML = '<div style="color: var(--muted); font-size: 13px; padding: 12px 0;">Zero active issues on floor. Operations nominal.</div>';
           return;
         }
-
         container.innerHTML = issues.map(iss => {
           const sevClass = iss.severity === 'critical' ? 'crit' : (iss.severity === 'attention' ? 'warn' : 'info');
-          const loc = iss.station_id ? `${iss.line_id} · ${iss.station_id}` : iss.line_id;
+          const loc = iss.station_id ? `${iss.line_id} - ${iss.station_id}` : iss.line_id;
           return `
             <div class="issue-item">
               <div class="issue-header">
-                <strong>${loc}</strong>
-                <span class="issue-tag ${sevClass}">${iss.severity}</span>
+                <strong>${escapeHTML(loc)}</strong>
+                <span class="issue-tag ${sevClass}">${escapeHTML(iss.severity)}</span>
               </div>
-              <div>${iss.title}</div>
-              <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">Owner: ${iss.owner_id} · Status: ${iss.status}</div>
+              <div>${escapeHTML(iss.title)}</div>
+              <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">Owner: ${escapeHTML(iss.owner_id)} | Status: ${escapeHTML(iss.status)}</div>
+              <button class="btn-agie-trigger" style="margin-top:8px; background:var(--ok); font-size:12px; padding:6px 12px;" onclick="resolveIssue('${escapeHTML(iss.id)}', 'RESOLVE')">
+                Mark Resolved
+              </button>
             </div>
           `;
         }).join("");
@@ -617,7 +584,9 @@
       }
     }
 
+    loadPlantOverview();
     loadFloorIssues();
+    setInterval(loadPlantOverview, 5000);
     setInterval(loadFloorIssues, 5000);
   </script>
 </body>

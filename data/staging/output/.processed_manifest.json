@@ -2,59 +2,54 @@
   "files": {
     "01_Operation_Bulletin_KK524867.xlsx": {
       "sha256": "672d5b7f4f60bea0c9b66054856a576d0e4f21eed2dd3fe17c3f78a669b1ad4b",
-<<<<<<< HEAD
-      "processed_at": 1792947826786,
+      "processed_at": 1792966221836,
       "mode": "DETERMINISTIC_XLSX",
-      "status": "SUCCESS",
-      "db_applied": true
+      "status": "ARTIFACT_ONLY",
+      "db_applied": false
     },
     "02_Buyer_Purchase_Order_MK6574J9.csv": {
       "sha256": "df2e45459c7193e8ab8ee555e5e63196734c89c7c6e206b4d23e7d55009fa5b2",
-      "processed_at": 1792947826786,
+      "processed_at": 1792966221837,
       "mode": "DETERMINISTIC_CSV",
-      "status": "SUCCESS",
-      "db_applied": true
+      "status": "ARTIFACT_ONLY",
+      "db_applied": false
     },
     "03_Line14_Machine_Roster_Layout.xlsx": {
       "sha256": "471c35bf890ab47835738ea0fe6526d6fc613921507f88ae968cdf8094ae026b",
-      "processed_at": 1792947826787,
+      "processed_at": 1792966221839,
       "mode": "DETERMINISTIC_XLSX",
-      "status": "SUCCESS",
-      "db_applied": true
+      "status": "ARTIFACT_ONLY",
+      "db_applied": false
     },
     "04_Worker_Skill_Attendance_Register.csv": {
       "sha256": "91704c8955e81d838850fb8b966e9ec694a923fedc08b7875029e341dd127ad4",
-      "processed_at": 1792947826787,
+      "processed_at": 1792966221840,
       "mode": "DETERMINISTIC_CSV",
-      "status": "SUCCESS",
-      "db_applied": true
+      "status": "ARTIFACT_ONLY",
+      "db_applied": false
     },
     "05_Fabric_Store_GRN_Inspection.xlsx": {
       "sha256": "72d2687f52d244b6b1896eaa93e412d6384b43153cca529da5fffd83cb9b0c6d",
-      "processed_at": 1792947826788,
+      "processed_at": 1792966221841,
       "mode": "DETERMINISTIC_XLSX",
-      "status": "SUCCESS",
-      "db_applied": true
+      "status": "ARTIFACT_ONLY",
+      "db_applied": false
     },
     "06_Buyer_Packing_Bulletin_Shipping_Spec.csv": {
       "sha256": "d390247471cb08018907f98f7dd8299b1401cfdcf16837033e9dd93b628ef401",
-      "processed_at": 1792947826788,
+      "processed_at": 1792966221842,
       "mode": "DETERMINISTIC_CSV",
-      "status": "SUCCESS",
-      "db_applied": true,
+      "status": "ARTIFACT_ONLY",
+      "db_applied": false,
       "conflicts": 1
     },
     "agiparel SAMPLE DATA .xlsx": {
       "sha256": "ec2df798d7c46286a675c4efcd782c43725fb32de204d90afdf9e0cf627e5bd5",
-      "processed_at": 1792947826790,
+      "processed_at": 1792966221846,
       "mode": "DETERMINISTIC_XLSX",
-      "status": "SUCCESS",
-      "db_applied": true,
+      "status": "ARTIFACT_ONLY",
+      "db_applied": false,
       "conflicts": 5
-=======
-      "processed_at": 1792886946306,
-      "status": "SUCCESS"
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
     }
   }
 }

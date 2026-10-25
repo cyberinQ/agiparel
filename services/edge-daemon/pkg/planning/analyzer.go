@@ -1,4 +1,4 @@
-// Author: Sunil Jain, 2026-10-25 — Readiness must reject unknown or stale data rather than invent capacity.
+// Author: Sunil Jain, CyberinQ LLC
 package planning
 
 import (
@@ -13,16 +13,16 @@ import (
 type TrafficLight string
 
 const (
-	LightGreen  TrafficLight = "GREEN"  // Ready to run
-	LightYellow TrafficLight = "YELLOW" // Needs small fix (e.g. swap float worker)
-	LightRed    TrafficLight = "RED"    // Blocker (missing cloth or broken machine)
+	LightGreen  TrafficLight = "GREEN"
+	LightYellow TrafficLight = "YELLOW"
+	LightRed    TrafficLight = "RED"
 )
 
 type ReadinessCard struct {
-	Category     string       `json:"category"` // "CLOTH", "MACHINES", "WORKERS"
-	Status       TrafficLight `json:"status"`   // GREEN, YELLOW, RED
-	Headline     string       `json:"headline"` // 5th-grade summary
-	Details      []string     `json:"details"`  // Simple bullet points
+	Category     string       `json:"category"`
+	Status       TrafficLight `json:"status"`
+	Headline     string       `json:"headline"`
+	Details      []string     `json:"details"`
 	SuggestedFix string       `json:"suggested_fix,omitempty"`
 }
 
@@ -30,13 +30,12 @@ type PlanAssessment struct {
 	PONumber            string          `json:"po_number"`
 	StyleCode           string          `json:"style_code"`
 	OrderedQty          int             `json:"ordered_qty"`
-	TargetCutQty        int             `json:"target_cut_qty"` // +2% clamped extra
+	TargetCutQty        int             `json:"target_cut_qty"`
 	EstimatedDaysToDone int             `json:"estimated_days_to_done"`
 	OverallStatus       TrafficLight    `json:"overall_status"`
 	Cards               []ReadinessCard `json:"cards"`
 }
 
-// AssessWorkbook evaluates cumulative customer requirements against factory capacity.
 func AssessWorkbook(wb *onboarding.FactoryWorkbook, poNumber string) PlanAssessment {
 	var targetWO onboarding.WorkOrderRow
 	for _, wo := range wb.WorkOrders {
@@ -46,12 +45,17 @@ func AssessWorkbook(wb *onboarding.FactoryWorkbook, poNumber string) PlanAssessm
 		}
 	}
 	if targetWO.OrderedQty <= 0 {
-		return PlanAssessment{PONumber: poNumber, OverallStatus: LightRed, Cards: []ReadinessCard{
-			{Category: "CLOTH", Status: LightRed, Headline: "Upload a buyer order first", Details: []string{"No verified PO was found."}},
-			{Category: "MACHINES", Status: LightRed, Headline: "Machine plan not verified", Details: []string{"A buyer order is needed."}},
-			{Category: "WORKERS", Status: LightRed, Headline: "Worker plan not verified", Details: []string{"A buyer order is needed."}},
-		}}
+		return PlanAssessment{
+			PONumber:      poNumber,
+			OverallStatus: LightRed,
+			Cards: []ReadinessCard{
+				{Category: "CLOTH", Status: LightRed, Headline: "Upload a buyer order first", Details: []string{"No verified PO was found."}},
+				{Category: "MACHINES", Status: LightRed, Headline: "Machine plan not verified", Details: []string{"A buyer order is needed."}},
+				{Category: "WORKERS", Status: LightRed, Headline: "Worker plan not verified", Details: []string{"A buyer order is needed."}},
+			},
+		}
 	}
+
 	extra := int(math.Round(float64(targetWO.OrderedQty) * 0.02))
 	if extra < 1 {
 		extra = 1
@@ -60,7 +64,7 @@ func AssessWorkbook(wb *onboarding.FactoryWorkbook, poNumber string) PlanAssessm
 	}
 	targetCut := targetWO.OrderedQty + extra
 
-	clothCard := evaluateCloth(wb, targetWO.PONumber, targetCut)
+	clothCard := evaluateCloth(wb, targetWO.PONumber, targetWO.StyleCode, targetCut)
 	machCard := evaluateMachines(wb, targetWO.StyleCode)
 	workerCard := evaluateWorkers(wb)
 
@@ -94,11 +98,26 @@ func AssessWorkbook(wb *onboarding.FactoryWorkbook, poNumber string) PlanAssessm
 	}
 }
 
-func evaluateCloth(wb *onboarding.FactoryWorkbook, po string, targetCut int) ReadinessCard {
-	// Estimate 1.25 meters per trouser
+func evaluateCloth(wb *onboarding.FactoryWorkbook, po, styleCode string, targetCut int) ReadinessCard {
 	neededMeters := float64(targetCut) * 1.25
+	primarySKU := ""
+	for _, st := range wb.Styles {
+		if st.StyleCode == styleCode && st.FabricSKU != "" {
+			primarySKU = strings.ToUpper(st.FabricSKU)
+			break
+		}
+	}
+
 	availMeters := 0.0
 	for _, r := range wb.StoreRolls {
+		skuUpper := strings.ToUpper(r.FactorySKU)
+		// Exclude secondary trim/pocketing rolls from main body shell fabric calculation
+		if strings.Contains(skuUpper, "POCKET") {
+			continue
+		}
+		if primarySKU != "" && skuUpper != primarySKU {
+			continue
+		}
 		if r.Status == "AVAILABLE" || r.ReservedOrder == po {
 			availMeters += r.LengthM
 		}
@@ -110,8 +129,8 @@ func evaluateCloth(wb *onboarding.FactoryWorkbook, po string, targetCut int) Rea
 			Status:   LightGreen,
 			Headline: "Enough Cloth in Store",
 			Details: []string{
-				fmt.Sprintf("We need %.0f meters for %d pieces.", neededMeters, targetCut),
-				fmt.Sprintf("We have %.0f meters ready in the store.", availMeters),
+				fmt.Sprintf("We need %.0f meters of main shell cloth for %d pieces.", neededMeters, targetCut),
+				fmt.Sprintf("We have %.1f meters ready in the store.", availMeters),
 			},
 		}
 	}
@@ -120,19 +139,23 @@ func evaluateCloth(wb *onboarding.FactoryWorkbook, po string, targetCut int) Rea
 	return ReadinessCard{
 		Category:     "CLOTH",
 		Status:       LightRed,
-		Headline:     fmt.Sprintf("Need %.0f More Meters of Cloth", shortfall),
-		Details:      []string{fmt.Sprintf("Have %.0f m, but order needs %.0f m.", availMeters, neededMeters)},
-		SuggestedFix: fmt.Sprintf("Order %.0f meters of cloth from supplier or use unreserved rolls.", shortfall),
+		Headline:     fmt.Sprintf("Need %.1f More Meters of Main Shell Cloth", shortfall),
+		Details:      []string{fmt.Sprintf("Have %.1f m of main shell fabric (excluding pocketing), but order needs %.0f m.", availMeters, neededMeters)},
+		SuggestedFix: fmt.Sprintf("Order %.1f meters of shell cloth from supplier or allocate unreserved rolls.", shortfall),
 	}
 }
 
 func evaluateMachines(wb *onboarding.FactoryWorkbook, styleCode string) ReadinessCard {
 	if len(wb.Machines) == 0 || len(wb.OperationsDAG) == 0 {
-		return ReadinessCard{Category: "MACHINES", Status: LightRed, Headline: "Missing machine list or sewing steps", Details: []string{"Upload both the operation bulletin and machine roster."}}
+		return ReadinessCard{
+			Category: "MACHINES",
+			Status:   LightRed,
+			Headline: "Missing machine list or sewing steps",
+			Details:  []string{"Upload both the operation bulletin and machine roster."},
+		}
 	}
 	broken := []string{}
 	activeByClass := make(map[string]int)
-
 	for _, m := range wb.Machines {
 		status := strings.ToUpper(m.Status)
 		if status == "BREAKDOWN" || status == "MAINTENANCE" {
@@ -168,7 +191,7 @@ func evaluateMachines(wb *onboarding.FactoryWorkbook, styleCode string) Readines
 			Status:       LightYellow,
 			Headline:     fmt.Sprintf("%d Machine(s) Need Mechanic", len(broken)),
 			Details:      broken,
-			SuggestedFix: "Call Mechanic Ramesh Chand to fix before shift starts.",
+			SuggestedFix: "Dispatch line mechanic to repair stations in maintenance/breakdown.",
 		}
 	}
 	return ReadinessCard{
@@ -181,42 +204,68 @@ func evaluateMachines(wb *onboarding.FactoryWorkbook, styleCode string) Readines
 
 func evaluateWorkers(wb *onboarding.FactoryWorkbook) ReadinessCard {
 	if len(wb.Workers) == 0 {
-		return ReadinessCard{Category: "WORKERS", Status: LightRed, Headline: "Worker roster is missing", Details: []string{"Upload today's worker list."}}
+		return ReadinessCard{
+			Category: "WORKERS",
+			Status:   LightRed,
+			Headline: "Worker roster is missing",
+			Details:  []string{"Upload today's worker list."},
+		}
 	}
+
 	today := time.Now().Format("2006-01-02")
 	stale := []string{}
+	coveredStations := make(map[string]string)
+	presentCount := 0
+
 	for _, worker := range wb.Workers {
 		if worker.AttendanceDate != "" && worker.AttendanceDate != today {
 			stale = append(stale, worker.Name)
 		}
-	}
-	if len(stale) > 0 {
-		return ReadinessCard{Category: "WORKERS", Status: LightYellow, Headline: "Attendance is from an older shift", Details: []string{fmt.Sprintf("%d workers have an outdated attendance date; upload today's register.", len(stale))}, SuggestedFix: "Upload today's signed attendance register."}
-	}
-	absent := []string{}
-	presentCount := 0
-	for _, w := range wb.Workers {
-		if strings.ToUpper(w.AttendanceStatus) == "ABSENT" {
-			absent = append(absent, fmt.Sprintf("%s is absent at %s (%s)", w.Name, w.AssignedStationID, w.PrimarySkill))
-		} else {
+		if strings.ToUpper(worker.AttendanceStatus) != "ABSENT" {
 			presentCount++
+			if worker.AssignedStationID != "" {
+				coveredStations[worker.AssignedStationID] = worker.Name
+			}
 		}
 	}
-
-	if len(absent) > 0 {
+	if len(stale) > 0 {
 		return ReadinessCard{
 			Category:     "WORKERS",
 			Status:       LightYellow,
-			Headline:     fmt.Sprintf("%d Worker(s) Absent Today", len(absent)),
-			Details:      absent,
-			SuggestedFix: "Tap 'Swap Float Worker' to put Deepak Kumar on Station ST-14.",
+			Headline:     "Attendance is from an older shift",
+			Details:      []string{fmt.Sprintf("%d workers have an outdated attendance date; upload today's register.", len(stale))},
+			SuggestedFix: "Upload today's signed attendance register.",
 		}
 	}
 
+	uncoveredAbsent := []string{}
+	coveredNotes := []string{}
+	for _, w := range wb.Workers {
+		if strings.ToUpper(w.AttendanceStatus) == "ABSENT" {
+			if coverName, covered := coveredStations[w.AssignedStationID]; covered {
+				coveredNotes = append(coveredNotes, fmt.Sprintf("%s absent at %s (covered by %s)", w.Name, w.AssignedStationID, coverName))
+			} else {
+				uncoveredAbsent = append(uncoveredAbsent, fmt.Sprintf("%s is absent at %s (%s)", w.Name, w.AssignedStationID, w.PrimarySkill))
+			}
+		}
+	}
+
+	if len(uncoveredAbsent) > 0 {
+		return ReadinessCard{
+			Category:     "WORKERS",
+			Status:       LightYellow,
+			Headline:     fmt.Sprintf("%d Station(s) Uncovered Today", len(uncoveredAbsent)),
+			Details:      uncoveredAbsent,
+			SuggestedFix: "Assign a qualified float operator to uncovered stations.",
+		}
+	}
+
+	details := []string{"Every sewing station has a trained operator."}
+	details = append(details, coveredNotes...)
 	return ReadinessCard{
 		Category: "WORKERS",
 		Status:   LightGreen,
-		Headline: fmt.Sprintf("All %d Workers Here Today", presentCount),
-		Details:  []string{"Every sewing station has a trained operator."},
+		Headline: fmt.Sprintf("%d Workers Present & All Stations Covered", presentCount),
+		Details:  details,
 	}
 }

@@ -112,7 +112,7 @@
     const STATION_ID = "LINE14_ST04";
     const OPERATOR_ID = "W-05";
     const SAM_SEC = 36.0;
-    const DWELL_SEC = SAM_SEC * 0.20; // 7.2 seconds anti-ghost minimum
+    const DWELL_SEC = SAM_SEC * 0.40; // 14.4 seconds anti-ghost minimum (40% of SAM)
 
     // --- State Machine ---
     let state = 'SCAN_INPUT';
@@ -159,7 +159,7 @@
     // --- API Backend Comm ---
     async function appendLedger(eventType, payloadObj) {
       try {
-        await fetch("/api/v1/ledger/append", {
+        const res = await fetch("/api/v1/ledger/append", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -169,8 +169,15 @@
             payload: JSON.stringify(payloadObj)
           })
         });
+        if (!res.ok) {
+          const reason = await res.text();
+          logEvent(`REJECTED BY SERVER: ${reason.trim()}`);
+          return false;
+        }
+        return true;
       } catch (e) {
         console.error("Backend offline, continuing simulation.", e);
+        return false;
       }
     }
 
@@ -271,19 +278,24 @@
       transition('DONE');
     }
 
-    function actionDropBin() {
+    async function actionDropBin() {
       const dropTime = Date.now();
       const totalCycleTime = (dropTime - cycleStartTime) / 1000;
       
-      logEvent(`Item dropped in bin. Total loop time: ${totalCycleTime.toFixed(1)}s.`);
-      
-      // Dispatch Core Backend Event
-      appendLedger("CYCLE_DONE", { 
+      // Dispatch Core Backend Event and verify server acceptance
+      const accepted = await appendLedger("CYCLE_DONE", { 
         sam: SAM_SEC, 
         actual_sec: totalCycleTime,
         op_active_sec: lastOpDuration,
         carrier_uid: outputCarrier
       });
+
+      if (!accepted) {
+        logEvent(`Cycle rejected by anti-ghost dwell guard. Please re-verify.`);
+        return;
+      }
+
+      logEvent(`Item dropped in bin. Total loop time: ${totalCycleTime.toFixed(1)}s.`);
 
       // Reset state variables
       pastBundles = pastBundles.concat(bundles);

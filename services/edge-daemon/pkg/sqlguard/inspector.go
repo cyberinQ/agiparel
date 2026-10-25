@@ -1,3 +1,4 @@
+// Author: Sunil Jain, CyberinQ LLC
 package sqlguard
 
 import (
@@ -11,11 +12,16 @@ import (
 )
 
 type CatalogInspector struct {
-	db *sql.DB
+	db       *sql.DB
+	tenantID string
 }
 
-func NewCatalogInspector(db *sql.DB) *CatalogInspector {
-	return &CatalogInspector{db: db}
+func NewCatalogInspector(db *sql.DB, tenantID ...string) *CatalogInspector {
+	tID := "TENANT_DEFAULT"
+	if len(tenantID) > 0 && strings.TrimSpace(tenantID[0]) != "" {
+		tID = strings.TrimSpace(tenantID[0])
+	}
+	return &CatalogInspector{db: db, tenantID: tID}
 }
 
 func (c *CatalogInspector) InspectCatalog(ctx context.Context, tableName string) (string, error) {
@@ -28,8 +34,8 @@ func (c *CatalogInspector) InspectCatalog(ctx context.Context, tableName string)
 
 	if strings.TrimSpace(tableName) == "" {
 		rows, err := c.db.QueryContext(queryCtx, `
-			SELECT table_name 
-			FROM information_schema.tables 
+			SELECT table_name
+			FROM information_schema.tables
 			WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
 			ORDER BY table_name;
 		`)
@@ -65,7 +71,6 @@ func (c *CatalogInspector) InspectCatalog(ctx context.Context, tableName string)
 		Type     string `json:"type"`
 		Nullable string `json:"nullable"`
 	}
-
 	cols := make([]ColumnInfo, 0)
 	for rows.Next() {
 		var col, dtype, nullable string
@@ -73,7 +78,6 @@ func (c *CatalogInspector) InspectCatalog(ctx context.Context, tableName string)
 			cols = append(cols, ColumnInfo{Column: col, Type: dtype, Nullable: nullable})
 		}
 	}
-
 	out, _ := json.Marshal(map[string]interface{}{
 		"table":   tableName,
 		"columns": cols,
@@ -86,7 +90,6 @@ func (c *CatalogInspector) ExecuteSafeSQL(ctx context.Context, query string) (st
 		return "", errors.New("database connection is nil")
 	}
 
-	// Clean trailing semicolons and whitespace
 	cleanQuery := strings.TrimSpace(query)
 	cleanQuery = strings.TrimRight(cleanQuery, "; \t\n\r")
 	upper := strings.ToUpper(cleanQuery)
@@ -95,7 +98,6 @@ func (c *CatalogInspector) ExecuteSafeSQL(ctx context.Context, query string) (st
 		return "", fmt.Errorf("SECURITY_ERROR: Only SELECT queries are permitted (received: %s)", cleanQuery)
 	}
 
-	// Strictly block destructive keywords and dangerous system functions
 	destructiveTokens := []string{
 		"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "TRUNCATE", "GRANT", "REVOKE",
 		"PG_SLEEP", "PG_READ_FILE", "PG_STAT_FILE", "LO_IMPORT", "LO_EXPORT", "DBLINK", "SET_CONFIG",
@@ -106,7 +108,6 @@ func (c *CatalogInspector) ExecuteSafeSQL(ctx context.Context, query string) (st
 		}
 	}
 
-	// Disallow stacked queries (semicolons inside the statement)
 	if strings.Contains(cleanQuery, ";") {
 		return "", errors.New("SECURITY_ERROR: Stacked queries with ';' are forbidden")
 	}
@@ -120,13 +121,11 @@ func (c *CatalogInspector) ExecuteSafeSQL(ctx context.Context, query string) (st
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(queryCtx, "SET LOCAL app.current_tenant_id = 'TENANT_DEFAULT'"); err != nil {
+	if _, err := tx.ExecContext(queryCtx, "SELECT set_config('app.current_tenant_id', $1, true)", c.tenantID); err != nil {
 		return "", fmt.Errorf("RLS_CONTEXT_ERROR: %w", err)
 	}
 
-	// Hard limit of 100 rows for edge safety
 	boundedQuery := fmt.Sprintf("SELECT * FROM (%s) AS q LIMIT 100", cleanQuery)
-
 	rows, err := tx.QueryContext(queryCtx, boundedQuery)
 	if err != nil {
 		return "", fmt.Errorf("SQL_ERROR: %w", err)
@@ -145,11 +144,9 @@ func (c *CatalogInspector) ExecuteSafeSQL(ctx context.Context, query string) (st
 		for i := range colVals {
 			colPointers[i] = &colVals[i]
 		}
-
 		if err := rows.Scan(colPointers...); err != nil {
 			return "", err
 		}
-
 		rowMap := make(map[string]interface{})
 		for i, col := range colNames {
 			val := colVals[i]

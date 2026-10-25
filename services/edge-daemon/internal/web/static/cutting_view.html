@@ -135,7 +135,7 @@
       document.getElementById('reuse-box').innerText = '♻️ Leftover Cloth Rule: ' + currentPlan.end_bit_reuse_plan;
 
       drawMarkerCanvas(currentPlan);
-      renderBundles(currentPlan.PlacedPieces ? currentPlan.placed_pieces : []);
+      renderBundles(currentPlan.placed_pieces || []);
     }
 
     function drawMarkerCanvas(plan) {

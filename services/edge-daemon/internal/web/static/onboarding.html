@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<<<<<<< HEAD
-  <title>Agiparel | Easy Factory Plan & Setup</title>
+  <title>Agiparel | Factory Order Planner & Enterprise Setup</title>
   <style>
     :root {
       --bg: #F1F4F8; --surface: #FFFFFF; --brand: #1E3A8A; --text: #0F172A;
@@ -21,14 +20,12 @@
       padding: 24px; line-height: 1.4;
     }
     .container { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
-
     header {
       background: var(--surface); padding: 24px; border-radius: var(--radius);
       border: 2px solid var(--line); display: flex; justify-content: space-between; align-items: center;
     }
     header h1 { font-size: 28px; color: var(--brand); font-weight: 900; }
     header p { font-size: 16px; color: var(--muted); margin-top: 4px; font-weight: 500; }
-
     .step-card {
       background: var(--surface); border-radius: var(--radius);
       border: 2px solid var(--line); padding: 28px;
@@ -41,8 +38,6 @@
     }
     .step-title { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
     .step-sub { font-size: 16px; color: var(--muted); margin-bottom: 20px; }
-
-    /* Step 1: Big Upload Dropzone */
     .drop-zone {
       border: 3px dashed var(--brand); background: #EFF6FF;
       border-radius: var(--radius); padding: 36px; text-align: center;
@@ -55,8 +50,6 @@
       background: var(--green-bg); border: 2px solid var(--green); color: #065F46;
       padding: 8px 16px; border-radius: 10px; font-weight: 700; font-size: 15px;
     }
-
-    /* Step 2: 3 Traffic Light Cards */
     .traffic-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
     .light-card {
       border-radius: 14px; padding: 22px; border: 3px solid var(--line);
@@ -65,7 +58,6 @@
     .light-card.GREEN { background: var(--green-bg); border-color: var(--green); }
     .light-card.YELLOW { background: var(--yellow-bg); border-color: var(--yellow); }
     .light-card.RED { background: var(--red-bg); border-color: var(--red); }
-
     .light-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .light-label { font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; }
     .light-dot {
@@ -74,13 +66,10 @@
     .dot-GREEN { background: var(--green); }
     .dot-YELLOW { background: var(--yellow); color: #000; }
     .dot-RED { background: var(--red); }
-
     .light-headline { font-size: 20px; font-weight: 900; margin-bottom: 10px; }
     .light-list { list-style: none; font-size: 15px; margin-bottom: 16px; }
     .light-list li { margin-bottom: 6px; padding-left: 14px; position: relative; }
     .light-list li::before { content: "•"; position: absolute; left: 0; font-weight: 900; }
-
-    /* Step 3: Edit & Lock Form */
     .edit-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
     .field-box { background: #F8FAFC; padding: 16px; border-radius: 12px; border: 2px solid var(--line); }
     .field-box label { display: block; font-size: 14px; font-weight: 800; color: var(--muted); margin-bottom: 8px; }
@@ -88,7 +77,6 @@
       width: 100%; padding: 12px; font-size: 18px; font-weight: 800;
       border: 2px solid var(--line); border-radius: 8px; background: #fff;
     }
-
     .btn-row { display: flex; gap: 16px; flex-wrap: wrap; }
     .btn-big {
       border: none; padding: 18px 28px; border-radius: 12px;
@@ -97,49 +85,20 @@
     }
     .btn-green { background: var(--green); }
     .btn-blue { background: var(--brand); }
-    .btn-amber { background: var(--yellow); color: #000; }
     .btn-dark { background: #0F172A; }
-
-    /* Print Stylesheet for Physical Factory Floor Handout */
     @media print {
       body { background: #fff; padding: 0; }
       .no-print { display: none !important; }
       .step-card { border: 2px solid #000; box-shadow: none; page-break-inside: avoid; }
     }
-=======
-  <title>Agiparel OS · Enterprise Multi-Line Factory Onboarding</title>
-  <style>
-    :root {
-      --bg: #F1F4F8; --surface: #FFFFFF; --brand: #1E3A8A; --text: #0F172A;
-      --muted: #64748B; --line: #E2E8F0; --ok: #10B981; --radius: 14px;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 32px; }
-    .container { max-width: 950px; margin: 0 auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
-    h1 { color: var(--brand); font-size: 26px; margin-bottom: 6px; }
-    .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
-    .form-group { margin-bottom: 18px; }
-    label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; }
-    input, select { width: 100%; padding: 11px 14px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .btn { background: var(--brand); color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px; }
-    .btn:hover { background: #172e6e; }
-    .btn-secondary { background: var(--line); color: var(--text); }
-    .ai-box { background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 8px; padding: 14px; font-size: 13px; color: #3730A3; margin-bottom: 20px; }
-    .csv-card { border: 2px dashed var(--line); padding: 20px; text-align: center; border-radius: 8px; background: #FAFAFA; margin-bottom: 24px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    th, td { border: 1px solid var(--line); padding: 10px; font-size: 13px; text-align: left; }
-    th { background: #F8FAFC; }
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
   </style>
 </head>
 <body>
   <div class="container">
-<<<<<<< HEAD
     <header>
       <div>
-        <h1>Factory Order Planner</h1>
-        <p id="factory-subtitle">Noble Garments (OKHLA Unit 002/02) — Simple 3-Step Order Setup</p>
+        <h1>Factory Order Planner & Onboarding</h1>
+        <p id="factory-subtitle">Noble Garments (OKHLA Unit 002/02) — 3-Step Order Setup</p>
       </div>
       <div class="no-print" style="display:flex; gap:12px;">
         <a href="/cutting" class="btn-big btn-blue" style="padding:12px 20px; font-size:15px;">Go to Cutting Table &rarr;</a>
@@ -147,43 +106,34 @@
       </div>
     </header>
 
-    <!-- STEP 1: CUMULATIVE UPLOAD -->
     <div class="step-card no-print">
       <span class="step-badge">Step 1 of 3</span>
       <div class="step-title">Put Customer Files Here</div>
-      <div class="step-sub">Upload what you have now (Order Sheet, Sewing Steps, Machine List, or Worker List). You can add more files later!</div>
-
+      <div class="step-sub">Upload what you have now (Order Sheet, Sewing Steps, Machine List, or Worker List). Every file is checkpointed immediately.</div>
       <label class="drop-zone" style="display:block;">
         <h3>Tap Here to Pick Files (.csv, .xlsx, .pdf, or photo)</h3>
         <p style="font-size:15px; color:var(--muted);">Every upload adds to your plan without erasing earlier work.</p>
         <input type="file" multiple accept=".csv,.xlsx,.pdf,.png,.jpg" style="display:none;" onchange="handleUploadFiles(this)">
       </label>
-
       <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
         <div class="round-pills" id="uploaded-pills">
           <span class="round-pill">No documents uploaded in this session</span>
         </div>
-        <a href="/api/v1/onboarding/template.csv" style="font-weight:700; color:var(--brand); font-size:14px;">Download Blank Sample Sheet</a>
+        <a href="/api/v1/onboarding/template.csv" style="font-weight:700; color:var(--brand); font-size:14px;">Download Blank Sample Sheet (.csv)</a>
       </div>
     </div>
 
-    <!-- STEP 2: TRAFFIC-LIGHT CAPACITY CHECK -->
     <div class="step-card">
       <span class="step-badge">Step 2 of 3</span>
       <div class="step-title">Can Our Factory Make This Order Today?</div>
       <div class="step-sub">Green means ready. Yellow means check. Red means stop. Upload verified updates before approving.</div>
-
-      <div class="traffic-grid" id="readiness-cards">
-        <!-- Populated dynamically from /api/v1/planning/assessment -->
-      </div>
+      <div class="traffic-grid" id="readiness-cards"></div>
     </div>
 
-    <!-- STEP 3: EDIT, APPROVE, PRINT & EMAIL -->
     <div class="step-card">
       <span class="step-badge">Step 3 of 3</span>
       <div class="step-title">Check Numbers, Lock Plan & Send to Team</div>
       <div class="step-sub">Review the verified numbers below. Approval locks the database; print the plan only after checking every warning.</div>
-
       <div class="edit-grid">
         <div class="field-box">
           <label>Customer Order (PO)</label>
@@ -206,7 +156,6 @@
           <div id="cut-target-hint" style="font-size:13px; color:var(--brand); font-weight:700; margin-top:4px;">Will Cut: 612 pieces</div>
         </div>
       </div>
-
       <div class="edit-grid" style="grid-template-columns: 1fr 1fr 1fr;">
         <div class="field-box">
           <label>Daily Goal (Pieces / Day)</label>
@@ -221,26 +170,16 @@
           <input type="password" id="plan-pin" autocomplete="off" maxlength="4" inputmode="numeric" pattern="[0-9]{4}">
         </div>
       </div>
-
       <div class="btn-row no-print">
-        <button class="btn-big btn-green" onclick="approveAndLockPlan()">
-          ✓ 1. Approve & Lock Plan in Database
-        </button>
-        <button class="btn-big btn-blue" onclick="window.print()">
-          🖨️ 2. Print Plan for Floor
-        </button>
-        <button class="btn-big btn-dark" onclick="emailPlanToTeam()">
-          ✉️ 3. Email Plan to Team
-        </button>
+        <button class="btn-big btn-green" onclick="approveAndLockPlan()">1. Approve & Lock Plan in Database</button>
+        <button class="btn-big btn-blue" onclick="window.print()">2. Print Plan for Floor</button>
+        <button class="btn-big btn-dark" onclick="emailPlanToTeam()">3. Email Plan to Team</button>
       </div>
-
-      <div id="lock-banner" style="display:none; margin-top:20px; padding:18px; border-radius:12px; background:var(--green-bg); border:2px solid var(--green); font-size:18px; font-weight:800; color:#065F46;">
-      </div>
+      <div id="lock-banner" style="display:none; margin-top:20px; padding:18px; border-radius:12px; background:var(--green-bg); border:2px solid var(--green); font-size:18px; font-weight:800; color:#065F46;"></div>
     </div>
   </div>
 
   <script>
-    // Author: Sunil Jain, 2026-10-25 — DOM-safe rendering and structured multipart uploads.
     function escapeHTML(value) {
       return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
@@ -249,19 +188,16 @@
       const extra = Math.min(15, Math.max(1, Math.round(qty * 0.02)));
       document.getElementById('cut-target-hint').innerText = `Will Cut: ${qty + extra} pieces (includes ${extra} extra for safety)`;
     }
-
     async function loadAssessment() {
       const po = document.getElementById('plan-po').value;
       try {
         const res = await fetch(`/api/v1/planning/assessment?po=${encodeURIComponent(po)}`);
         if (!res.ok) return;
         const data = await res.json();
-
         document.getElementById('plan-po').value = data.po_number || '';
         document.getElementById('plan-style').value = data.style_code || '';
         document.getElementById('plan-qty').value = data.ordered_qty || 0;
         recalcCutTarget();
-
         const container = document.getElementById('readiness-cards');
         container.innerHTML = (data.cards || []).map(c => {
           const bullets = (c.details || []).map(d => `<li>${escapeHTML(d)}</li>`).join('');
@@ -287,7 +223,6 @@
         console.error("Failed loading assessment", e);
       }
     }
-
     async function handleUploadFiles(input) {
       if (!input.files || !input.files.length) return;
       const form = new FormData();
@@ -308,10 +243,12 @@
           alert(`${result.conflicts.length} mismatch(es) need manager review before plan approval.`);
         }
         await loadAssessment();
-      } catch (error) { alert(`Upload not completed: ${error.message}`); }
-      finally { input.value = ''; }
+      } catch (error) {
+        alert(`Upload not completed: ${error.message}`);
+      } finally {
+        input.value = '';
+      }
     }
-
     async function approveAndLockPlan() {
       const payload = {
         po_number: document.getElementById('plan-po').value,
@@ -330,12 +267,11 @@
         const out = await res.json();
         const banner = document.getElementById('lock-banner');
         banner.style.display = 'block';
-        banner.innerText = `PLAN LOCKED in database: ${out.po_number}, ${out.target_cut_qty} target cut pieces, ${out.line_id}. Print and share the reviewed plan separately.`;
+        banner.innerText = `PLAN LOCKED in database: ${out.po_number}, ${out.target_cut_qty} target cut pieces, ${out.line_id}.`;
       } else {
         alert("Could not lock plan: " + await res.text());
       }
     }
-
     async function emailPlanToTeam() {
       const emails = document.getElementById('plan-emails').value;
       const po = document.getElementById('plan-po').value;
@@ -351,115 +287,7 @@
         alert(`Email not sent: ${await res.text()}`);
       }
     }
-
     loadAssessment();
-=======
-    <h1>Enterprise Multi-Line Factory Onboarding</h1>
-    <p class="subtitle">Configure multiple assembly lines, machine rosters, supervisory staff, and active POs.</p>
-
-    <!-- CSV Bulk Option Header -->
-    <div class="csv-card">
-      <p style="margin-bottom: 8px; font-weight: 600;">Have a full factory Excel or CSV sheet?</p>
-      <div style="display: flex; gap: 12px; justify-content: center;">
-        <a href="/api/v1/onboarding/template.csv" class="btn btn-secondary" style="text-decoration:none; display:inline-block;">⬇ Download CSV Template</a>
-        <label class="btn" style="cursor: pointer; display: inline-block;">
-          ⬆ Upload Filled CSV Workbook
-          <input type="file" accept=".csv" style="display:none;" onchange="uploadCSV(this)">
-        </label>
-      </div>
-    </div>
-
-    <form id="enterprise-form" onsubmit="submitEnterpriseWizard(event)">
-      <div class="ai-box">🤖 <strong>Enterprise Setup:</strong> Define your factory parameters below. This will provision all lines (e.g., Lines 1 to 14), machine rosters, and active work orders into PostgreSQL with RLS enabled.</div>
-      
-      <div class="row">
-        <div class="form-group">
-          <label>Tenant ID</label>
-          <input type="text" id="tenant_id" value="TENANT_DEFAULT" required>
-        </div>
-        <div class="form-group">
-          <label>Factory Name</label>
-          <input type="text" id="factory_name" value="Noble Garments" required>
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="form-group">
-          <label>Unit Code / Location</label>
-          <input type="text" id="unit_code" value="OKHLA Unit 002/02" required>
-        </div>
-        <div class="form-group">
-          <label>Number of Active Assembly Lines</label>
-          <input type="number" id="num_lines" value="14" min="1" max="50" required>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Pilot Style Code & PO Number</label>
-        <div class="row">
-          <input type="text" id="style_code" value="KK524867" placeholder="Style Code" required>
-          <input type="text" id="po_number" value="MK6574J9" placeholder="PO Number" required>
-        </div>
-      </div>
-
-      <div style="margin-top: 24px; text-align: right;">
-        <button type="submit" class="btn" style="background: var(--ok); font-size: 16px; padding: 14px 28px;">🚀 Provision Entire Factory & Launch Operations Room</button>
-      </div>
-    </form>
-  </div>
-
-  <script>
-    async function uploadCSV(input) {
-      if (!input.files || !input.files[0]) return;
-      const text = await input.files[0].text();
-      const res = await fetch("/api/v1/onboarding/upload", { method: "POST", headers: { "Content-Type": "text/csv" }, body: text });
-      if (res.ok) {
-        alert("Factory successfully provisioned via CSV! Navigating to operations dashboard...");
-        window.location.href = "/plant";
-      } else {
-        alert("Onboarding Error: " + await res.text());
-      }
-    }
-
-    async function submitEnterpriseWizard(e) {
-      e.preventDefault();
-      const tenant = document.getElementById('tenant_id').value;
-      const fname = document.getElementById('factory_name').value;
-      const unit = document.getElementById('unit_code').value;
-      const lineCount = parseInt(document.getElementById('num_lines').value) || 14;
-      const style = document.getElementById('style_code').value;
-      const po = document.getElementById('po_number').value;
-
-      let csvRows = [
-        "RECORD_TYPE,COL_1,COL_2,COL_3,COL_4,COL_5,COL_6,COL_7,COL_8,COL_9",
-        `FACTORY_PROFILE,${tenant},${fname},${unit},8,20`
-      ];
-
-      for (let i = 1; i <= lineCount; i++) {
-        const lineID = `Line ${i < 10 ? '0' + i : i}`;
-        csvRows.push(`LINE_ROSTER,${lineID},${lineID} - Assembly Section,14,600,0.40`);
-        csvRows.push(`MACHINE_ROSTER,M-${i}-01,${lineID},SUPERVISOR_DESK,Supervisor Terminal,TERMINAL,150,ACTIVE`);
-        csvRows.push(`MACHINE_ROSTER,M-${i}-02,${lineID},ST-02,Pegasus Overlock,4-OL_SERGING,120,ACTIVE`);
-        csvRows.push(`WORKER_ROSTER,W-${i},EMP_SUPV_${i},Supervisor ${i},LINE_SUPERVISOR,A,180.00,PRESENT,${lineID},SUPERVISOR_DESK`);
-        csvRows.push(`WORK_ORDERS,WO-${po}-${i},${po},${style},${lineID},W-${i},600,"{""DEFAULT"":600}","{""DEFAULT"":600}",IN_PROGRESS`);
-      }
-
-      csvRows.push(`STYLE_MASTER,STYLE_${style},${style},WOVEN_TROUSER,REGULAR_FIT,0.60,DENIM-STRETCH-12OZ`);
-      csvRows.push(`STYLE_PARTS,${style},101,Left Pocket,1,POCKETING-TWILL-WHITE`);
-      csvRows.push(`OPERATION_DAG,${style},OP-101,Attach Pocket,0.50,SNLS_LOCKSTITCH,101,102`);
-      csvRows.push(`STORE_ROLLS,ROLL-007,DENIM-STRETCH-12OZ,59.0,148.0,A,BIN-A01,RESERVED,${po},1`);
-
-      const csvContent = csvRows.join("\n");
-
-      const res = await fetch("/api/v1/onboarding/upload", { method: "POST", headers: { "Content-Type": "text/csv" }, body: csvContent });
-      if (res.ok) {
-        alert(`Successfully provisioned ${lineCount} lines and enterprise roster! Navigating to dashboard...`);
-        window.location.href = "/plant";
-      } else {
-        alert("Provisioning Error: " + await res.text());
-      }
-    }
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
   </script>
 </body>
 </html>

@@ -24,7 +24,6 @@ func GetSEW01HTML() ([]byte, error) {
 func GetPlantViewHTML() ([]byte, error) {
 	return staticFS.ReadFile("static/plant_view.html")
 }
-<<<<<<< HEAD
 
 func GetOnboardingHTML() ([]byte, error) {
 	return staticFS.ReadFile("static/onboarding.html")
@@ -32,8 +31,4 @@ func GetOnboardingHTML() ([]byte, error) {
 
 func GetCuttingViewHTML() ([]byte, error) {
 	return staticFS.ReadFile("static/cutting_view.html")
-=======
-func GetOnboardingHTML() ([]byte, error) {
-    return staticFS.ReadFile("static/onboarding.html")
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 }

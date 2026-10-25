@@ -8,9 +8,9 @@
     {
       "line_id": "Line 14",
       "display_name": "Line 14",
-      "stations_count": 0,
+      "stations_count": 14,
       "target_daily_capacity": 600,
-      "dwell_floor_pct": 0
+      "dwell_floor_pct": 0.4
     }
   ],
   "machines": [
@@ -379,7 +379,7 @@
     {
       "style_code": "KK524867",
       "part_code": "101",
-      "part_name": "Pocket Bag",
+      "part_name": "Pocket Facing",
       "sub_bundle_order": 1,
       "material_sku": ""
     },
@@ -387,49 +387,49 @@
       "style_code": "KK524867",
       "part_code": "105",
       "part_name": "Coin Pocket",
-      "sub_bundle_order": 1,
+      "sub_bundle_order": 2,
       "material_sku": ""
     },
     {
       "style_code": "KK524867",
       "part_code": "102",
       "part_name": "Front Panel",
-      "sub_bundle_order": 1,
+      "sub_bundle_order": 3,
       "material_sku": ""
     },
     {
       "style_code": "KK524867",
       "part_code": "106",
       "part_name": "Back Yoke",
-      "sub_bundle_order": 1,
+      "sub_bundle_order": 4,
       "material_sku": ""
     },
     {
       "style_code": "KK524867",
       "part_code": "103",
       "part_name": "Back Panel",
-      "sub_bundle_order": 1,
+      "sub_bundle_order": 5,
       "material_sku": ""
     },
     {
       "style_code": "KK524867",
       "part_code": "107",
       "part_name": "Back Pocket",
-      "sub_bundle_order": 1,
+      "sub_bundle_order": 6,
       "material_sku": ""
     },
     {
       "style_code": "KK524867",
       "part_code": "104",
       "part_name": "Waistband",
-      "sub_bundle_order": 1,
+      "sub_bundle_order": 7,
       "material_sku": ""
     },
     {
       "style_code": "KK524867",
       "part_code": "108",
       "part_name": "Belt Loops",
-      "sub_bundle_order": 1,
+      "sub_bundle_order": 8,
       "material_sku": ""
     }
   ],

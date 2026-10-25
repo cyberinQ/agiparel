@@ -1,15 +1,9 @@
-<<<<<<< HEAD
 // Author: Sunil Jain, 2026-10-25 — Repair planning API compilation and database readiness.
-=======
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 package main
 
 import (
 	"context"
-<<<<<<< HEAD
 	"crypto/subtle"
-=======
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -17,13 +11,9 @@ import (
 	"log"
 	"net/http"
 	"os"
-<<<<<<< HEAD
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-=======
-	"os/signal"
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	"strings"
 	"sync"
 	"syscall"
@@ -32,33 +22,19 @@ import (
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/agie/interviewer"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/attachment"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/crypto"
-<<<<<<< HEAD
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/ocr"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/packing"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/topology"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/wal"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/web"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/cutting"
-=======
-	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/cutting"
-	"github.com/cyberinq/agiparel/services/edge-daemon/internal/ocr"
-	"github.com/cyberinq/agiparel/services/edge-daemon/internal/packing"
-	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/stores"
-	"github.com/cyberinq/agiparel/services/edge-daemon/internal/topology"
-	"github.com/cyberinq/agiparel/services/edge-daemon/internal/wal"
-	"github.com/cyberinq/agiparel/services/edge-daemon/internal/web"
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/dbsmith"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/docscribe"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/logicweaver"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/onboarding"
-<<<<<<< HEAD
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/planning"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/sewing"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/stores"
-=======
-	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/sewing"
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -92,10 +68,7 @@ type EdgeServer struct {
 	secretKey      string
 	packingMu      sync.Mutex
 	activePackings map[int]*packing.CartonPackingSession
-<<<<<<< HEAD
 	uploadMu       sync.Mutex
-=======
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	ocrMu          sync.Mutex
 	activeOCRSess  map[string]*ocr.SignOffSession
 	interviewer    *interviewer.InterviewerEngine
@@ -107,11 +80,7 @@ type EdgeServer struct {
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
-<<<<<<< HEAD
 		port = "18530"
-=======
-		port = "8080"
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	}
 
 	secret := os.Getenv("LEDGER_SECRET")
@@ -205,6 +174,16 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+	// Root landing page links to the independently served embedded HMIs.
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agiparel Factory OS</title></head><body><main><h1>Agiparel Factory OS</h1><nav aria-label="Applications"><ul><li><a href="/plant">Plant dashboard</a></li><li><a href="/sew01">Sewing HMI</a></li><li><a href="/onboarding">Onboarding</a></li><li><a href="/planning">Planning</a></li><li><a href="/cutting">Cutting</a></li></ul></nav></main></body></html>`)
+	})
+
 	mux.HandleFunc("/healthz", server.handleHealth)
 	mux.HandleFunc("/api/v1/modules", server.handleGetModules)
 	mux.HandleFunc("/api/v1/ledger/append", server.handleLedgerAppend)
@@ -217,7 +196,7 @@ func main() {
 	mux.HandleFunc("/api/v1/onboarding/template.csv", server.handleOnboardingTemplate)
 	mux.HandleFunc("/api/v1/onboarding/upload", server.handleOnboardingUpload)
 	mux.HandleFunc("/api/v1/plant/overview", server.handlePlantOverview)
-<<<<<<< HEAD
+	mux.HandleFunc("/api/v1/issues/resolve", server.handleResolveIssue)
 	mux.HandleFunc("/api/v1/planning/assessment", server.handlePlanningAssessment)
 	mux.HandleFunc("/api/v1/planning/upload-docs", server.handlePlanningUploadDocs)
 	mux.HandleFunc("/planning", func(w http.ResponseWriter, r *http.Request) {
@@ -242,8 +221,6 @@ func main() {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write(data)
 	})
-=======
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 
 	if modules.IsEnabled("mod_stores") {
 		mux.HandleFunc("/api/v1/stores/indent-check", server.handleStoresIndentCheck)
@@ -292,11 +269,7 @@ func main() {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write(data)
 	})
-<<<<<<< HEAD
 
-=======
-	
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	mux.HandleFunc("/onboarding", func(w http.ResponseWriter, r *http.Request) {
 		data, err := web.GetOnboardingHTML()
 		if err != nil {
@@ -311,11 +284,7 @@ func main() {
 		Addr:         ":" + port,
 		Handler:      mux,
 		ReadTimeout:  60 * time.Second,
-<<<<<<< HEAD
 		WriteTimeout: 240 * time.Second,
-=======
-		WriteTimeout: 120 * time.Second,
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 		IdleTimeout:  120 * time.Second,
 	}
 
@@ -363,6 +332,7 @@ type AppendRequest struct {
 	Payload    string `json:"payload"`
 }
 
+// Author: Sunil Jain, CyberinQ LLC
 func (s *EdgeServer) handleLedgerAppend(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -376,17 +346,22 @@ func (s *EdgeServer) handleLedgerAppend(w http.ResponseWriter, r *http.Request) 
 
 	if req.EventType == "CYCLE_DONE" {
 		var p struct {
-			SAM       float64 `json:"sam"`
-			ActualSec float64 `json:"actual_sec"`
+			SAM         float64 `json:"sam"`
+			ActualSec   float64 `json:"actual_sec"`
+			OpActiveSec float64 `json:"op_active_sec"`
 		}
 		if err := json.Unmarshal([]byte(req.Payload), &p); err == nil && p.SAM > 0 {
+			measuredSec := p.OpActiveSec
+			if measuredSec <= 0 {
+				measuredSec = p.ActualSec
+			}
 			now := time.Now().UTC()
 			dwellRes, err := sewing.ValidateCycleDwell(sewing.CycleSubmission{
 				StationID:      req.StationID,
 				OperatorID:     req.OperatorID,
 				OperationID:    "SEW_CYCLE",
 				FactorySAMMin:  p.SAM / 60.0,
-				CycleStartedAt: now.Add(-time.Duration(p.ActualSec * float64(time.Second))),
+				CycleStartedAt: now.Add(-time.Duration(measuredSec * float64(time.Second))),
 				SubmittedAt:    now,
 			})
 			if err != nil || !dwellRes.IsValid {
@@ -404,7 +379,7 @@ func (s *EdgeServer) handleLedgerAppend(w http.ResponseWriter, r *http.Request) 
 	evBytes, _ := json.Marshal(event)
 	_, _ = s.wal.Append("LEDGER_EVENT", evBytes)
 
-	if s.db != nil {
+	if s.db != nil && (req.EventType == "CYCLE_DONE" || req.EventType == "DEFECT_TAG" || req.EventType == "ANDON_CALL") {
 		loc, err := time.LoadLocation("Asia/Kolkata")
 		if err != nil {
 			loc = time.FixedZone("IST", 5*3600+1800)
@@ -415,6 +390,17 @@ func (s *EdgeServer) handleLedgerAppend(w http.ResponseWriter, r *http.Request) 
 			hourWindow = 1
 		} else if hourWindow > 16 {
 			hourWindow = 16
+		}
+
+		s.cfgMu.Lock()
+		tenantID, _ := s.activeConfig["tenant_id"].(string)
+		lineID, _ := s.activeConfig["pilot_line"].(string)
+		s.cfgMu.Unlock()
+		if tenantID == "" {
+			tenantID = "TENANT_DEFAULT"
+		}
+		if lineID == "" {
+			lineID = "Line 14"
 		}
 
 		initActual, initDefect, initAndon := 1, 0, 0
@@ -431,14 +417,13 @@ func (s *EdgeServer) handleLedgerAppend(w http.ResponseWriter, r *http.Request) 
 		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 		tx, txErr := s.db.BeginTx(ctx, nil)
 		if txErr == nil {
-			_, _ = tx.ExecContext(ctx, "SET LOCAL app.current_tenant_id = 'TENANT_DEFAULT'")
+			_, _ = tx.ExecContext(ctx, "SELECT set_config('app.current_tenant_id', $1, true)", tenantID)
 			query := fmt.Sprintf(`
 				INSERT INTO hourly_line_metrics (tenant_id, line_id, shift_date, hour_window, target_units, actual_units, defect_units, andon_downtime_minutes)
-				VALUES ('TENANT_DEFAULT', 'Line 14', CURRENT_DATE, $1, 75, $2, $3, $4)
-				ON CONFLICT (tenant_id, line_id, shift_date, hour_window)
-				DO UPDATE SET %s;
+				VALUES ($1, $2, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date, $3, 75, $4, $5, $6)
+				ON CONFLICT (tenant_id, line_id, shift_date, hour_window) DO UPDATE SET %s;
 			`, colToIncrement)
-			if _, dbErr := tx.ExecContext(ctx, query, hourWindow, initActual, initDefect, initAndon); dbErr != nil {
+			if _, dbErr := tx.ExecContext(ctx, query, tenantID, lineID, hourWindow, initActual, initDefect, initAndon); dbErr != nil {
 				log.Printf("Warning: failed to update hourly_line_metrics: %v", dbErr)
 				_ = tx.Rollback()
 			} else {
@@ -775,10 +760,7 @@ func ocrSessionKey(orderID string, cutNo int) string {
 	}
 	return fmt.Sprintf("%s:%d", orderID, cutNo)
 }
-<<<<<<< HEAD
 
-=======
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 type ReconcileRequest struct {
 	OrderID         string             `json:"order_id"`
 	CutNo           int                `json:"cut_no"`
@@ -884,11 +866,7 @@ func (s *EdgeServer) handleGetTopologyDevices(w http.ResponseWriter, r *http.Req
 }
 
 type AgieChatRequest struct {
-<<<<<<< HEAD
 	Mode     string                   `json:"mode"`
-=======
-	Mode     string                    `json:"mode"`
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	Messages []interviewer.LLMMessage `json:"messages"`
 }
 
@@ -903,7 +881,6 @@ func (s *EdgeServer) handleAgieChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-<<<<<<< HEAD
 	// Exact operational questions bypass the optional LLM: answer from tenant-scoped SQL.
 	if intent := operationalIntent(req.Messages); intent != "" {
 		reply, err := groundedOperationalReply(r.Context(), s.db, intent)
@@ -920,11 +897,6 @@ func (s *EdgeServer) handleAgieChat(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("[AGIE] Chat backend failed: %v", err)
 		http.Error(w, "AI service is unavailable; verify Ollama on the host. No answer was inferred.", http.StatusServiceUnavailable)
-=======
-	reply, err := s.interviewer.Chat(r.Context(), s.db, req.Messages)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 		return
 	}
 
@@ -934,13 +906,8 @@ func (s *EdgeServer) handleAgieChat(w http.ResponseWriter, r *http.Request) {
 
 type ConfirmRequest struct {
 	CandidateConfig interviewer.CandidateConfig `json:"candidate_config"`
-<<<<<<< HEAD
 	ConfirmedBy     string                      `json:"confirmed_by"`
 	ConfirmationPIN string                      `json:"confirmation_pin"`
-=======
-	ConfirmedBy     string                     `json:"confirmed_by"`
-	ConfirmationPIN string                     `json:"confirmation_pin"`
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 }
 
 func (s *EdgeServer) handleAgieConfirm(w http.ResponseWriter, r *http.Request) {
@@ -1013,10 +980,7 @@ func (s *EdgeServer) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(s.activeConfig)
 }
-<<<<<<< HEAD
 
-=======
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 type FloorIssueResponse struct {
 	ID         string     `json:"id"`
 	TenantID   string     `json:"tenant_id"`
@@ -1249,15 +1213,10 @@ func (s *EdgeServer) handlePlantOverview(w http.ResponseWriter, r *http.Request)
 			}
 		}
 	}
-<<<<<<< HEAD
-=======
-
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"config": cfg,
 		"lines":  lines,
 	})
-<<<<<<< HEAD
 }
 
 func (s *EdgeServer) loadCumulativeWorkbook() *onboarding.FactoryWorkbook {
@@ -1585,6 +1544,62 @@ func (s *EdgeServer) handleCuttingOptimizeGeometry(w http.ResponseWriter, r *htt
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(plan)
 }
-=======
+
+// Author: Sunil Jain, CyberinQ LLC
+func (s *EdgeServer) handleResolveIssue(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.db == nil {
+		http.Error(w, "Database not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var req struct {
+		IssueID string `json:"issue_id"`
+		Action  string `json:"action"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.IssueID) == "" {
+		http.Error(w, "Invalid issue resolution payload", http.StatusBadRequest)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	s.cfgMu.Lock()
+	tenantID, _ := s.activeConfig["tenant_id"].(string)
+	s.cfgMu.Unlock()
+	if tenantID == "" {
+		tenantID = "TENANT_DEFAULT"
+	}
+	if _, err := tx.ExecContext(ctx, "SELECT set_config('app.current_tenant_id', $1, true)", tenantID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	res, err := tx.ExecContext(ctx, `
+		UPDATE floor_issues
+		SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP
+		WHERE id = $1 AND tenant_id = $2 AND status IN ('open', 'in_progress');
+	`, req.IssueID, tenantID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		http.Error(w, "Issue not found or already resolved", http.StatusNotFound)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "RESOLVED", "issue_id": req.IssueID})
 }
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1

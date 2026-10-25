@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-// Author: Sunil Jain, 2026-10-25 — Remove duplicate permission method and retain NULL-safe plant scoping.
-=======
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
+// Author: Sunil Jain, CyberinQ LLC
 package identity
 
 import (
@@ -46,6 +43,9 @@ func NewIdentityService(db *sql.DB) *IdentityService {
 }
 
 func (s *IdentityService) ExecuteWithTenant(ctx context.Context, tenantID string, fn func(tx *sql.Tx) error) error {
+	if s.db == nil {
+		return errors.New("ERR_DB_NIL: database connection is nil")
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("tx_begin: %w", err)
@@ -55,42 +55,16 @@ func (s *IdentityService) ExecuteWithTenant(ctx context.Context, tenantID string
 	if _, err := tx.ExecContext(ctx, "SELECT set_config('app.current_tenant_id', $1, true)", tenantID); err != nil {
 		return fmt.Errorf("set_tenant: %w", err)
 	}
-
 	if err := fn(tx); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
-<<<<<<< HEAD
-=======
-func (s *IdentityService) EnforcePermission(ctx context.Context, tenantID, userID, plantID, requiredPermission string) (bool, error) {
-	var hasPerm bool
-	err := s.ExecuteWithTenant(ctx, tenantID, func(tx *sql.Tx) error {
-		query := `
-			SELECT EXISTS (
-				SELECT 1 
-				FROM s01_identity.user_role_grants urg
-				JOIN s01_identity.role_permissions rp ON urg.role_id = rp.role_id
-				WHERE urg.user_id = $1::uuid 
-				  AND urg.tenant_id = $2::uuid
-				  AND (urg.plant_id = $3::uuid OR urg.plant_id IS NULL)
-				  AND rp.permission = $4
-			);
-		`
-		return tx.QueryRowContext(ctx, query, userID, tenantID, plantID, requiredPermission).Scan(&hasPerm)
-	})
-	if err != nil {
-		return false, err
-	}
-	if !hasPerm {
-		return false, ErrUnauthorized
-	}
-	return true, nil
-}
-
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
 func (s *IdentityService) VerifyDeviceSignature(pubKey ed25519.PublicKey, rawPayload []byte, signatureHex string) error {
+	if len(pubKey) != ed25519.PublicKeySize {
+		return ErrInvalidSignature
+	}
 	sigBytes, err := hex.DecodeString(signatureHex)
 	if err != nil {
 		return fmt.Errorf("decode_signature: %w", err)
@@ -105,20 +79,19 @@ func (s *IdentityService) VerifyDeviceSignature(pubKey ed25519.PublicKey, rawPay
 	return nil
 }
 
-// services/s01-identity/pkg/identity/service.go
 func (s *IdentityService) EnforcePermission(ctx context.Context, tenantID, userID, plantID, requiredPermission string) (bool, error) {
 	var hasPerm bool
 	err := s.ExecuteWithTenant(ctx, tenantID, func(tx *sql.Tx) error {
 		query := `
 			SELECT EXISTS (
-				SELECT 1 
+				SELECT 1
 				FROM s01_identity.user_role_grants urg
 				JOIN s01_identity.role_permissions rp ON urg.role_id = rp.role_id
-				WHERE urg.user_id = $1::uuid 
-				  AND urg.tenant_id = $2::uuid
-				  AND (urg.plant_id = NULLIF($3, '')::uuid OR urg.plant_id IS NULL)
+				WHERE urg.user_id::text = $1
+				  AND urg.tenant_id::text = $2
+				  AND (urg.plant_id::text = NULLIF($3, '') OR urg.plant_id IS NULL)
 				  AND rp.permission = $4
-			);`
+			)`
 		return tx.QueryRowContext(ctx, query, userID, tenantID, plantID, requiredPermission).Scan(&hasPerm)
 	})
 	if err != nil {
@@ -128,8 +101,4 @@ func (s *IdentityService) EnforcePermission(ctx context.Context, tenantID, userI
 		return false, ErrUnauthorized
 	}
 	return true, nil
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 62b87176970aae981bc0876d77b7cab60eca07b1
