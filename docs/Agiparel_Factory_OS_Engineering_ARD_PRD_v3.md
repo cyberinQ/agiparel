@@ -275,7 +275,7 @@ The pilot may install only the necessary product modules. The following 29 are t
 
 | S26  Optimizer and digital twin | Cloud; local lightweight guidance | scenario, constraints, recommendation; InterventionProposed | isolated async solver pools; manual approval |
 
-| S27  Agie evidence copilot (optional) | Cloud | query audit, tool calls, grounded answer; InsightPrepared | quota/rate limit; read-only by default |
+| S27  Agie evidence copilot (optional) | Cloud + Edge Fallback | query audit, tool calls, grounded answer; InsightPrepared | quota/rate limit; local quantized model for air-gapped QA |
 
 | S28  Enterprise integrations / EDI | Cloud + plant agents | external IDs, mapping, sync job; ExternalSynced | one connector worker per endpoint/feed |
 

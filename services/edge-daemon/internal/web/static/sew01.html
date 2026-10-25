@@ -3,102 +3,106 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>SEW-01 | Advanced RFID Operator Terminal</title>
+  <title>Station 4 | Operator Screen</title>
   <style>
     :root {
-      --bg: #121214; --card: #1F1F23; --text: #F9FAFB;
+      --bg: #F1F4F8; --card: #FFFFFF; --text: #0F172A;
       --brand: #2563EB; --green: #10B981; --amber: #F59E0B;
-      --red: #DC2626; --disabled: #374151; --line: #2D2D30;
+      --red: #DC2626; --disabled: #E2E8F0; --line: #E2E8F0;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body { background: var(--bg); color: var(--text); font-family: -apple-system, Roboto, sans-serif; padding: 20px; height: 100vh; display: flex; flex-direction: column; }
     
-    header { background: var(--card); padding: 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border: 1px solid var(--line); }
+    header { background: var(--card); padding: 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border: 1px solid var(--line); box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
     .station-title { font-size: 1.5rem; font-weight: 800; display: flex; flex-direction: column; }
-    .station-sub { font-size: 0.9rem; color: #9CA3AF; font-weight: 500; margin-top: 4px; }
-    .badge { background: var(--brand); padding: 8px 16px; border-radius: 8px; font-size: 1rem; font-weight: 700; }
+    .station-sub { font-size: 0.95rem; color: #475569; font-weight: 500; margin-top: 6px; }
+    .badge { background: #EEF2FF; color: var(--brand); border: 1px solid #C7D2FE; padding: 10px 18px; border-radius: 8px; font-size: 1.1rem; font-weight: 700; }
     
     .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex: 1; min-height: 0; }
     
-    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; }
-    .panel h2 { font-size: 1.1rem; color: #9CA3AF; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+    .panel h2 { font-size: 1.1rem; color: #64748B; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
     
     /* Analytics Panel */
     .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-    .kpi-box { background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px; border: 1px solid var(--line); }
-    .kpi-val { font-size: 2rem; font-weight: 800; margin-top: 4px; }
-    .kpi-label { font-size: 0.85rem; color: #9CA3AF; text-transform: uppercase; font-weight: 600; }
+    .kpi-box { background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid var(--line); }
+    .kpi-val { font-size: 2.2rem; font-weight: 800; margin-top: 4px; color: var(--text); }
+    .kpi-label { font-size: 0.85rem; color: #64748B; text-transform: uppercase; font-weight: 700; }
     
     /* Controls Panel */
     .control-area { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
-    button { border: none; padding: 18px; border-radius: 12px; font-size: 1.2rem; font-weight: 800; cursor: pointer; color: #fff; transition: transform 0.1s, opacity 0.2s; display: flex; justify-content: center; align-items: center; }
+    button { border: none; padding: 20px; border-radius: 12px; font-size: 1.3rem; font-weight: 800; cursor: pointer; color: #fff; transition: transform 0.1s, box-shadow 0.2s; display: flex; justify-content: center; align-items: center; }
     button:active:not(:disabled) { transform: scale(0.98); }
-    button:disabled { background: var(--disabled) !important; color: #9CA3AF !important; cursor: not-allowed; box-shadow: none !important; }
+    button:disabled { background: var(--disabled) !important; color: #94A3B8 !important; cursor: not-allowed; box-shadow: none !important; }
     
-    .btn-scan { background: var(--brand); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
-    .btn-sew { background: var(--green); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
-    .btn-warn { background: var(--amber); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); }
-    .btn-danger { background: var(--red); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); }
+    .btn-scan { background: var(--brand); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); }
+    .btn-sew { background: var(--green); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
+    .btn-warn { background: var(--amber); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2); }
+    .btn-danger { background: var(--red); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2); }
     
-    .timer-container { width: 100%; height: 16px; background: var(--disabled); border-radius: 8px; overflow: hidden; margin-bottom: 16px; display: none; }
-    .timer-bar { width: 0%; height: 100%; background: var(--green); transition: width 0.1s linear; }
+    /* Stopwatch UI */
+    #stopwatch-container { display: none; text-align: center; margin-bottom: 20px; background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid var(--line); }
+    #stopwatch-display { font-size: 4rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); line-height: 1; margin-bottom: 8px; }
+    #dwell-text { font-size: 1rem; font-weight: 600; }
     
     /* Ledger */
-    .ledger { flex: 1; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 0.9rem; color: #D1D5DB; }
-    .ledger-entry { margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; }
-    .ledger-time { color: var(--amber); margin-right: 8px; }
+    .ledger { flex: 1; overflow-y: auto; background: #F8FAFC; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 0.95rem; color: #334155; }
+    .ledger-entry { margin-bottom: 8px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+    .ledger-time { color: var(--brand); margin-right: 8px; font-weight: 700; }
   </style>
 </head>
 <body>
 
   <header>
     <div class="station-title">
-      LINE 14 | ST-04 (SNLS_LOCKSTITCH)
-      <div class="station-sub" id="op-identity">Operator: W-05 (Vikram Singh) | Provisioned CSV Config</div>
+      Station 4: Sewing Machine
+      <div class="station-sub" id="op-identity">
+        <strong>Worker:</strong> Vikram Singh (W-05) &nbsp;|&nbsp; <strong>Order:</strong> MK6574J9 &nbsp;|&nbsp; <strong>Factory:</strong> Noble Garments
+      </div>
     </div>
-    <div class="badge">BACK RISE JOIN (SAM: 36.0s)</div>
+    <div class="badge">Task: Sew the Back Seam (Target: 36s)</div>
   </header>
 
   <div class="dashboard">
     <!-- Controls (Left) -->
     <div class="panel">
-      <h2 id="state-header">STATE: AWAITING INPUT</h2>
+      <h2 id="state-header">Current Status: Waiting</h2>
+      
+      <div id="stopwatch-container">
+        <div id="stopwatch-display">0.0s</div>
+        <div id="dwell-text">Working...</div>
+      </div>
+
       <div class="control-area" id="controls">
         <!-- Rendered by JS -->
-      </div>
-      <div class="timer-container" id="timer-wrap">
-        <div class="timer-bar" id="timer-bar"></div>
-      </div>
-      <div id="dwell-text" style="text-align: center; color: #9CA3AF; font-size: 0.9rem; margin-top: -8px; margin-bottom: 16px; display: none;">
-        Anti-Ghosting Dwell Enforced
       </div>
     </div>
 
     <!-- Analytics & Ledger (Right) -->
     <div class="panel">
-      <h2>Live Station Analytics</h2>
+      <h2>My Daily Progress</h2>
       <div class="kpi-grid">
         <div class="kpi-box">
-          <div class="kpi-label">Completed Cycles</div>
+          <div class="kpi-label">Items Finished</div>
           <div class="kpi-val" id="kpi-cycles">0</div>
         </div>
         <div class="kpi-box">
-          <div class="kpi-label">First Pass Yield</div>
+          <div class="kpi-label">Pass Rate</div>
           <div class="kpi-val" id="kpi-fpy" style="color: var(--green);">100%</div>
         </div>
         <div class="kpi-box">
-          <div class="kpi-label">Utilization (Active/Total)</div>
+          <div class="kpi-label">Time Working</div>
           <div class="kpi-val" id="kpi-util">0.0%</div>
         </div>
         <div class="kpi-box">
-          <div class="kpi-label">Defects Reported</div>
+          <div class="kpi-label">Defects Found</div>
           <div class="kpi-val" id="kpi-defects" style="color: var(--amber);">0</div>
         </div>
       </div>
       
-      <h2 style="margin-top: 10px;">Event Ledger</h2>
+      <h2 style="margin-top: 10px;">Activity Log</h2>
       <div class="ledger" id="ledger-box">
-        <div class="ledger-entry"><span class="ledger-time">System</span> Simulation Initialized.</div>
+        <div class="ledger-entry"><span class="ledger-time">System</span> Screen is ready to use.</div>
       </div>
     </div>
   </div>
@@ -108,9 +112,9 @@
     const STATION_ID = "LINE14_ST04";
     const OPERATOR_ID = "W-05";
     const SAM_SEC = 36.0;
-    const DWELL_SEC = SAM_SEC * 0.40; // 14.4 seconds anti-ghost
+    const DWELL_SEC = SAM_SEC * 0.20; // 7.2 seconds anti-ghost minimum
 
-    // --- State Machine (Mirrors Python Notebook) ---
+    // --- State Machine ---
     let state = 'SCAN_INPUT';
     let bundles = [];
     let pastBundles = [];
@@ -175,65 +179,64 @@
       state = newState;
       const c = document.getElementById('controls');
       const head = document.getElementById('state-header');
-      const timerWrap = document.getElementById('timer-wrap');
+      const stopwatch = document.getElementById('stopwatch-container');
       const dwellText = document.getElementById('dwell-text');
       c.innerHTML = '';
       
       if (state !== 'OPERATION') {
-        timerWrap.style.display = 'none';
-        dwellText.style.display = 'none';
+        stopwatch.style.display = 'none';
         clearInterval(timerInterval);
       }
 
       if (state === 'SCAN_INPUT') {
-        head.innerText = 'STATE: AWAITING BUNDLE SCAN';
+        head.innerText = 'Current Status: Waiting for New Bundle';
         const tag = `TAG-${Math.floor(Date.now()/1000).toString().slice(-4)}`;
         
         c.innerHTML = `<button class="btn-scan" onclick="actionScanIn('${tag}')">Scan Bundle (${tag})</button>`;
         if (bundles.length > 0) {
-          c.innerHTML += `<button class="btn-sew" onclick="transition('OPERATION')">Start Operation on ${bundles.length} Bundle(s)</button>`;
+          c.innerHTML += `<button class="btn-sew" onclick="transition('OPERATION')">Start Sewing (${bundles.length} items)</button>`;
         }
       } 
       else if (state === 'INSPECT') {
-        head.innerText = `STATE: QC INSPECT [${currentTag}]`;
+        head.innerText = `Current Status: Check Quality`;
         c.innerHTML = `
           <div style="display:flex; gap:16px;">
-            <button class="btn-sew" style="flex:1;" onclick="actionQC(0)">Quality OK (0 Def)</button>
+            <button class="btn-sew" style="flex:1;" onclick="actionQC(0)">Good (0 Defects)</button>
             <button class="btn-warn" style="flex:1;" onclick="actionQC(1)">Report 1 Defect</button>
           </div>
         `;
       }
       else if (state === 'OPERATION') {
-        head.innerText = `STATE: SEWING (SAM: ${SAM_SEC}s)`;
+        head.innerText = `Current Status: Sewing in Progress`;
         opStartTime = Date.now();
-        timerWrap.style.display = 'block';
-        dwellText.style.display = 'block';
+        stopwatch.style.display = 'block';
         
-        c.innerHTML = `<button class="btn-scan" id="btn-finish" disabled onclick="actionFinishOp()">CYCLE DONE (Scan Output)</button>`;
+        c.innerHTML = `<button class="btn-scan" id="btn-finish" disabled onclick="actionFinishOp()">Finish Task</button>`;
         
         timerInterval = setInterval(() => {
           const elapsed = (Date.now() - opStartTime) / 1000;
-          const prog = Math.min(100, (elapsed / DWELL_SEC) * 100);
-          document.getElementById('timer-bar').style.width = `${prog}%`;
+          document.getElementById('stopwatch-display').innerText = elapsed.toFixed(1) + 's';
           
           if (elapsed >= DWELL_SEC) {
             document.getElementById('btn-finish').disabled = false;
-            dwellText.innerText = "Dwell cleared. Ready to finish.";
-            clearInterval(timerInterval);
+            dwellText.innerText = "Minimum safety time met. Ready to finish!";
+            dwellText.style.color = "var(--green)";
           } else {
-            dwellText.innerText = `LOCKED: ${(DWELL_SEC - elapsed).toFixed(1)}s Anti-Ghost Dwell Floor`;
+            document.getElementById('btn-finish').disabled = true;
+            dwellText.innerText = `Please keep working... (Minimum wait: ${(DWELL_SEC - elapsed).toFixed(1)}s left)`;
+            dwellText.style.color = "var(--amber)";
           }
         }, 100);
-        logEvent(`Operation started for ${bundles.length} bundle(s).`);
+        logEvent(`Sewing started for ${bundles.length} item(s).`);
       }
       else if (state === 'SCAN_OUTPUT') {
-        head.innerText = 'STATE: BIND OUTPUT CARRIER';
+        head.innerText = 'Current Status: Assign Output Tag';
         const outTag = `CARRIER-OUT-${Math.floor(Date.now()/1000).toString().slice(-4)}`;
-        c.innerHTML = `<button class="btn-scan" onclick="actionScanOut('${outTag}')">Scan Output RFID (${outTag})</button>`;
+        c.innerHTML = `<button class="btn-scan" onclick="actionScanOut('${outTag}')">Scan Output Tag (${outTag})</button>`;
       }
       else if (state === 'DONE') {
-        head.innerText = 'STATE: READY FOR BIN DROP';
-        c.innerHTML = `<button class="btn-danger" onclick="actionDropBin()">Drop into Output Bin & Reset</button>`;
+        head.innerText = 'Current Status: Ready to Move';
+        c.innerHTML = `<button class="btn-danger" onclick="actionDropBin()">Drop in Bin & Start Next</button>`;
       }
       updateKPIs();
     }
@@ -241,14 +244,14 @@
     // --- Actions ---
     function actionScanIn(tagId) {
       currentTag = tagId;
-      logEvent(`Bundle RFID [${tagId}] scanned at input.`);
+      logEvent(`Scanned new bundle [${tagId}].`);
       if (bundles.length === 0) cycleStartTime = Date.now();
       transition('INSPECT');
     }
 
     function actionQC(defects) {
       bundles.push({ tag: currentTag, defects: defects });
-      logEvent(`Bundle [${currentTag}] inspected. Defects: ${defects}.`);
+      logEvent(`Quality check complete. Found ${defects} defects.`);
       if (defects > 0) {
         appendLedger("DEFECT_TAG", { defect_count: defects, tag: currentTag });
       }
@@ -258,13 +261,13 @@
 
     function actionFinishOp() {
       lastOpDuration = (Date.now() - opStartTime) / 1000;
-      logEvent(`Operation completed in ${lastOpDuration.toFixed(1)}s. Awaiting carrier assignment.`);
+      logEvent(`Sewing finished. Time spent: ${lastOpDuration.toFixed(1)}s.`);
       transition('SCAN_OUTPUT');
     }
 
     function actionScanOut(tagId) {
       outputCarrier = tagId;
-      logEvent(`Output RFID carrier [${tagId}] scanned and bound.`);
+      logEvent(`Output tag [${tagId}] assigned.`);
       transition('DONE');
     }
 
@@ -272,7 +275,7 @@
       const dropTime = Date.now();
       const totalCycleTime = (dropTime - cycleStartTime) / 1000;
       
-      logEvent(`Carrier [${outputCarrier}] dropped. Total Cycle Time: ${totalCycleTime.toFixed(1)}s.`);
+      logEvent(`Item dropped in bin. Total loop time: ${totalCycleTime.toFixed(1)}s.`);
       
       // Dispatch Core Backend Event
       appendLedger("CYCLE_DONE", { 

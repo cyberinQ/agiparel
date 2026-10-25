@@ -265,3 +265,35 @@ Goal: Deliver constrained discrete simulation, scenario comparison, and zero-hal
   - Implement federated capacity sharing, cross-site transfer requests, and enterprise KPI benchmarking.
   - Deliver screens EXE-04 (Multi-Factory Benchmark) and EXE-05 (Scenario Approval Center).
   - Acceptance Test: Coordinate order splitting and material transfer requests across federated tenant instances.
+
+
+  Author: Sunil Jain, CyberinQ LLC
+
+**TL;DR:** Yes. The ARD/PRD must serve as the definitive single source of truth for the engineering backlog. We must formally append the Hardware Abstraction Layer (HAL), Micro-Frontend (MFE) orchestration, and CQRS analytics pipeline into the document, and subsequently break them down into actionable Epics and Stories.
+
+The current `Agiparel_Factory_OS_Engineering_ARD_PRD_v3.md` establishes the 29 backend services, the 4 BFF gateways, and the ClickHouse telemetry separation. We must explicitly expand the document with the following structural Epics to drive sprint execution:
+
+**Epic 1: Hardware Abstraction Layer (HAL) & Protocol Adapters**
+
+* Story: Implement TCP/IP LLRP driver for UHF RFID portals at stores and dispatch gates.
+* Story: Implement Edge OS debounce logic and spatial filtering for NFC touch zones at sewing stations.
+* Story: Map raw hardware hex payloads to standardized `LEDGER_EVENT` JSON domain commands.
+
+**Epic 2: Micro-Frontend (MFE) & BFF API Gateways**
+
+* Story: Deploy `floor-bff` to aggregate high-contrast, offline-tolerant operator widgets.
+* Story: Deploy `executive-bff` to handle multi-line analytical data hydration.
+* Story: Build the composable React UI widget library covering scanner boundaries, timeline ledgers, and KPI blocks.
+
+**Epic 3: CQRS & ClickHouse Analytics Pipeline**
+
+* Story: Configure NATS JetStream to sink Edge Kernel `LEDGER_EVENT` payloads directly into ClickHouse.
+* Story: Build materialized views for real-time DHU, bottleneck identification, and utilization metrics.
+* Story: Expose low-latency, freshness-labeled telemetry endpoints via the S24 projection service.
+
+**Epic 4: Role-Based Workspace Configurations**
+
+* Story: Implement dynamic UI shell hydration based on enterprise JWT authentication scope.
+* Story: Map the 113 distinct PRD screen routes to specific JSON widget assemblies.
+
+Once these architectural expansions and Epics are appended to the markdown specification, we can confidently assign them to the respective development streams.
