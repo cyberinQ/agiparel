@@ -192,7 +192,40 @@ func main() {
 	mux.HandleFunc("/api/v1/onboarding/upload", server.handleOnboardingUpload)
 	mux.HandleFunc("/api/v1/plant/overview", server.handlePlantOverview)
 	mux.HandleFunc("/api/v1/issues/resolve", server.handleResolveIssue)
+	// Gate 06.5-A: universal original-file intake, isolated worker and reviewed evidence.
+	// Factory first: progressive, explicitly reviewed factory discovery (Gate 06.5-B1).
+	mux.HandleFunc("/factory-setup", server.handleFactorySetup)
+	mux.HandleFunc("/api/v1/factory-onboarding", server.handleFactoryDiscovery)
+	mux.HandleFunc("/api/v1/factory-onboarding/facts", server.handleFactoryFact)
+	// Gate 06.5-B2: source-anchored proposals, explicit review, no operational writes.
+	mux.HandleFunc("/api/v1/factory-onboarding/candidates", server.handleFactoryCandidates)
+	mux.HandleFunc("/api/v1/factory-onboarding/candidates/scan", server.handleFactoryCandidateScan)
+	mux.HandleFunc("/api/v1/factory-onboarding/candidates/review", server.handleFactoryCandidateReview)
+	mux.HandleFunc("/api/v1/factory-onboarding/proposed-register", server.handleFactoryRegisterProposals)
+	mux.HandleFunc("/api/v1/factory-onboarding/draft-masters", server.handleFactoryDraftMasters)
+	mux.HandleFunc("/api/v1/factory-onboarding/draft-masters/review", server.handleFactoryDraftReview)
+	mux.HandleFunc("/api/v1/document-triage", server.handleDocumentTriage)
+	mux.HandleFunc("/documents", server.handleDocumentWorkspace)
+	mux.HandleFunc("/api/v1/documents", server.handleDocuments)
+	mux.HandleFunc("/api/v1/documents/uploads", server.handleDocumentUpload)
+	mux.HandleFunc("/api/v1/documents/", server.handleDocumentDetail)
 	mux.HandleFunc("/api/v1/order-intake", server.handleOrderIntake)
+	// Batch 06: tenant-scoped, immutable, non-authoritative material what-if scenarios.
+	mux.HandleFunc("/api/v1/material-scenario", server.handleMaterialScenario)
+	mux.HandleFunc("/material-planning", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		data, err := web.GetMaterialPlanningHTML()
+		if err != nil {
+			http.Error(w, "Material planning unavailable", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = w.Write(data)
+	})
 	mux.HandleFunc("/order-intake", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

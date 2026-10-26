@@ -57,6 +57,13 @@
       "status": "FAILED",
       "db_applied": false
     },
+    "Flat Front Pant WM-GM09Y094 Tech Pack.pdf": {
+      "sha256": "40e3614b74505a436b5a6b7cffc97fb513aee23f1690434866d9d0fef19d62a5",
+      "processed_at": 1793033085691,
+      "mode": "AI_LLM_FALLBACK",
+      "status": "FAILED",
+      "db_applied": false
+    },
     "TROPICAL PARROT PRINT-45PW219.xlsx": {
       "sha256": "51fd341ce1940bf1de1a51e6b4e1f57a4b58624a03c4b5c457ee171c1ed879f8",
       "processed_at": 1792975919955,

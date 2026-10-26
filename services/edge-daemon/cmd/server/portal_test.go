@@ -87,14 +87,26 @@ func TestOperatorGateRequiresBothCredentials(t *testing.T) {
 			t.Error("missing WWW-Authenticate")
 		}
 	}
-	// A short configured password must not open any operational route.
-	insecure := operatorAccessGate(portalTestMux(), "operator", "short")
-	w := httptest.NewRecorder()
+	// Four-character passwords are accepted for development.
+	devGate := operatorAccessGate(portalTestMux(), "dev", "1212")
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/ledger/append", nil)
-	r.SetBasicAuth("operator", "short")
-	insecure.ServeHTTP(w, r)
-	if w.Code != http.StatusServiceUnavailable {
-		t.Errorf("short secret allowed: %d", w.Code)
+	r.SetBasicAuth("dev", "1212")
+	w := httptest.NewRecorder()
+	devGate.ServeHTTP(w, r)
+	if w.Code != http.StatusAccepted {
+		t.Errorf("four-character development password rejected: %d", w.Code)
+	}
+
+	// Passwords shorter than four characters remain invalid.
+	for _, password := range []string{"", "123"} {
+		shortGate := operatorAccessGate(portalTestMux(), "dev", password)
+		r = httptest.NewRequest(http.MethodPost, "/api/v1/ledger/append", nil)
+		r.SetBasicAuth("dev", password)
+		w = httptest.NewRecorder()
+		shortGate.ServeHTTP(w, r)
+		if w.Code != http.StatusServiceUnavailable {
+			t.Errorf("password length %d allowed: %d", len(password), w.Code)
+		}
 	}
 }
 func TestPortalHealthOnlyAnonymousOperationalException(t *testing.T) {

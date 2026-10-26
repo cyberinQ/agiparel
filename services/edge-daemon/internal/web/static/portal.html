@@ -18,6 +18,7 @@
     </a>
     <div class="sidebar-section">WORKSPACE</div>
     <nav class="nav-list" aria-label="Demo sections">
+      <a class="nav-link" href="/" aria-label="Home page"><span class="nav-icon">⌂</span> Home</a>
       <a class="nav-link selected" href="#overview"><span class="nav-icon">▦</span> Overview</a>
       <a class="nav-link" href="#journey"><span class="nav-icon">⇢</span> Order journey</a>
       <a class="nav-link" href="#traceability"><span class="nav-icon">⌗</span> RFID traceability</a>
@@ -26,6 +27,8 @@
     <div class="sidebar-section sidebar-ops">OPERATIONS <span class="section-note">RESTRICTED</span></div>
     <nav class="nav-list" aria-label="Operator applications">
       <a class="nav-link" href="/plant"><span class="nav-icon">▤</span> Plant control <span class="lock" aria-label="Operator access required">↗</span></a>
+      <a class="nav-link" href="/factory-setup"><span class="nav-icon">▤</span> Start with your factory <span class="lock" aria-label="Operator access required">↗</span></a>
+      <a class="nav-link" href="/documents"><span class="nav-icon">▣</span> Upload all documents <span class="lock" aria-label="Operator access required">↗</span></a>
       <a class="nav-link" href="/order-intake"><span class="nav-icon">▣</span> Order readiness <span class="lock" aria-label="Operator access required">↗</span></a>
       <a class="nav-link" href="/planning"><span class="nav-icon">▧</span> Planning <span class="lock" aria-label="Operator access required">↗</span></a>
       <a class="nav-link" href="/cutting"><span class="nav-icon">✂</span> Cutting <span class="lock" aria-label="Operator access required">↗</span></a>
@@ -39,8 +42,8 @@
 
   <div class="workspace">
     <header class="topbar">
-      <div class="breadcrumbs"><span>Factory OS</span><span class="slash">/</span><strong>Command center</strong></div>
-      <div class="top-actions"><span class="environment"><span></span> DEMO ENVIRONMENT</span><a href="#journey" class="top-link">Explore the workflow <span aria-hidden="true">↗</span></a></div>
+      <div class="breadcrumbs"><a href="/" aria-label="Return to Agiparel homepage">Home</a><span class="slash">/</span><span>Factory OS</span><span class="slash">/</span><strong>Command center</strong></div>
+      <div class="top-actions"><span class="environment"><span></span> DEMO ENVIRONMENT</span><a href="/documents" class="top-link">Upload your documents <span aria-hidden="true">↗</span></a></div>
     </header>
 
     <main id="overview" class="content">
@@ -62,11 +65,32 @@
         <article class="metric warning-metric"><div class="metric-top">OPEN ATTENTION ITEMS <span>!</span></div><div class="metric-number" id="metric-alerts">—</div><div class="metric-detail">Illustrative exception flags</div></article>
       </section>
 
+      <section class="source-preview" aria-label="Factory-first progressive onboarding">
+        <div><div class="eyebrow subtle">START HERE · KNOW YOUR FACTORY</div><h2>Your factory does not have to be organized first.</h2><p>Machines, people, skills, inventory and costs can arrive piecemeal in ordinary business files. Agiparel helps you discover what matters next, enter estimates, attach evidence and progressively confirm facts. Keep exploring safely while noncritical details are incomplete.</p></div>
+        <div class="source-steps"><span><b>01</b> Start with what you know</span><span><b>02</b> Upload any documents</span><span><b>03</b> Confirm as you go</span></div>
+        <a href="/factory-setup" class="source-link">Set up your factory <span aria-hidden="true">↗</span></a>
+        <small>Restricted operator workspace · Provisional information never authorizes material issuance or production release.</small>
+      </section>
+
+      <section class="source-preview" aria-label="Customer document intelligence">
+        <div><div class="eyebrow subtle">NEW · UNIVERSAL DOCUMENT INTAKE</div><h2>Start with the files you already have.</h2><p>Upload original customer PDFs, Excel workbooks, Word documents, CSVs and other files without remaking them as templates. Review source fingerprints and extracted page/sheet evidence in one restricted workspace. Unsupported scans and formats are explicitly flagged; no document silently becomes a factory instruction.</p></div>
+        <div class="source-steps"><span><b>01</b> Upload originals</span><span><b>02</b> Locate evidence</span><span><b>03</b> Review missing facts</span></div>
+        <a href="/documents" class="source-link">Upload all your documents <span aria-hidden="true">↗</span></a>
+        <small>Restricted operator route · No real source documents are exposed on the public homepage.</small>
+      </section>
+
       <section class="source-preview" aria-label="Structured buyer order intake demonstration">
         <div><div class="eyebrow subtle">NEW · ORDER READINESS</div><h2>What does it take to accept a buyer PO?</h2><p>Compare PO color/size lines with material consumption, retain the original files, and surface approvals before any production release. The restricted operator workbench now validates source CSVs and stages proposed records in PostgreSQL.</p></div>
         <div class="source-steps"><span><b>01</b> Buyer PO</span><span><b>02</b> BOM quantity check</span><span><b>03</b> Source-backed HOLD</span></div>
         <a href="/order-intake" class="source-link">Open order readiness workbench <span aria-hidden="true">↗</span></a>
         <small>Restricted operator route · Source uploads are never shown on this public demonstration.</small>
+      </section>
+
+      <section class="source-preview" aria-label="Surplus-first material planning">
+        <div><div class="eyebrow subtle">NEW · MATERIAL PLANNING</div><h2>Reuse before you buy.</h2><p>Take a staged buyer BOM, test submitted fabric against six compatibility criteria, then inspect the proposed gross need, conditional surplus, net indent and material-only purchase exposure. All source-backed scenarios are retained for review; nothing silently authorizes procurement or reserves a roll.</p></div>
+        <div class="source-steps"><span><b>01</b> Staged BOM</span><span><b>02</b> Six eligibility checks</span><span><b>03</b> Conditional net indent</span></div>
+        <a href="/material-planning" class="source-link">Explore material planning <span aria-hidden="true">↗</span></a>
+        <small>Restricted operator route · No live inventory or prices appear on this public page.</small>
       </section>
 
       <section id="journey" class="journey-section" aria-labelledby="journey-title">
@@ -98,7 +122,7 @@
         </section>
       </div>
 
-      <section class="next-section" aria-labelledby="next-title"><div><span class="eyebrow">WHAT COMES NEXT</span><h2 id="next-title">Built for the floor, not just the dashboard.</h2><p>Next releases connect this experience to buyer documents, order readiness, roll reservations, authenticated issuance, and RFID-backed production records.</p></div><a href="#journey" class="next-link">Review sample workflow <span aria-hidden="true">→</span></a></section>
+      <section class="next-section" aria-labelledby="next-title"><div><span class="eyebrow">WHAT COMES NEXT</span><h2 id="next-title">Built for the floor, not just the dashboard.</h2><p>The next releases connect proposed material decisions to inspected inventory, roll reservations, independently witnessed issuance, and RFID-backed production records.</p></div><a href="#journey" class="next-link">Review sample workflow <span aria-hidden="true">→</span></a></section>
       <footer class="page-footer"><strong>agiparel</strong> <span>Factory OS · CyberinQ</span><span>Demonstration data only · No live factory writes</span></footer>
     </main>
   </div>

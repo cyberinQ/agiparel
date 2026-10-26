@@ -1,0 +1,5 @@
+# Synthetic training/demo facts — not a real factory
+Sewing machines: 3
+Shift hours: 8
+Working days per week: 6
+Costing currency: USD

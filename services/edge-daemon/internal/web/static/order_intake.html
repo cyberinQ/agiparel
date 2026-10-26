@@ -6,8 +6,10 @@
  <title>Order readiness · Agiparel Factory OS</title>
  <link rel="stylesheet" href="/static/order_intake.css">
  <script src="/static/order_intake.js" defer></script>
+  <script src="/static/workspace_nav.js" defer></script>
 </head>
 <body>
+<div style="padding:13px 24px;background:#eaf1ff;color:#244f9c;font-size:13px;border-bottom:1px solid #cfdffd"><strong>Your starting point is Document Intelligence.</strong> Have customer PDFs, Excel or Word files? <a href="/documents" style="color:#1f54c8;font-weight:700;text-decoration:underline">Upload originals in Document Intelligence</a>. Structured CSV staging below is the existing legacy intake until reviewed document normalization is connected.</div>
  <header class="top">
    <a href="/" class="wordmark">agiparel <span>FACTORY OS</span></a>
    <span class="ops-pill">RESTRICTED · DEVELOPMENT</span>
@@ -18,8 +20,8 @@
   <div class="guard"><strong>HOLD by design</strong><span>All intakes remain PROPOSED until buyer identity/revision, approved tech pack, operation bulletin, material, packing and shipping obligations are verified by authorized owners. CSVs are user-supplied evidence, not proof of buyer approval.</span></div>
   <div class="columns">
    <section class="surface">
-     <div class="section-num">A / DOCUMENTS</div><h2>Upload two CSVs</h2>
-     <p class="muted">One PO and one style per submission. Use the provided templates. Maximum 2 MiB each, 2,000 data rows.</p>
+     <div class="section-num">A / ADVANCED · TEMPORARY CSV STAGING</div><h2>Validate structured PO + BOM</h2>
+     <p class="muted">Only specially structured CSV files belong in this legacy staging form. For any original customer file, use <a href="/documents">Upload documents</a> first. Semantic review and automatic handoff to this screen arrive in Gate 06.5-B/C. Maximum 2 MiB per CSV, 2,000 data rows.</p>
      <form id="intake-form">
        <label class="upload">Buyer PO lines <small>po_number, style_code, color_code, size_code, ordered_qty, upc</small><input id="po-file" name="po_file" type="file" accept=".csv,text/csv" required></label>
        <label class="upload">Style BOM <small>style_code, material_sku, category, qty_per_garment, uom</small><input id="bom-file" name="bom_file" type="file" accept=".csv,text/csv" required></label>
@@ -37,6 +39,7 @@
      <div class="digest"><small>Source SHA-256</small><code id="digest">—</code></div>
    </section>
   </div>
+  <section class="surface recent"><div class="section-num">NEXT · MATERIAL PLANNING</div><h2>Apply eligible surplus before new purchases</h2><p class="muted">Batch 06 connects staged BOM quantities to a proposed sourcing scenario with six compatibility checks and a conditional net indent. Start from a stored buyer intake, not a fabricated order.</p><a id="plan-link" href="/material-planning" class="plan-link">Open material planning workbench →</a></section>
   <section class="surface recent"><div class="head-row"><div><div class="section-num">C / STORED EVIDENCE</div><h2>Recent staged intakes</h2></div><button type="button" id="refresh">Refresh</button></div><p class="muted">Tenant-scoped PostgreSQL records. Click an intake to inspect stored proposed facts. Original CSV bytes are retained but never returned to this page.</p><div id="history" class="history">No records loaded.</div></section>
   <footer>Agiparel Factory OS · Development operator workflow · Proposed source data is never production approval.</footer>
  </main>

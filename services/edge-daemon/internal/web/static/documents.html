@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+ <meta name="color-scheme" content="light"><title>Agiparel · Document Intelligence</title>
+ <link rel="stylesheet" href="/static/documents.css"><script src="/static/documents.js" defer></script><script src="/static/document_triage.js" defer></script>
+  <script src="/static/workspace_nav.js" defer></script>
+</head>
+<body>
+<header class="nav"><a href="/" class="logo"><b>agiparel</b><small>FACTORY OS</small></a><nav><a href="/factory-setup">Factory setup</a><a href="/documents" aria-current="page">Documents</a><a href="/order-intake">Order intake</a><a href="/material-planning">Material planning</a><a href="/planning">Factory planning</a></nav><span class="env">DEVELOPMENT · RESTRICTED</span></header>
+<main>
+ <div class="intro"><div><p class="eyebrow">GATE 06.5 · UNIVERSAL DOCUMENT INTAKE</p><h1>One place for every file.<br><span>Agiparel handles the format.</span></h1><p class="subtitle">Upload buyer and factory documents together—POs, tech packs, BOMs, inventory, machine lists, operation bulletins and more. No format conversion, department selection or CSV preparation required. Every original stays identifiable and reviewable.</p></div><div class="roundel">SOURCE<br>FIRST<span>06.5</span></div></div>
+ <section class="guard" aria-label="Factory-first onboarding"><strong>STARTING A FACTORY? FIRST, TELL US WHAT YOU KNOW.</strong><span>We can help you gather machine, employee-skill, inventory and cost information a little at a time. <a href="/factory-setup">Open guided factory setup →</a> Upload files here at any time; no need to organize them first.</span></section>
+ <section class="guard" aria-label="Evidence limitations"><strong>EVIDENCE ONLY · NO PRODUCTION WRITE</strong><span>Extracted text is not an approved purchase order, BOM or production instruction. Complex relations, scanned pages and ambiguous values remain review work. The Order Intake and Material Planning release gates are unchanged.</span></section>
+ <section class="use-cases" aria-label="Examples of files you can upload"><div><strong>Buyer and orders</strong><span>Purchase orders · Tech packs · BOMs · Size specs</span></div><div><strong>Factory and stores</strong><span>Inventory · Fabric roll sheets · Machine lists · GRNs</span></div><div><strong>Operations</strong><span>Sewing bulletins · Cutting sheets · Packing instructions</span></div><div><strong>People and administration</strong><span>Worker rosters · Training records · Other evidence</span></div></section>
+ <div class="workflow"><span><b>01</b> Original upload</span><span><b>02</b> Source fingerprints</span><span><b>03</b> Text + sheet/page anchors</span><span><b>04</b> Review before normalization</span></div>
+ <div class="layout">
+ <section class="panel upload"><div class="kicker">A / SOURCE INGESTION</div><h2>Drop any business documents here</h2><p>Customer files and factory files share this single inbox. Choose files as you received them—no category or department decision. Up to 20 MiB each. Unknown formats are safely retained and flagged for review.</p>
+  <div class="drop" id="drop" role="button" tabindex="0" aria-label="Select documents for upload"><span class="drop-icon">⇧</span><b>Drag files here</b><span>or select the originals on your computer</span><input id="files" type="file" multiple aria-label="Choose original customer files"><small>Google Docs / Sheets: download or export an original copy for now. Direct cloud connection is planned for Gate 06.5-B.</small></div>
+  <div class="selection" id="selection" aria-live="polite">No files selected</div>
+  <button class="primary" id="upload" disabled>Upload files to Agiparel <span>↗</span></button>
+  <p class="privacy-note">Development environment: use authorized, non-sensitive documents. Do not upload employee identity, payroll or private personal data until production access controls are in place.</p>
+  <div id="feedback" class="feedback" role="status" aria-live="polite">Select your documents to begin.</div>
+  <div class="format-list"><h3>Extraction coverage in this release</h3><div><span>PDF with embedded text</span><b>Text / page</b></div><div><span>Excel .xlsx / Word .docx</span><b>Cells / paragraphs</b></div><div><span>CSV / TSV / TXT</span><b>Rows / lines</b></div><div><span>Scanned PDF / photos</span><em>OCR pending</em></div><div><span>Legacy Excel .xls / Google links</span><em>Converter / connector pending</em></div></div>
+ </section>
+ <section class="panel library"><div class="panel-head"><div><div class="kicker">B / PER-TENANT LIBRARY</div><h2>Everything you uploaded</h2><p>Durable across service restarts · duplicates reuse the source hash</p></div><button class="secondary" id="refresh">Refresh</button></div>
+  <div class="metric-row"><div><span>Source files</span><strong id="total">—</strong></div><div><span>With extracted text</span><strong id="processed">—</strong></div><div><span>Require more work</span><strong id="attention">—</strong></div></div>
+  <div id="doc-list" class="doc-list" aria-live="polite">Loading document library…</div>
+ </section>
+ </div>
+ <section class="panel inspector"><div class="panel-head"><div><div class="kicker">C / SOURCE-ANCHORED INSPECTION</div><h2 id="inspect-title">See what Agiparel read</h2><p id="inspect-desc">Every evidence snippet has an extracted page, sheet/row or paragraph locator. Review is still required before mapping facts into order tables.</p></div><a id="download-source" class="secondary" hidden>Download original ↓</a></div>
+  <div class="provenance"><div>SHA-256 FINGERPRINT<strong id="inspect-sha">—</strong></div><div>READINESS / AUTHORITY<strong id="inspect-readiness">NOT AUTHORITATIVE</strong></div></div>
+  <div id="document-triage" class="doc-triage" aria-live="polite"><strong>Possible document purpose</strong><p>Select a file to see source-supported suggestions.</p></div>
+  <label class="search-label">Search within extracted evidence<input type="search" id="search" placeholder="Search PO, style, size, fabric, UPC, packing…" disabled></label>
+  <p id="evidence-message" class="evidence-message">Choose a document to see its extracted segments.</p>
+  <div id="segments" class="segments" aria-live="polite"></div>
+ </section>
+ <footer>Agiparel Factory OS · CyberinQ · One document inbox across all modules. Automatic business-document classification and approved handoff to production modules are part of Gate 06.5-B/C. Source-captured is not source-verified.</footer>
+</main>
+</body>
+</html>

@@ -8,6 +8,7 @@ function show(rep){
  $('po-name').textContent=rep.po_number;$('style-name').textContent=rep.style_code;
  $('quantity').textContent=format(rep.ordered_qty);$('release').textContent=rep.readiness;
  $('digest').textContent=rep.source_sha256;
+ $('plan-link').href=rep.id?`/material-planning?intake=${encodeURIComponent(rep.id)}`:'/material-planning';
  const skus=$('sku-rows');skus.replaceChildren();for(const s of rep.skus){const tr=add('tr','',skus);for(const v of [s.color,s.size,s.upc||'—',format(s.quantity)])add('td',v,tr)}
  const bom=$('bom-rows');bom.replaceChildren();for(const m of rep.materials){const tr=add('tr','',bom);for(const v of [m.material_sku,m.category,m.per_garment,`${m.required} ${m.uom}`])add('td',v,tr)}
  const holds=$('holds');holds.replaceChildren();for(const hold of rep.holds)add('li',hold,holds);

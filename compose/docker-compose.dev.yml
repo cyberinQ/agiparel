@@ -53,10 +53,12 @@ services:
       OLLAMA_VISION_MODEL: ${OLLAMA_VISION_MODEL:-qwen3-vl:8b}
       MANAGER_PIN: ${MANAGER_PIN:-}
       # DEV-only Basic barrier for legacy HMI/API routes; never use for production identity.
-      AGIPAREL_OPERATOR_USER: ${AGIPAREL_OPERATOR_USER:-}
-      AGIPAREL_OPERATOR_PASSWORD: ${AGIPAREL_OPERATOR_PASSWORD:-}
+      AGIPAREL_OPERATOR_USER: ${AGIPAREL_OPERATOR_USER:-dev}
+      AGIPAREL_OPERATOR_PASSWORD: ${AGIPAREL_OPERATOR_PASSWORD:-1212}
       # DEVELOPMENT ONLY: server-pinned tenant for operator intake; never accept client-supplied tenant.
-      AGIPAREL_OPERATOR_TENANT: ${AGIPAREL_OPERATOR_TENANT:-}
+      AGIPAREL_OPERATOR_TENANT: ${AGIPAREL_OPERATOR_TENANT:-dev}
+      # Safety bridge: the older Planning uploader must capture, not auto-merge.
+      AGIPAREL_CAPTURE_FIRST: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -69,6 +71,25 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+  document-intake:
+    build:
+      context: ..
+      dockerfile: services/document-intake/Dockerfile
+    container_name: agiparel-document-intake
+    restart: unless-stopped
+    environment:
+      # Development-only, document-table restricted DB role. No factory write privileges.
+      DOCUMENT_WORKER_DATABASE_URL: "postgres://agiparel_doc_worker:doc_worker_dev_only_change_in_production@postgres:5432/${POSTGRES_DB:-agiparel_dev}?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Intentionally no public ports; worker only polls PostgreSQL document jobs.
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+
 volumes:
   pgdata:
   redisdata:

@@ -306,6 +306,7 @@
       cursor: pointer;
     }
   </style>
+  <script src="/static/workspace_nav.js" defer></script>
 </head>
 <body>
   <header>
@@ -314,17 +315,9 @@
       <p id="plant-header-sub">Loading factory profile...</p>
     </div>
     <div class="header-right">
-      <a href="/api/v1/onboarding/template.csv" class="btn-agie-trigger" style="background:#0F172A;text-decoration:none;">
-        Pre-Boarding Template (.csv)
+      <a href="/documents" class="btn-agie-trigger" style="background:#2563EB;text-decoration:none;">
+        Upload any buyer or factory file →
       </a>
-      <label class="btn-agie-trigger" style="background:#10B981;">
-        Upload Onboarding Sheet
-        <input type="file" accept=".csv" style="display:none;" onchange="uploadOnboardingSheet(this)">
-      </label>
-      <label class="btn-agie-trigger" style="background:#2563EB;cursor:pointer;">
-        Add Customer Documents
-        <input type="file" multiple accept=".csv,.xlsx,.pdf,.png,.jpg,.jpeg,.webp" style="display:none;" onchange="uploadCustomerDocuments(this)">
-      </label>
       <button class="btn-agie-trigger" onclick="toggleAgieDrawer()">
         Ask Agie (Executive AI)
       </button>

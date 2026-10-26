@@ -41,3 +41,14 @@ func GetPortalJS() ([]byte, error)   { return staticFS.ReadFile("static/portal.j
 
 // Batch 05: restricted, source-backed buyer PO/BOM staging workspace.
 func GetOrderIntakeHTML() ([]byte, error) { return staticFS.ReadFile("static/order_intake.html") }
+
+// Batch 06: restricted surplus-first, source-backed material planning scenarios.
+func GetMaterialPlanningHTML() ([]byte, error) {
+	return staticFS.ReadFile("static/material_planning.html")
+}
+
+// Gate 06.5-A: original document library (restricted operator screen).
+func GetDocumentsHTML() ([]byte, error) { return staticFS.ReadFile("static/documents.html") }
+
+// Gate 06.5-B1: factory discovery before buyer order intake.
+func GetFactorySetupHTML() ([]byte, error) { return staticFS.ReadFile("static/factory_setup.html") }

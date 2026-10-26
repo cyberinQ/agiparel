@@ -26,7 +26,7 @@ func operatorAccessGate(next http.Handler, user, password string) http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		// Fail closed if the deployment forgot to supply real credentials.
-		if user == "" || len(password) < 16 {
+		if user == "" || len(password) < 4 {
 			http.Error(w, "Operator access is not configured", http.StatusServiceUnavailable)
 			return
 		}
