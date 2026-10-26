@@ -1,0 +1,11 @@
+{
+  "rows": 16,
+  "unique_record_ids": 16,
+  "review_required": false,
+  "findings": [],
+  "notes": [
+    "Suspected duplicates are review-only; neither record is deleted or disabled.",
+    "Machine counts and rated UPH are not verified garment production capacity.",
+    "A physical serial/asset ID is required before consolidating records."
+  ]
+}

@@ -265,26 +265,39 @@
       if (!input.files || !input.files.length) return;
       const form = new FormData();
       for (const file of input.files) form.append('files', file, file.name);
+      input.value = '';
+      const pills = document.getElementById('uploaded-pills');
+      pills.replaceChildren();
+      const status = document.createElement('span');
+      status.className = 'round-pill';
+      status.setAttribute('role', 'status');
+      status.textContent = 'Sending files...';
+      pills.appendChild(status);
       try {
-        const response = await fetch('/api/v1/planning/upload-docs', {method:'POST', body:form});
+        const response = await fetch('/api/v1/planning/upload-docs', {method: 'POST', body:form});
         if (!response.ok) throw new Error(await response.text());
-        const result = await response.json();
-        const pills = document.getElementById('uploaded-pills');
-        pills.replaceChildren();
-        for (const name of result.files || []) {
-          const item = document.createElement('span');
-          item.className = 'round-pill';
-          item.innerText = `Saved: ${name}`;
-          pills.appendChild(item);
-        }
-        if (result.conflicts?.length) {
-          alert(`${result.conflicts.length} mismatch(es) need manager review before plan approval.`);
-        }
-        await loadAssessment();
+        const job = await response.json();
+        status.textContent = 'Files received; checking documents...';
+        await pollDocumentIntake(job.job_id, status, loadAssessment);
       } catch (error) {
-        alert(`Upload not completed: ${error.message}`);
-      } finally {
-        input.value = '';
+        status.textContent = 'Upload failed: ' + error.message;
+      }
+    }
+
+    async function pollDocumentIntake(jobId, statusNode, onDone) {
+      for (;;) {
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        const response = await fetch('/api/v1/planning/upload-docs?job=' + encodeURIComponent(jobId), {cache: 'no-store'});
+        if (!response.ok) { statusNode.textContent = 'Could not check upload progress. Please refresh and try again.'; return; }
+        const job = await response.json();
+        statusNode.textContent = job.message || job.status;
+        if (job.status === 'FAILED') {statusNode.style.color = '#B91C1C';return;}
+        if (job.status === 'COMPLETE') {
+          statusNode.style.color = '#047857';
+          if (job.conflicts && job.conflicts.length) statusNode.textContent += ' Please check ' + job.conflicts.length + ' file mismatch(es).';
+          if (onDone) await onDone();
+          return;
+        }
       }
     }
     async function approveAndLockPlan() {

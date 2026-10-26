@@ -321,12 +321,17 @@
         Upload Onboarding Sheet
         <input type="file" accept=".csv" style="display:none;" onchange="uploadOnboardingSheet(this)">
       </label>
+      <label class="btn-agie-trigger" style="background:#2563EB;cursor:pointer;">
+        Add Customer Documents
+        <input type="file" multiple accept=".csv,.xlsx,.pdf,.png,.jpg,.jpeg,.webp" style="display:none;" onchange="uploadCustomerDocuments(this)">
+      </label>
       <button class="btn-agie-trigger" onclick="toggleAgieDrawer()">
         Ask Agie (Executive AI)
       </button>
     </div>
   </header>
 
+  <div id="document-upload-status" role="status" aria-live="polite" style="padding:8px 24px;color:#1E40AF;"></div>
   <div class="kpi-row">
     <div class="kpi-card">
       <div class="kpi-caption">Plant Output (Achieved / Target)</div>
@@ -463,24 +468,61 @@
     async function uploadOnboardingSheet(input) {
       if (!input.files || input.files.length === 0) return;
       const file = input.files[0];
-      const text = await file.text();
-      const res = await fetch("/api/v1/onboarding/upload", {
-        method: "POST",
-        headers: { "Content-Type": "text/csv" },
-        body: text
-      });
-      if (res.ok) {
+      const status = document.getElementById('document-upload-status');
+      status.style.color = '#1E40AF';
+      status.textContent = 'Loading factory sheet...';
+      try {
+        const res = await fetch('/api/v1/onboarding/upload', {
+          method: 'POST', headers: {'Content-Type': 'text/csv'}, body: await file.text()
+        });
+        if (!res.ok) throw new Error(await res.text());
         const result = await res.json();
-        alert(`Factory Onboarded: ${result.factory_name} (${result.lines_loaded} lines, ${result.machines_loaded} machines, ${result.workers_loaded} workers, ${result.styles_loaded} styles)`);
-        loadPlantOverview();
-        loadFloorIssues();
-      } else {
-        const errText = await res.text();
-        alert("Onboarding Upload Error: " + errText);
-      }
-      input.value = "";
+        status.style.color = '#047857';
+        status.textContent = `Factory sheet saved: ${result.lines_loaded} lines, ${result.machines_loaded} machines, ${result.workers_loaded} workers, ${result.styles_loaded} styles.`;
+        await loadPlantOverview();
+        await loadFloorIssues();
+      } catch (error) {
+        status.style.color = '#B91C1C';
+        status.textContent = 'Factory sheet upload failed: ' + error.message;
+      } finally { input.value = ''; }
     }
 
+    async function uploadCustomerDocuments(input) {
+      if (!input.files || !input.files.length) return;
+      const status = document.getElementById('document-upload-status');
+      status.style.color = '#1E40AF';
+      status.textContent = 'Sending customer files...';
+      const form = new FormData();
+      for (const file of input.files) form.append('files', file, file.name);
+      input.value = '';
+      try {
+        const response = await fetch('/api/v1/planning/upload-docs', {method: 'POST', body: form});
+        if (!response.ok) throw new Error(await response.text());
+        const job = await response.json();
+        status.textContent = 'Files received. Reading and checking documents...';
+        await pollDocumentIntake(job.job_id, status, async () => { await loadPlantOverview(); });
+      } catch (error) {
+        status.style.color = '#B91C1C';
+        status.textContent = 'Upload failed: ' + error.message;
+      }
+    }
+
+    async function pollDocumentIntake(jobId, statusNode, onDone) {
+      for (;;) {
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        const response = await fetch('/api/v1/planning/upload-docs?job=' + encodeURIComponent(jobId), {cache: 'no-store'});
+        if (!response.ok) { statusNode.textContent = 'Could not check upload progress. Please refresh and try again.'; return; }
+        const job = await response.json();
+        statusNode.textContent = job.message || job.status;
+        if (job.status === 'FAILED') {statusNode.style.color = '#B91C1C';return;}
+        if (job.status === 'COMPLETE') {
+          statusNode.style.color = '#047857';
+          if (job.conflicts && job.conflicts.length) statusNode.textContent += ' Please check ' + job.conflicts.length + ' file mismatch(es).';
+          if (onDone) await onDone();
+          return;
+        }
+      }
+    }
     function toggleAgieDrawer() {
       const drawer = document.getElementById("agie-drawer");
       const overlay = document.getElementById("drawer-overlay");

@@ -43,6 +43,27 @@
       "db_applied": false,
       "conflicts": 1
     },
+    "45PW219 - Mens_Wovens_Tops_Izod_Sport_Apparel_Spring 2020_Sample_EnglishUS1.pdf": {
+      "sha256": "c1abf781cf0a8b5698003ca27fb2bb810bfa8493a548509fba229d30499cda1b",
+      "processed_at": 1792975864112,
+      "mode": "AI_LLM_FALLBACK",
+      "status": "FAILED",
+      "db_applied": false
+    },
+    "Agiparel_v4_Development_Backlog.csv": {
+      "sha256": "b4a538764c0bd6f2c107e8137ea152178dd96518b1acd454d0991b807d08b932",
+      "processed_at": 1792976055111,
+      "mode": "AI_LLM_FALLBACK",
+      "status": "FAILED",
+      "db_applied": false
+    },
+    "TROPICAL PARROT PRINT-45PW219.xlsx": {
+      "sha256": "51fd341ce1940bf1de1a51e6b4e1f57a4b58624a03c4b5c457ee171c1ed879f8",
+      "processed_at": 1792975919955,
+      "mode": "AI_LLM_FALLBACK",
+      "status": "FAILED",
+      "db_applied": false
+    },
     "agiparel SAMPLE DATA .xlsx": {
       "sha256": "ec2df798d7c46286a675c4efcd782c43725fb32de204d90afdf9e0cf627e5bd5",
       "processed_at": 1792966221846,
