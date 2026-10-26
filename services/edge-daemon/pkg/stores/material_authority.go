@@ -16,8 +16,8 @@ func (r MaterialRepository) requireAuthorizedScope(ctx context.Context, tx *sql.
 	}
 	var mode string
 	var fenced bool
-	err := tx.QueryRowContext(ctx, `SELECT mode,legacy_writer_fenced FROM material_write_scopes_v5
-   WHERE tenant_id=$1 AND order_id=$2 AND plant_id=$3 AND lease_holder=$4 AND lease_expires_at>now() FOR SHARE`,
+	err := tx.QueryRowContext(ctx, `SELECT mode,legacy_writer_fenced
+        FROM public.material_scope_read_locked_v5($1,$2,$3,$4)`,
 		tenant, order, plant, r.AuthorityHolder).Scan(&mode, &fenced)
 	if errors.Is(err, sql.ErrNoRows) {
 		return errors.New("ERR_MATERIAL_SCOPE_NOT_DELEGATED")

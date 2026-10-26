@@ -90,4 +90,46 @@ DROP TRIGGER IF EXISTS material_variance_immutability_v5 ON material_variances_v
 CREATE TRIGGER material_variance_immutability_v5 BEFORE UPDATE ON material_variances_v5
  FOR EACH ROW EXECUTE FUNCTION protect_material_variance_v5();
 -- No INSERT/UPDATE/DELETE on scope/CEO registry granted to app role.
+
+CREATE OR REPLACE FUNCTION public.material_scope_read_locked_v5(
+    p_tenant VARCHAR,
+    p_order VARCHAR,
+    p_plant VARCHAR,
+    p_holder TEXT
+)
+RETURNS TABLE(mode TEXT, legacy_writer_fenced BOOLEAN)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+BEGIN
+    IF p_tenant IS NULL OR p_tenant = ''
+       OR p_tenant IS DISTINCT FROM
+          NULLIF(current_setting('app.current_tenant_id', true), '')
+       OR p_order IS NULL OR p_order = ''
+       OR p_plant IS NULL OR p_plant = ''
+       OR p_holder IS NULL OR p_holder = '' THEN
+        RETURN;
+    END IF;
+
+    RETURN QUERY
+    SELECT s.mode, s.legacy_writer_fenced
+    FROM public.material_write_scopes_v5 AS s
+    WHERE s.tenant_id = p_tenant
+      AND s.order_id = p_order
+      AND s.plant_id = p_plant
+      AND s.lease_holder = p_holder
+      AND s.lease_expires_at > clock_timestamp()
+    FOR SHARE;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.material_scope_read_locked_v5(
+    VARCHAR,VARCHAR,VARCHAR,TEXT
+) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION public.material_scope_read_locked_v5(
+    VARCHAR,VARCHAR,VARCHAR,TEXT
+) TO agiparel_app;
+
 COMMIT;
