@@ -9,14 +9,15 @@
  <script src="/static/factory_setup.js" defer></script>
  <script src="/static/factory_candidates.js" defer></script>
  <script src="/static/factory_draft_review.js" defer></script>
+ <script src="/static/factory_reference.js" defer></script>
 </head>
 <body>
  <div class="app">
  <header class="hero">
-  <div><div class="eyebrow">YOUR FACTORY COMES FIRST · GATE 06.5-B3</div>
+  <div><div class="eyebrow">YOUR FACTORY COMES FIRST · GATE 06.5-B4</div>
    <h1>Start with what you know.<br><span>We'll help with the rest.</span></h1>
    <p>Tell Agiparel about your factory a little at a time. Your machines, people, inventory, skills and costs may be in different files—or not written down yet. That's okay. You can explore safely with incomplete information.</p>
-   <div class="hero-actions"><a class="btn primary" href="/documents">Upload any factory documents ↗</a><a class="btn secondary" href="#factory-drafts">Review disagreements ↓</a><a class="btn secondary" href="/order-intake">Buyer & order intake →</a></div>
+   <div class="hero-actions"><a class="btn primary" href="/documents">Upload any factory documents ↗</a><a class="btn secondary" href="#factory-drafts">Review disagreements ↓</a><a class="btn secondary" href="#factory-references">Factory reference catalog ↓</a><a class="btn secondary" href="/order-intake">Buyer & order intake →</a></div>
   </div>
   <div class="progress-panel"><span class="panel-eyebrow">FACTORY KNOWLEDGE</span><strong id="progress-value">—</strong><div class="progress-track"><div id="progress-bar"></div></div><p id="progress-description">Connecting to your factory workspace…</p><small>Not a production certification</small></div>
  </header>
@@ -36,6 +37,16 @@
   <div class="draft-summary"><span id="draft-count">Loading evidence…</span><span class="draft-boundary">ONBOARDING ONLY · NO LEDGER / PAYROLL / PRODUCTION WRITE</span></div>
   <p class="candidate-feedback" id="draft-feedback" role="status" aria-live="polite">Proposed records remain provisional until reviewed. Conflicting documents require your explanation.</p>
   <div id="draft-items" class="draft-items" aria-live="polite"><p class="empty">Loading proposals…</p></div>
+ </section>
+ <section class="reference-section" id="factory-references" aria-labelledby="factory-references-title">
+  <div class="section-heading"><div><span class="section-kicker">FACTORY REFERENCE CATALOG · GATE 06.5-B4</span><h2 id="factory-references-title">Turn reviewed evidence into useful factory references</h2><p>Machine IDs and types, worker skills, and factory rates can be published to a versioned onboarding reference catalog after human verification. It helps organize your factory but does not authorize operations, physical inventory, payroll, costing or machine dispatch.</p></div><button class="btn secondary" id="reference-refresh" type="button">Refresh references</button></div>
+  <div class="reference-boundary"><strong>Factory facts you can keep:</strong> Machine identities, skill records and explicit rate units. <strong>Still requires a separate process:</strong> stock inspection, material ownership, production permissions and operational costing approval.</div>
+  <p class="candidate-feedback" id="reference-feedback" role="status" aria-live="polite">Resolve a document-backed draft above, then publish a reference here with a short explanation of what you verified.</p>
+  <div class="reference-summary" id="reference-summary">Checking reviewed sources…</div>
+  <div class="reference-grid">
+   <section class="candidate-panel" aria-label="Reviewed sources eligible for reference catalog"><div class="candidate-panel-head"><h3>Ready for reference review</h3></div><div id="reference-ready" class="reference-list" aria-live="polite"></div></section>
+   <section class="candidate-panel" aria-label="Published and withdrawn factory reference records"><div class="candidate-panel-head"><h3>Current reference catalog</h3><button class="btn secondary" id="reference-history-toggle" type="button">Show revision history</button></div><div id="reference-current" class="reference-list" aria-live="polite"></div></section>
+  </div>
  </section>
  <section class="document-area" aria-labelledby="document-title"><div class="section-heading"><div><span class="section-kicker">REUSE EXISTING EVIDENCE</span><h2 id="document-title">Documents you've already shared</h2><p>Suggestions are based on file names and extracted words, not confirmed classifications. Connect relevant files to the facts you enter.</p></div><a href="/documents" class="btn secondary">Upload more files ↗</a></div><div id="documents" class="document-list" aria-live="polite"><p>Loading documents…</p></div></section>
  <footer>Agiparel Factory OS · Development evidence workspace · Factory first, buyers second · Human-confirmed input is not operational authorization</footer>

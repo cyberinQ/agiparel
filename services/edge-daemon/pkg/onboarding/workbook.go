@@ -11,7 +11,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type FactoryWorkbook struct {
@@ -152,9 +151,9 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 	reader.TrimLeadingSpace = true
 
 	wb := &FactoryWorkbook{
-		TenantID:       "TENANT_DEFAULT",
-		ShiftStartHour: 8,
-		BundleSize:     20,
+		TenantID:       "",
+		ShiftStartHour: 0,
+		BundleSize:     0,
 	}
 
 	records, err := reader.ReadAll()
@@ -162,6 +161,27 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 		return nil, fmt.Errorf("ERR_CSV_PARSE: %w", err)
 	}
 
+	positiveInteger := func(raw, field string, line int) (int, error) {
+		n, e := strconv.Atoi(strings.TrimSpace(raw))
+		if e != nil || n <= 0 {
+			return 0, fmt.Errorf("ERR_INVALID_FIELD row %d %s: expected positive integer; received %q", line, field, raw)
+		}
+		return n, nil
+	}
+	positiveDecimal := func(raw, field string, line int) (float64, error) {
+		v, e := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+		if e != nil || v <= 0 || v > 1e12 {
+			return 0, fmt.Errorf("ERR_INVALID_FIELD row %d %s: expected positive finite number; received %q", line, field, raw)
+		}
+		return v, nil
+	}
+	nonnegativeDecimal := func(raw, field string, line int) (float64, error) {
+		v, e := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+		if e != nil || v < 0 || v > 1e12 {
+			return 0, fmt.Errorf("ERR_INVALID_FIELD row %d %s: expected nonnegative finite number; received %q", line, field, raw)
+		}
+		return v, nil
+	}
 	for lineNum, row := range records {
 		if len(row) == 0 {
 			continue
@@ -184,18 +204,35 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 			}
 			wb.FactoryName = getCol(2)
 			wb.UnitCode = getCol(3)
-			if sh, err := strconv.Atoi(getCol(4)); err == nil && sh >= 0 && sh <= 23 {
+			if getCol(4) != "" {
+				sh, err := strconv.Atoi(getCol(4))
+				if err != nil || sh < 0 || sh > 23 {
+					return nil, fmt.Errorf("ERR_INVALID_FIELD row %d shift_start_hour", lineNum+1)
+				}
 				wb.ShiftStartHour = sh
 			}
-			if bs, err := strconv.Atoi(getCol(5)); err == nil && bs > 0 {
+			if getCol(5) != "" {
+				bs, err := positiveInteger(getCol(5), "bundle_size", lineNum+1)
+				if err != nil {
+					return nil, err
+				}
 				wb.BundleSize = bs
 			}
 		case "LINE_ROSTER":
-			stations, _ := strconv.Atoi(getCol(3))
-			capDaily, _ := strconv.Atoi(getCol(4))
-			dwell, err := strconv.ParseFloat(getCol(5), 64)
-			if err != nil || dwell <= 0 {
-				dwell = 0.40
+			stations, err := positiveInteger(getCol(3), "stations_count", lineNum+1)
+			if err != nil {
+				return nil, err
+			}
+			capDaily, err := positiveInteger(getCol(4), "target_daily_capacity", lineNum+1)
+			if err != nil {
+				return nil, err
+			}
+			dwell, err := positiveDecimal(getCol(5), "dwell_floor_pct", lineNum+1)
+			if err != nil {
+				return nil, err
+			}
+			if dwell > 1 {
+				return nil, fmt.Errorf("ERR_INVALID_FIELD row %d dwell_floor_pct must not exceed 1", lineNum+1)
 			}
 			wb.Lines = append(wb.Lines, LineRow{
 				LineID:              getCol(1),
@@ -205,13 +242,13 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 				DwellFloorPct:       dwell,
 			})
 		case "MACHINE_ROSTER":
-			capUPH, _ := strconv.Atoi(getCol(6))
-			if capUPH <= 0 {
-				capUPH = 100
+			capUPH, err := positiveInteger(getCol(6), "capacity_uph", lineNum+1)
+			if err != nil {
+				return nil, err
 			}
 			status := strings.ToUpper(getCol(7))
 			if status == "" {
-				status = "ACTIVE"
+				return nil, fmt.Errorf("ERR_INVALID_FIELD row %d machine_status cannot be inferred as ACTIVE", lineNum+1)
 			}
 			wb.Machines = append(wb.Machines, MachineRow{
 				MachineID:      getCol(1),
@@ -223,14 +260,14 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 				Status:         status,
 			})
 		case "WORKER_ROSTER":
-			rate, _ := strconv.ParseFloat(getCol(6), 64)
-			grade := strings.ToUpper(getCol(5))
-			if grade == "" {
-				grade = "A"
+			rate, err := nonnegativeDecimal(getCol(6), "hourly_rate_inr", lineNum+1)
+			if err != nil {
+				return nil, err
 			}
+			grade := strings.ToUpper(getCol(5))
 			attStatus := strings.ToUpper(getCol(7))
-			if attStatus == "" {
-				attStatus = "PRESENT"
+			if grade == "" || attStatus == "" {
+				return nil, fmt.Errorf("ERR_INVALID_FIELD row %d worker grade and attendance must be explicit", lineNum+1)
 			}
 			wb.Workers = append(wb.Workers, WorkerRow{
 				WorkerID:          getCol(1),
@@ -244,9 +281,9 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 				AssignedStationID: getCol(9),
 			})
 		case "STYLE_MASTER":
-			sam, _ := strconv.ParseFloat(getCol(5), 64)
-			if sam <= 0 {
-				sam = 0.60
+			sam, err := positiveDecimal(getCol(5), "target_sam_min", lineNum+1)
+			if err != nil {
+				return nil, err
 			}
 			wb.Styles = append(wb.Styles, StyleRow{
 				StyleID:      getCol(1),
@@ -257,9 +294,9 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 				FabricSKU:    getCol(6),
 			})
 		case "STYLE_PARTS":
-			order, _ := strconv.Atoi(getCol(4))
-			if order <= 0 {
-				order = 1
+			order, err := positiveInteger(getCol(4), "sub_bundle_order", lineNum+1)
+			if err != nil {
+				return nil, err
 			}
 			wb.StyleParts = append(wb.StyleParts, StylePartRow{
 				StyleCode:      getCol(1),
@@ -269,9 +306,9 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 				MaterialSKU:    getCol(5),
 			})
 		case "OPERATION_DAG":
-			sam, _ := strconv.ParseFloat(getCol(4), 64)
-			if sam <= 0 {
-				sam = 0.50
+			sam, err := positiveDecimal(getCol(4), "sam_minutes", lineNum+1)
+			if err != nil {
+				return nil, err
 			}
 			wb.OperationsDAG = append(wb.OperationsDAG, OperationDAGRow{
 				StyleCode:      getCol(1),
@@ -283,12 +320,24 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 				TargetPartCode: getCol(7),
 			})
 		case "STORE_ROLLS":
-			lengthM, _ := strconv.ParseFloat(getCol(3), 64)
-			widthCM, _ := strconv.ParseFloat(getCol(4), 64)
-			cutNo, _ := strconv.Atoi(getCol(9))
+			lengthM, err := positiveDecimal(getCol(3), "length_m", lineNum+1)
+			if err != nil {
+				return nil, err
+			}
+			widthCM, err := positiveDecimal(getCol(4), "width_cm", lineNum+1)
+			if err != nil {
+				return nil, err
+			}
+			cutNo := 0
+			if getCol(9) != "" {
+				cutNo, err = strconv.Atoi(getCol(9))
+				if err != nil || cutNo < 0 {
+					return nil, fmt.Errorf("ERR_INVALID_FIELD row %d reserved_cut_no", lineNum+1)
+				}
+			}
 			status := strings.ToUpper(getCol(7))
 			if status == "" {
-				status = "AVAILABLE"
+				return nil, fmt.Errorf("ERR_INVALID_FIELD row %d roll allocation status cannot be inferred as AVAILABLE", lineNum+1)
 			}
 			wb.StoreRolls = append(wb.StoreRolls, StoreRollRow{
 				RollID:        getCol(1),
@@ -302,18 +351,18 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 				ReservedCutNo: cutNo,
 			})
 		case "WORK_ORDERS":
-			qty, _ := strconv.Atoi(getCol(6))
-			colorJSON := getCol(7)
-			if colorJSON == "" || !json.Valid([]byte(colorJSON)) {
-				colorJSON = `{"DEFAULT":` + strconv.Itoa(qty) + `}`
+			qty, err := positiveInteger(getCol(6), "ordered_qty", lineNum+1)
+			if err != nil {
+				return nil, err
 			}
+			colorJSON := getCol(7)
 			sizeJSON := getCol(8)
-			if sizeJSON == "" || !json.Valid([]byte(sizeJSON)) {
-				sizeJSON = `{"DEFAULT":` + strconv.Itoa(qty) + `}`
+			if !json.Valid([]byte(colorJSON)) || !json.Valid([]byte(sizeJSON)) {
+				return nil, fmt.Errorf("ERR_INVALID_FIELD row %d missing/invalid color or size matrix; cannot invent DEFAULT", lineNum+1)
 			}
 			status := strings.ToUpper(getCol(9))
 			if status == "" {
-				status = "IN_PROGRESS"
+				status = "PROPOSED"
 			}
 			wb.WorkOrders = append(wb.WorkOrders, WorkOrderRow{
 				WorkOrderID:  getCol(1),
@@ -337,298 +386,9 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 	return wb, nil
 }
 
-// Author: Sunil Jain, CyberinQ LLC
+// ApplyToDatabase is intentionally retired. No source CSV, AI parse or legacy
+// onboarding workbook may populate factory operational tables directly.
+// Use reviewed, versioned domain publication APIs introduced in Gates B2-B4.
 func ApplyToDatabase(ctx context.Context, db *sql.DB, wb *FactoryWorkbook) error {
-	if db == nil {
-		return nil
-	}
-	if wb.TenantID == "" {
-		wb.TenantID = "TENANT_DEFAULT"
-	}
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if _, err := tx.ExecContext(ctx, "SELECT set_config('app.current_tenant_id', $1, true)", wb.TenantID); err != nil {
-		return fmt.Errorf("failed to set tenant context: %w", err)
-	}
-
-	unitCode := wb.UnitCode
-	if unitCode == "" {
-		unitCode = "Unit 001"
-	}
-	shiftStart := wb.ShiftStartHour
-	if shiftStart < 0 || shiftStart > 23 {
-		shiftStart = 8
-	}
-	bundleSize := wb.BundleSize
-	if bundleSize <= 0 {
-		bundleSize = 20
-	}
-
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO tenants (id, name, unit_code, shift_start_hour, default_bundle_size)
-		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (id) DO UPDATE SET
-			name = EXCLUDED.name,
-			unit_code = EXCLUDED.unit_code,
-			shift_start_hour = EXCLUDED.shift_start_hour,
-			default_bundle_size = EXCLUDED.default_bundle_size;
-	`, wb.TenantID, wb.FactoryName, unitCode, shiftStart, bundleSize); err != nil {
-		return fmt.Errorf("failed to upsert tenant: %w", err)
-	}
-
-	for _, l := range wb.Lines {
-		if l.LineID == "" {
-			continue
-		}
-		stations := l.StationsCount
-		if stations <= 0 {
-			stations = 14
-		}
-		capDaily := l.TargetDailyCapacity
-		if capDaily <= 0 {
-			capDaily = 600
-		}
-		dwell := l.DwellFloorPct
-		if dwell <= 0 || dwell > 1.0 {
-			dwell = 0.40
-		}
-		disp := l.DisplayName
-		if disp == "" {
-			disp = l.LineID
-		}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO lines (id, tenant_id, display_name, stations_count, target_daily_capacity, dwell_floor_pct)
-			VALUES ($1, $2, $3, $4, $5, $6)
-			ON CONFLICT (tenant_id, id) DO UPDATE SET
-				display_name = EXCLUDED.display_name,
-				stations_count = EXCLUDED.stations_count,
-				target_daily_capacity = EXCLUDED.target_daily_capacity,
-				dwell_floor_pct = EXCLUDED.dwell_floor_pct,
-				updated_at = CURRENT_TIMESTAMP;
-		`, l.LineID, wb.TenantID, disp, stations, capDaily, dwell); err != nil {
-			return fmt.Errorf("failed to upsert line %s: %w", l.LineID, err)
-		}
-	}
-
-	coveredStations := make(map[string]bool)
-	for _, w := range wb.Workers {
-		if strings.ToUpper(w.AttendanceStatus) != "ABSENT" && w.AssignedLineID != "" && w.AssignedStationID != "" {
-			coveredStations[w.AssignedLineID+":"+w.AssignedStationID] = true
-		}
-	}
-
-	for _, w := range wb.Workers {
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO workers (id, tenant_id, name, employee_code, primary_skill, skill_grade, hourly_rate_inr)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
-			ON CONFLICT (id) DO UPDATE SET
-				name = EXCLUDED.name,
-				employee_code = EXCLUDED.employee_code,
-				primary_skill = EXCLUDED.primary_skill,
-				skill_grade = EXCLUDED.skill_grade,
-				hourly_rate_inr = EXCLUDED.hourly_rate_inr;
-		`, w.WorkerID, wb.TenantID, w.Name, w.EmployeeCode, w.PrimarySkill, w.SkillGrade, w.HourlyRateINR); err != nil {
-			return fmt.Errorf("failed to upsert worker %s: %w", w.WorkerID, err)
-		}
-
-		date := strings.TrimSpace(w.AttendanceDate)
-		_, err = tx.ExecContext(ctx, `
-			INSERT INTO attendance_register (tenant_id, worker_id, shift_date, clock_in_time, status, assigned_line_id, assigned_station_id)
-			VALUES ($1, $2, COALESCE(NULLIF($3, '')::date, CURRENT_DATE), CASE WHEN $4 IN ('PRESENT', 'LATE') THEN CURRENT_TIMESTAMP ELSE NULL END, $4, $5, $6)
-			ON CONFLICT (tenant_id, worker_id, shift_date) DO UPDATE SET
-				status = EXCLUDED.status,
-				assigned_line_id = EXCLUDED.assigned_line_id,
-				assigned_station_id = EXCLUDED.assigned_station_id;
-		`, wb.TenantID, w.WorkerID, date, w.AttendanceStatus, w.AssignedLineID, w.AssignedStationID)
-		if err != nil {
-			return fmt.Errorf("failed to record attendance for %s: %w", w.WorkerID, err)
-		}
-
-		issID := fmt.Sprintf("ISS-ATT-%s", w.WorkerID)
-		stationKey := w.AssignedLineID + ":" + w.AssignedStationID
-		if w.AttendanceStatus == "ABSENT" && w.AssignedLineID != "" && !coveredStations[stationKey] && (date == "" || date == time.Now().Format("2006-01-02")) {
-			title := fmt.Sprintf("%s absent; station %s (%s) requires float coverage", w.Name, w.AssignedStationID, w.PrimarySkill)
-			_, _ = tx.ExecContext(ctx, `
-				INSERT INTO floor_issues (id, tenant_id, issue_type, severity, plant_id, line_id, station_id, operator_id, title, owner_id, status)
-				VALUES ($1, $2, 'workforce', 'attention', $3, $4, $5, $6, $7, $6, 'open')
-				ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, status = 'open';
-			`, issID, wb.TenantID, wb.FactoryName, w.AssignedLineID, w.AssignedStationID, w.WorkerID, title)
-		} else if coveredStations[stationKey] {
-			_, _ = tx.ExecContext(ctx, `
-				UPDATE floor_issues SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP
-				WHERE id = $1 AND tenant_id = $2 AND status IN ('open', 'in_progress');
-			`, issID, wb.TenantID)
-		}
-	}
-
-	for _, m := range wb.Machines {
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO machine_roster (id, tenant_id, line_id, station_id, name, canonical_class, rated_capacity_uph, status)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (id) DO UPDATE SET
-				line_id = EXCLUDED.line_id,
-				station_id = EXCLUDED.station_id,
-				name = EXCLUDED.name,
-				canonical_class = EXCLUDED.canonical_class,
-				rated_capacity_uph = EXCLUDED.rated_capacity_uph,
-				status = EXCLUDED.status;
-		`, m.MachineID, wb.TenantID, m.LineID, m.StationID, m.Name, m.CanonicalClass, m.CapacityUPH, m.Status); err != nil {
-			return fmt.Errorf("failed to upsert machine %s: %w", m.MachineID, err)
-		}
-		if m.Status == "BREAKDOWN" || m.Status == "MAINTENANCE" {
-			issID := fmt.Sprintf("ISS-MACH-%s", m.MachineID)
-			title := fmt.Sprintf("Machine %s (%s) in %s status at %s", m.Name, m.CanonicalClass, m.Status, m.StationID)
-			_, _ = tx.ExecContext(ctx, `
-				INSERT INTO floor_issues (id, tenant_id, issue_type, severity, plant_id, line_id, station_id, machine_id, title, owner_id, status)
-				VALUES ($1, $2, 'maintenance', 'critical', $3, $4, $5, $6, $7, 'MAINT_LEAD', 'open')
-				ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, status = 'open';
-			`, issID, wb.TenantID, wb.FactoryName, m.LineID, m.StationID, m.MachineID, title)
-		}
-	}
-
-	styleIDByCode := make(map[string]string)
-	for _, st := range wb.Styles {
-		sID := st.StyleID
-		if sID == "" {
-			sID = "STYLE_" + st.StyleCode
-		}
-		styleIDByCode[st.StyleCode] = sID
-		meta := fmt.Sprintf(`{"fabric": %q}`, st.FabricSKU)
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO styles_master (id, tenant_id, style_code, category, fit_profile, target_sam, metadata)
-			VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
-			ON CONFLICT (id) DO UPDATE SET
-				style_code = EXCLUDED.style_code,
-				category = EXCLUDED.category,
-				fit_profile = EXCLUDED.fit_profile,
-				target_sam = EXCLUDED.target_sam,
-				metadata = EXCLUDED.metadata;
-		`, sID, wb.TenantID, st.StyleCode, st.Category, st.FitProfile, st.TargetSAMMin, meta); err != nil {
-			return fmt.Errorf("failed to upsert style %s: %w", st.StyleCode, err)
-		}
-	}
-
-	partIDByStyleAndCode := make(map[string]string)
-	for _, pt := range wb.StyleParts {
-		sID := styleIDByCode[pt.StyleCode]
-		if sID == "" {
-			sID = "STYLE_" + pt.StyleCode
-		}
-		partID := fmt.Sprintf("PART_%s_%s", pt.StyleCode, pt.PartCode)
-		partIDByStyleAndCode[pt.StyleCode+":"+pt.PartCode] = partID
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO style_parts (id, tenant_id, style_id, part_code, part_name, sub_bundle_order, material_sku)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
-			ON CONFLICT (id) DO UPDATE SET
-				part_name = EXCLUDED.part_name,
-				sub_bundle_order = EXCLUDED.sub_bundle_order,
-				material_sku = EXCLUDED.material_sku;
-		`, partID, wb.TenantID, sID, pt.PartCode, pt.PartName, pt.SubBundleOrder, pt.MaterialSKU); err != nil {
-			return fmt.Errorf("failed to upsert style part %s: %w", pt.PartCode, err)
-		}
-	}
-
-	for _, op := range wb.OperationsDAG {
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO operation_master (id, operation_name, default_sam, machine_type)
-			VALUES ($1, $2, $3, $4)
-			ON CONFLICT (id) DO UPDATE SET
-				operation_name = EXCLUDED.operation_name,
-				default_sam = EXCLUDED.default_sam,
-				machine_type = EXCLUDED.machine_type;
-		`, op.OperationID, op.OperationName, op.SAMMinutes, op.MachineType); err != nil {
-			return fmt.Errorf("failed to upsert operation %s: %w", op.OperationID, err)
-		}
-		sID := styleIDByCode[op.StyleCode]
-		srcPartID := partIDByStyleAndCode[op.StyleCode+":"+op.SourcePartCode]
-		tgtPartID := partIDByStyleAndCode[op.StyleCode+":"+op.TargetPartCode]
-		if sID != "" && srcPartID != "" && tgtPartID != "" {
-			dagID := fmt.Sprintf("DAG_%s_%s", op.StyleCode, op.OperationID)
-			_, _ = tx.ExecContext(ctx, `
-				INSERT INTO style_assembly_dag (id, tenant_id, style_id, parent_part_id, child_part_id, operation_id, machine_type_req)
-				VALUES ($1, $2, $3, $4, $5, $6, $7)
-				ON CONFLICT (id) DO UPDATE SET
-					parent_part_id = EXCLUDED.parent_part_id,
-					child_part_id = EXCLUDED.child_part_id,
-					machine_type_req = EXCLUDED.machine_type_req;
-			`, dagID, wb.TenantID, sID, srcPartID, tgtPartID, op.OperationID, op.MachineType)
-		}
-	}
-
-	for _, r := range wb.StoreRolls {
-		var resOrder interface{}
-		var resCut interface{}
-		if r.ReservedOrder != "" {
-			resOrder = r.ReservedOrder
-		}
-		if r.ReservedCutNo > 0 {
-			resCut = r.ReservedCutNo
-		}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO store_rolls (id, tenant_id, factory_sku, original_length_m, remaining_length_m, usable_width_cm, shade_band, bin_location, status, reserved_order_id, reserved_cut_no)
-			VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10)
-			ON CONFLICT (id) DO UPDATE SET
-				factory_sku = EXCLUDED.factory_sku,
-				original_length_m = EXCLUDED.original_length_m,
-				remaining_length_m = EXCLUDED.remaining_length_m,
-				usable_width_cm = EXCLUDED.usable_width_cm,
-				shade_band = EXCLUDED.shade_band,
-				bin_location = EXCLUDED.bin_location,
-				status = EXCLUDED.status,
-				reserved_order_id = EXCLUDED.reserved_order_id,
-				reserved_cut_no = EXCLUDED.reserved_cut_no;
-		`, r.RollID, wb.TenantID, r.FactorySKU, r.LengthM, r.WidthCM, r.ShadeBand, r.BinLocation, r.Status, resOrder, resCut); err != nil {
-			return fmt.Errorf("failed to upsert store roll %s: %w", r.RollID, err)
-		}
-	}
-
-	for _, wo := range wb.WorkOrders {
-		sID := styleIDByCode[wo.StyleCode]
-		if sID == "" {
-			sID = "STYLE_" + wo.StyleCode
-		}
-		supID := wo.SupervisorID
-		if supID == "" && len(wb.Workers) > 0 {
-			supID = wb.Workers[0].WorkerID
-		}
-		lineID := wo.LineID
-		if lineID == "" && len(wb.Lines) > 0 {
-			lineID = wb.Lines[0].LineID
-		}
-		status := wo.Status
-		if status == "" {
-			status = "PROPOSED"
-		}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO dynamic_work_orders (id, tenant_id, po_number, style_id, line_id, supervisor_id, ordered_qty, color_matrix, size_matrix, packaging_bulletin, shipping_spec, status)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12)
-			ON CONFLICT (id) DO UPDATE SET
-				po_number = EXCLUDED.po_number,
-				style_id = EXCLUDED.style_id,
-				line_id = EXCLUDED.line_id,
-				supervisor_id = EXCLUDED.supervisor_id,
-				ordered_qty = EXCLUDED.ordered_qty,
-				color_matrix = EXCLUDED.color_matrix,
-				size_matrix = EXCLUDED.size_matrix,
-				packaging_bulletin = EXCLUDED.packaging_bulletin,
-				shipping_spec = EXCLUDED.shipping_spec,
-				status = CASE WHEN dynamic_work_orders.status = 'LOCKED' THEN 'LOCKED' ELSE EXCLUDED.status END;
-		`, wo.WorkOrderID, wb.TenantID, wo.PONumber, sID, lineID, supID, wo.OrderedQty, defaultJSON(wo.ColorJSON), defaultJSON(wo.SizeJSON), defaultJSON(wo.PackagingJSON), defaultJSON(wo.ShippingJSON), status); err != nil {
-			return fmt.Errorf("failed to upsert work order %s: %w", wo.WorkOrderID, err)
-		}
-	}
-
-	return tx.Commit()
-}
-
-func defaultJSON(v string) string {
-	trimmed := strings.TrimSpace(v)
-	if trimmed == "" || !json.Valid([]byte(trimmed)) {
-		return "{}"
-	}
-	return trimmed
+	return errors.New("ERR_LEGACY_IMPORT_RETIRED: direct workbook publication is disabled; use /documents and /factory-setup")
 }

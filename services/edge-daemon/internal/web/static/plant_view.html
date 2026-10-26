@@ -413,7 +413,7 @@
         document.getElementById("kpi-lines").innerText = `${lines.length} / ${lines.length || 1}`;
         const grid = document.getElementById("line-grid-container");
         if (lines.length === 0) {
-          grid.innerHTML = '<div style="grid-column: 1/-1; padding: 24px; background: #fff; border-radius: 14px; border: 1px solid var(--line);">No active lines configured. Download the <strong>Pre-Boarding Template (.csv)</strong> above, fill in your factory details, and click <strong>Upload Onboarding Sheet</strong>.</div>';
+          grid.innerHTML = '<div style="grid-column: 1/-1; padding: 24px; background: #fff; border-radius: 14px; border: 1px solid var(--line);">No verified active production lines are configured. <a href="/factory-setup">Start guided factory onboarding</a>, then upload original machine and skills documents in <a href="/documents">Document Intelligence</a>.</div>';
           return;
         }
 
@@ -459,45 +459,13 @@
     }
 
     async function uploadOnboardingSheet(input) {
-      if (!input.files || input.files.length === 0) return;
-      const file = input.files[0];
-      const status = document.getElementById('document-upload-status');
-      status.style.color = '#1E40AF';
-      status.textContent = 'Loading factory sheet...';
-      try {
-        const res = await fetch('/api/v1/onboarding/upload', {
-          method: 'POST', headers: {'Content-Type': 'text/csv'}, body: await file.text()
-        });
-        if (!res.ok) throw new Error(await res.text());
-        const result = await res.json();
-        status.style.color = '#047857';
-        status.textContent = `Factory sheet saved: ${result.lines_loaded} lines, ${result.machines_loaded} machines, ${result.workers_loaded} workers, ${result.styles_loaded} styles.`;
-        await loadPlantOverview();
-        await loadFloorIssues();
-      } catch (error) {
-        status.style.color = '#B91C1C';
-        status.textContent = 'Factory sheet upload failed: ' + error.message;
-      } finally { input.value = ''; }
+      if (input) input.value = '';
+      window.location.assign('/documents');
     }
 
     async function uploadCustomerDocuments(input) {
-      if (!input.files || !input.files.length) return;
-      const status = document.getElementById('document-upload-status');
-      status.style.color = '#1E40AF';
-      status.textContent = 'Sending customer files...';
-      const form = new FormData();
-      for (const file of input.files) form.append('files', file, file.name);
-      input.value = '';
-      try {
-        const response = await fetch('/api/v1/planning/upload-docs', {method: 'POST', body: form});
-        if (!response.ok) throw new Error(await response.text());
-        const job = await response.json();
-        status.textContent = 'Files received. Reading and checking documents...';
-        await pollDocumentIntake(job.job_id, status, async () => { await loadPlantOverview(); });
-      } catch (error) {
-        status.style.color = '#B91C1C';
-        status.textContent = 'Upload failed: ' + error.message;
-      }
+      if (input) input.value = '';
+      window.location.assign('/documents');
     }
 
     async function pollDocumentIntake(jobId, statusNode, onDone) {

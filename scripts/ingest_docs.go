@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -127,10 +128,11 @@ type ProposedDocumentFact struct {
 }
 
 type RawExtractionResult struct {
-	AdditionalFacts []ProposedDocumentFact `json:"additional_facts,omitempty"`
-	Relationships   []map[string]any       `json:"relationships,omitempty"`
-	Unknowns        []string               `json:"unknowns,omitempty"`
-	FactoryProfile  *struct {
+	ValidationIssues []ExtractionValidationIssue `json:"validation_issues,omitempty"`
+	AdditionalFacts  []ProposedDocumentFact      `json:"additional_facts,omitempty"`
+	Relationships    []map[string]any            `json:"relationships,omitempty"`
+	Unknowns         []string                    `json:"unknowns,omitempty"`
+	FactoryProfile   *struct {
 		TenantID       FlexString `json:"tenant_id"`
 		FactoryName    FlexString `json:"factory_name"`
 		UnitCode       FlexString `json:"unit_code"`
@@ -145,6 +147,61 @@ type RawExtractionResult struct {
 	OperationsDAG []onboarding.OperationDAGRow `json:"operations_dag,omitempty"`
 	StoreRolls    []onboarding.StoreRollRow    `json:"store_rolls,omitempty"`
 	WorkOrders    []onboarding.WorkOrderRow    `json:"work_orders,omitempty"`
+}
+
+// ExtractionValidationIssue is proposed source evidence, not a factory fact.
+// Row is 1-based and Sheet is the worksheet ordinal for XLSX input.
+type ExtractionValidationIssue struct {
+	Code       string `json:"code"`
+	Entity     string `json:"entity"`
+	Field      string `json:"field"`
+	Raw        string `json:"raw,omitempty"`
+	Row        int    `json:"row"`
+	Sheet      int    `json:"sheet,omitempty"`
+	Resolution string `json:"resolution"`
+}
+
+func noteField(out *RawExtractionResult, code, entity, field, raw string, row, sheet int) {
+	out.ValidationIssues = append(out.ValidationIssues, ExtractionValidationIssue{
+		Code: code, Entity: entity, Field: field, Raw: raw, Row: row, Sheet: sheet,
+		Resolution: "Ask the factory for a verified value; do not fabricate a default or publish this row.",
+	})
+}
+func positiveInt(out *RawExtractionResult, entity, field, raw string, row, sheet int) (int, bool) {
+	value, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || value <= 0 {
+		code := "INVALID_NUMBER"
+		if strings.TrimSpace(raw) == "" {
+			code = "MISSING_VALUE"
+		}
+		noteField(out, code, entity, field, raw, row, sheet)
+		return 0, false
+	}
+	return value, true
+}
+func positiveDecimal(out *RawExtractionResult, entity, field, raw string, row, sheet int) (float64, bool) {
+	value, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+	if err != nil || math.IsNaN(value) || math.IsInf(value, 0) || value <= 0 {
+		code := "INVALID_NUMBER"
+		if strings.TrimSpace(raw) == "" {
+			code = "MISSING_VALUE"
+		}
+		noteField(out, code, entity, field, raw, row, sheet)
+		return 0, false
+	}
+	return value, true
+}
+func nonnegativeDecimal(out *RawExtractionResult, entity, field, raw string, row, sheet int) (float64, bool) {
+	value, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+	if err != nil || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+		code := "INVALID_NUMBER"
+		if strings.TrimSpace(raw) == "" {
+			code = "MISSING_VALUE"
+		}
+		noteField(out, code, entity, field, raw, row, sheet)
+		return 0, false
+	}
+	return value, true
 }
 
 type ProcessedManifest struct {
@@ -193,161 +250,109 @@ type IngestionConflict struct {
 	Resolution string      `json:"resolution"`
 }
 
+// The compatibility CLI is now capture-only. Direct operational workbook
+// publication was unsafe and is deliberately unavailable regardless of flags.
 func main() {
-	stagingDir := flag.String("staging-dir", "./data/staging/docs", "Path to raw customer documents")
-	outputDir := flag.String("output-dir", "./data/staging/output", "Directory to write digitized artifacts")
+	stagingDir := flag.String("staging-dir", "./data/staging/docs", "Original documents directory")
+	outputDir := flag.String("output-dir", "./data/staging/output", "Capture-only manifest directory")
 	ollamaHost := flag.String("ollama-host", "http://localhost:11434", "Base URL of Ollama")
-	modelName := flag.String("model", "qwen3-coder:30b", "Ollama model identifier")
-	applyDB := flag.Bool("apply-db", true, "Require a successful PostgreSQL commit for SUCCESS status")
-	captureFirst := flag.Bool("capture-first", false, "Opt-in: persist original source and proposed facts ONLY; no updates to factory operations; requires migration 0004")
-	forceReprocess := flag.Bool("force", false, "Rebuild cumulative state from all source files")
-	dbURL := flag.String("db-url", "postgres://agiparel_app:app_secure_runtime_pass@localhost:5432/agiparel_dev?sslmode=disable", "PostgreSQL connection string")
+	modelName := flag.String("model", "qwen3-coder:30b", "Ollama model")
+	applyDB := flag.Bool("apply-db", true, "PostgreSQL capture must be enabled")
+	captureFirst := flag.Bool("capture-first", true, "Required: preserve source and proposed facts only")
+	forceReprocess := flag.Bool("force", false, "Re-extract all files without deleting previous captures")
+	tenantID := flag.String("tenant-id", "", "Trusted server-side tenant, independent of source content")
+	dbURL := flag.String("db-url", os.Getenv("DATABASE_URL"), "PostgreSQL connection string")
 	flag.Parse()
-
-	if *captureFirst && !*applyDB {
-		log.Fatal("-capture-first requires -apply-db=true")
+	if !*captureFirst || !*applyDB {
+		log.Fatal("[FATAL] Direct operational import and artifact-only mode have been retired. Only -capture-first=true -apply-db=true are supported")
 	}
-	var db *sql.DB
-	if *applyDB {
-		var err error
-		db, err = sql.Open("pgx", *dbURL)
-		if err != nil {
-			log.Fatalf("[FATAL] Database initialization: %v", err)
-		}
-		defer db.Close()
-		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-		err = db.PingContext(ctx)
-		cancel()
-		if err != nil {
-			log.Fatalf("[FATAL] PostgreSQL unavailable: %v. Fix Compose first or explicitly run -apply-db=false for offline artifacts", err)
-		}
+	tenant := strings.TrimSpace(*tenantID)
+	if tenant == "" {
+		tenant = strings.TrimSpace(os.Getenv("AGIPAREL_OPERATOR_TENANT"))
 	}
-
-	if err := os.MkdirAll(*outputDir, 0755); err != nil {
+	if tenant == "" {
+		log.Fatal("[FATAL] Tenant must be supplied by trusted environment AGIPAREL_OPERATOR_TENANT or -tenant-id; never trust a document tenant value")
+	}
+	if strings.TrimSpace(*dbURL) == "" {
+		log.Fatal("[FATAL] DATABASE_URL or -db-url is required")
+	}
+	db, err := sql.Open("pgx", *dbURL)
+	if err != nil {
+		log.Fatalf("[FATAL] Open database: %v", err)
+	}
+	defer db.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	err = db.PingContext(ctx)
+	cancel()
+	if err != nil {
+		log.Fatalf("[FATAL] PostgreSQL unavailable: %v", err)
+	}
+	if err = os.MkdirAll(*outputDir, 0700); err != nil {
 		log.Fatal(err)
 	}
 	manifestPath := filepath.Join(*outputDir, ".processed_manifest.json")
-	manifest := loadManifest(manifestPath)
-	masterWorkbook := loadExistingWorkbook(filepath.Join(*outputDir, "factory_workbook.json"))
-	if *forceReprocess {
-		manifest = &ProcessedManifest{Files: make(map[string]FileRecord)}
-		masterWorkbook = newWorkbook()
+	manifest, err := loadManifest(manifestPath)
+	if err != nil {
+		log.Fatalf("[FATAL] Cannot read manifest: %v", err)
 	}
-
 	files, err := os.ReadDir(*stagingDir)
 	if err != nil {
-		log.Fatalf("[FATAL] Staging docs unreadable: %v", err)
+		log.Fatalf("[FATAL] Source directory: %v", err)
 	}
 	client := &http.Client{Timeout: 180 * time.Second}
-	conflicts := []IngestionConflict{}
-	conflictSeen := map[string]bool{}
-	processed := []string{}
-	failureCount := 0
-
+	failures, successes := 0, 0
 	for _, file := range files {
 		if file.IsDir() || strings.HasPrefix(file.Name(), ".") {
 			continue
 		}
 		path := filepath.Join(*stagingDir, file.Name())
-		hash, hashErr := calculateSHA256(path)
-		if hashErr != nil {
-			log.Printf("[ERROR] Hashing %s: %v", file.Name(), hashErr)
-			failureCount++
+		hash, err := calculateSHA256(path)
+		if err != nil {
+			log.Printf("[ERROR] Source hash %s: %v", file.Name(), err)
+			failures++
 			continue
 		}
 		if !*forceReprocess {
-			if rec, ok := manifest.Files[file.Name()]; ok && rec.SHA256 == hash && ((rec.Status == "CAPTURED" && *captureFirst) || (!*captureFirst && ((rec.Status == "SUCCESS" && rec.DBApplied) || (rec.Status == "ARTIFACT_ONLY" && !*applyDB)))) {
-				log.Printf("[SKIP] Unchanged %s", file.Name())
-				processed = append(processed, file.Name())
+			if old, found := manifest.Files[file.Name()]; found && old.SHA256 == hash && old.Status == "CAPTURED" {
+				log.Printf("[SKIP] Source already captured: %s", file.Name())
+				successes++
 				continue
 			}
 		}
-
-		res, mode, extractErr := processFileHybrid(client, *ollamaHost, *modelName, path)
-		if extractErr != nil {
-			log.Printf("[ERROR] Extracting %s: %v", file.Name(), extractErr)
+		res, mode, err := processFileHybrid(client, *ollamaHost, *modelName, path)
+		if err != nil {
 			manifest.Files[file.Name()] = FileRecord{SHA256: hash, ProcessedAt: time.Now().UnixMilli(), Mode: mode, Status: "FAILED"}
-			saveManifest(manifestPath, manifest)
-			failureCount++
+			if e := saveManifest(manifestPath, manifest); e != nil {
+				log.Fatalf("[FATAL] Manifest not durable: %v", e)
+			}
+			log.Printf("[ERROR] Extraction %s: %v", file.Name(), err)
+			failures++
 			continue
 		}
-
-		if *captureFirst {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			_, captureErr := documentcapture.Capture(ctx, db, documentcapture.Record{
-				TenantID: masterWorkbook.TenantID, Filename: file.Name(), Path: path, Mode: mode, Extraction: res,
-			})
-			cancel()
-			if captureErr != nil {
-				log.Printf("[ERROR] Document capture failed on %s: %v", file.Name(), captureErr)
-				failureCount++
-				continue
+		// An untrusted buyer or factory document cannot switch the tenant.
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		_, err = documentcapture.Capture(ctx, db, documentcapture.Record{TenantID: tenant, Filename: file.Name(), Path: path, Mode: mode, Extraction: res})
+		cancel()
+		if err != nil {
+			manifest.Files[file.Name()] = FileRecord{SHA256: hash, ProcessedAt: time.Now().UnixMilli(), Mode: mode, Status: "FAILED"}
+			if e := saveManifest(manifestPath, manifest); e != nil {
+				log.Fatalf("[FATAL] Manifest not durable: %v", e)
 			}
-			// Intake is intentionally separate from approval and operational write-back.
-			// Do not merge proposed facts into running factory stock or schedules.
-			manifest.Files[file.Name()] = FileRecord{SHA256: hash, ProcessedAt: time.Now().UnixMilli(), Mode: mode, Status: "CAPTURED", DBApplied: false}
-			saveManifest(manifestPath, manifest)
-			processed = append(processed, file.Name())
-			log.Printf("[CAPTURED] %s: original and proposed facts committed; no operational changes", file.Name())
+			log.Printf("[ERROR] Capture %s: %v", file.Name(), err)
+			failures++
 			continue
 		}
-
-		these := mergeIntoWorkbook(masterWorkbook, res)
-		for i := range these {
-			these[i].File = file.Name()
-			key := fmt.Sprintf("%s/%s/%s/%v", file.Name(), these[i].Entity, these[i].Field, these[i].Incoming)
-			if !conflictSeen[key] {
-				conflicts = append(conflicts, these[i])
-				conflictSeen[key] = true
-			}
+		manifest.Files[file.Name()] = FileRecord{SHA256: hash, ProcessedAt: time.Now().UnixMilli(), Mode: mode, Status: "CAPTURED", DBApplied: false}
+		if err = saveManifest(manifestPath, manifest); err != nil {
+			log.Fatalf("[FATAL] Source captured in database but manifest failed: %v; safe to retry idempotently", err)
 		}
-
-		// INSTANT INCREMENTAL FLUSH: Write onboarding JSON, CSV, conflicts, and DB state immediately after each file
-		if err := saveArtifacts(*outputDir, masterWorkbook); err != nil {
-			log.Printf("[ERROR] Saving incremental workbook after %s: %v", file.Name(), err)
-			failureCount++
-			continue
-		}
-		_ = writeJSON(filepath.Join(*outputDir, "conflicts.json"), conflicts)
-
-		dbCommitted := false
-		if db != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-			dbErr := onboarding.ApplyToDatabase(ctx, db, masterWorkbook)
-			cancel()
-			if dbErr != nil {
-				log.Printf("[ERROR] PostgreSQL incremental sync failed on %s: %v", file.Name(), dbErr)
-				manifest.Files[file.Name()] = FileRecord{SHA256: hash, ProcessedAt: time.Now().UnixMilli(), Mode: mode, Status: "DB_FAILED", DBApplied: false, Conflicts: len(these)}
-				saveManifest(manifestPath, manifest)
-				failureCount++
-				continue
-			}
-			manifest.Files[file.Name()] = FileRecord{SHA256: hash, ProcessedAt: time.Now().UnixMilli(), Mode: mode, Status: "SUCCESS", DBApplied: true, Conflicts: len(these)}
-			ctxDoc, cancelDoc := context.WithTimeout(context.Background(), 10*time.Second)
-			docErr := persistDocuments(ctxDoc, db, masterWorkbook.TenantID, manifest, []string{file.Name()}, conflicts)
-			cancelDoc()
-			if docErr != nil && *captureFirst {
-				log.Printf("[ERROR] Document metadata persistence failed: %v", docErr)
-				failureCount++
-				continue
-			}
-
-			dbCommitted = true
-		} else {
-			manifest.Files[file.Name()] = FileRecord{SHA256: hash, ProcessedAt: time.Now().UnixMilli(), Mode: mode, Status: "ARTIFACT_ONLY", DBApplied: false, Conflicts: len(these)}
-		}
-
-		saveManifest(manifestPath, manifest)
-		processed = append(processed, file.Name())
-		log.Printf("[CHECKPOINT] %s via %s flushed: %d ops, %d machines, %d workers, %d rolls, %d POs (db=%t)",
-			file.Name(), mode, len(res.OperationsDAG), len(res.Machines), len(res.Workers), len(res.StoreRolls), len(res.WorkOrders), dbCommitted)
+		log.Printf("[CAPTURED] %s, %d unresolved validation issue(s), proposed evidence only; no factory ledgers changed", file.Name(), len(res.ValidationIssues))
+		successes++
 	}
-
-	if failureCount > 0 {
-		log.Fatalf("[FATAL] %d documents failed extraction; valid incremental checkpoints were preserved", failureCount)
+	if failures > 0 {
+		log.Fatalf("[FATAL] %d source(s) failed; %d completed document transactions retained", failures, successes)
 	}
-	log.Printf("[COMPLETE] %d files, %d operations, %d machines, %d workers, %d rolls, %d orders, %d conflicts, db_applied=%t",
-		len(processed), len(masterWorkbook.OperationsDAG), len(masterWorkbook.Machines), len(masterWorkbook.Workers), len(masterWorkbook.StoreRolls), len(masterWorkbook.WorkOrders), len(conflicts), db != nil)
+	log.Printf("[COMPLETE] %d immutable source captures; no operational changes", successes)
 }
 
 func writeJSON(path string, v any) error {
@@ -363,12 +368,18 @@ func processFileHybrid(client *http.Client, host, model, filePath string) (*RawE
 	switch ext {
 	case ".csv":
 		res, err := parseDeterministicCSV(filePath)
-		if err == nil && hasExtractedEntities(res) {
+		if err != nil {
+			return nil, "DETERMINISTIC_CSV", fmt.Errorf("invalid CSV; preserve and review original: %w", err)
+		}
+		if hasExtractedEntities(res) || len(res.ValidationIssues) > 0 {
 			return res, "DETERMINISTIC_CSV", nil
 		}
 	case ".xlsx":
 		res, err := parseDeterministicXLSX(filePath)
-		if err == nil && hasExtractedEntities(res) {
+		if err != nil {
+			return nil, "DETERMINISTIC_XLSX", fmt.Errorf("invalid XLSX; preserve and review original: %w", err)
+		}
+		if hasExtractedEntities(res) || len(res.ValidationIssues) > 0 {
 			return res, "DETERMINISTIC_XLSX", nil
 		}
 	}
@@ -399,7 +410,7 @@ func parseDeterministicCSV(path string) (*RawExtractionResult, error) {
 		return nil, err
 	}
 	res := &RawExtractionResult{}
-	parseTabularRows(rows, res)
+	parseTabularRowsAt(rows, res, 0)
 	return res, nil
 }
 
@@ -409,13 +420,14 @@ func parseDeterministicXLSX(path string) (*RawExtractionResult, error) {
 		return nil, err
 	}
 	res := &RawExtractionResult{}
-	for _, rows := range sheets {
-		parseTabularRows(rows, res)
+	for i, rows := range sheets {
+		parseTabularRowsAt(rows, res, i+1)
 	}
 	return res, nil
 }
 
-func parseTabularRows(rows [][]string, out *RawExtractionResult) {
+func parseTabularRows(rows [][]string, out *RawExtractionResult) { parseTabularRowsAt(rows, out, 0) }
+func parseTabularRowsAt(rows [][]string, out *RawExtractionResult, sheet int) {
 	attendanceDate := ""
 	header := map[string]int{}
 	kind := ""
@@ -428,7 +440,8 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 	seenParts := map[string]bool{}
 	nextPartOrder := 1
 
-	for _, raw := range rows {
+	for index, raw := range rows {
+		rowNum := index + 1
 		row := cleanRow(raw)
 		if len(row) == 0 {
 			continue
@@ -454,7 +467,10 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 			po = valueAfterColon(row[0])
 		}
 		if strings.HasPrefix(strings.ToUpper(row[0]), "TOTAL ORDER QTY") {
-			legacyQty, _ = strconv.Atoi(firstToken(valueAfterColon(row[0])))
+			rawQty := firstToken(valueAfterColon(row[0]))
+			if q, ok := positiveInt(out, "work_order", "total_order_qty", rawQty, rowNum, sheet); ok {
+				legacyQty = q
+			}
 		}
 
 		normalized := map[string]int{}
@@ -504,12 +520,12 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 
 		switch kind {
 		case "operations":
-			seq, e := strconv.Atoi(get("SEQ"))
-			if e != nil || seq <= 0 {
+			seq, ok := positiveInt(out, "operation", "seq", get("SEQ"), rowNum, sheet)
+			if !ok {
 				continue
 			}
-			sam, e := strconv.ParseFloat(get("SAMMINUTES"), 64)
-			if e != nil || sam <= 0 {
+			sam, ok := positiveDecimal(out, "operation", "sam_minutes", get("SAMMINUTES"), rowNum, sheet)
+			if !ok {
 				continue
 			}
 			code := style
@@ -542,12 +558,13 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 			}
 		case "machines":
 			id := get("MACHINEID")
-			if !strings.HasPrefix(strings.ToUpper(id), "M-") {
+			if strings.TrimSpace(id) == "" {
+				noteField(out, "MISSING_VALUE", "machine", "machine_id", id, rowNum, sheet)
 				continue
 			}
-			capacity, _ := strconv.Atoi(get("RATEDUPH"))
-			if capacity <= 0 {
-				capacity = 100
+			capacity, ok := positiveInt(out, "machine", "rated_uph", get("RATEDUPH"), rowNum, sheet)
+			if !ok {
+				continue
 			}
 			out.Machines = append(out.Machines, onboarding.MachineRow{
 				MachineID:      id,
@@ -563,7 +580,10 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 			if !strings.HasPrefix(strings.ToUpper(id), "W-") {
 				continue
 			}
-			rate, _ := strconv.ParseFloat(get("HOURLYRATEINR"), 64)
+			rate, ok := nonnegativeDecimal(out, "worker", "hourly_rate_inr", get("HOURLYRATEINR"), rowNum, sheet)
+			if !ok {
+				continue
+			}
 			out.Workers = append(out.Workers, onboarding.WorkerRow{
 				WorkerID:          id,
 				EmployeeCode:      get("EMPLOYEECODE"),
@@ -581,9 +601,23 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 			if !strings.HasPrefix(strings.ToUpper(id), "ROLL-") {
 				continue
 			}
-			length, _ := strconv.ParseFloat(get("MEASUREDLM"), 64)
-			width, _ := strconv.ParseFloat(get("USABLEWIDTHCM"), 64)
-			cut, _ := strconv.Atoi(get("RESERVEDCUT"))
+			length, ok := positiveDecimal(out, "roll", "measured_lm", get("MEASUREDLM"), rowNum, sheet)
+			if !ok {
+				continue
+			}
+			width, ok := positiveDecimal(out, "roll", "usable_width_cm", get("USABLEWIDTHCM"), rowNum, sheet)
+			if !ok {
+				continue
+			}
+			cut := 0
+			if v := get("RESERVEDCUT"); v != "" {
+				n, e := strconv.Atoi(v)
+				if e != nil || n < 0 {
+					noteField(out, "INVALID_NUMBER", "roll", "reserved_cut", v, rowNum, sheet)
+					continue
+				}
+				cut = n
+			}
 			sku := firstToken(get("FACTORYSKUDESCRIPTION"))
 			out.StoreRolls = append(out.StoreRolls, onboarding.StoreRollRow{
 				RollID:        id,
@@ -598,8 +632,12 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 			})
 		case "purchaseorder":
 			ref := get("PURCHASEORDER")
-			qty, _ := strconv.Atoi(get("TOTALORDERQTY"))
-			if ref == "" || qty <= 0 {
+			qty, ok := positiveInt(out, "work_order", "total_order_qty", get("TOTALORDERQTY"), rowNum, sheet)
+			if !ok {
+				continue
+			}
+			if ref == "" {
+				noteField(out, "MISSING_VALUE", "work_order", "purchase_order", ref, rowNum, sheet)
 				continue
 			}
 			po = ref
@@ -613,29 +651,27 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 				OrderedQty:   qty,
 				Status:       "PROPOSED",
 			})
-			target, _ := strconv.Atoi(get("TARGETDAILYOUTPUT"))
-			if target > 0 {
-				out.Lines = append(out.Lines, onboarding.LineRow{
-					LineID:              get("FACTORYLINE"),
-					DisplayName:         get("FACTORYLINE"),
-					StationsCount:       14,
-					TargetDailyCapacity: target,
-					DwellFloorPct:       0.40,
+			// A PO's target daily output does not establish station count or a
+			// machine-capable line. Preserve the explicitly stated target as evidence.
+			if target := get("TARGETDAILYOUTPUT"); target != "" {
+				if n, ok := positiveInt(out, "work_order", "target_daily_output", target, rowNum, sheet); ok {
+					out.AdditionalFacts = append(out.AdditionalFacts, ProposedDocumentFact{
+						Field: "target_daily_output", Value: n, Unit: "pieces/day", SourcePage: fmt.Sprintf("sheet %d row %d", sheet, rowNum), Status: "PROPOSED",
+					})
+				}
+			}
+			// Do not create a style SAM/fit from a buyer PO alone.
+			if style != "" {
+				out.AdditionalFacts = append(out.AdditionalFacts, ProposedDocumentFact{
+					Field: "style_code", Value: style, SourcePage: fmt.Sprintf("sheet %d row %d", sheet, rowNum), Status: "PROPOSED",
 				})
 			}
-			out.Styles = append(out.Styles, onboarding.StyleRow{
-				StyleID:      "STYLE_" + style,
-				StyleCode:    style,
-				Category:     get("CATEGORY"),
-				FitProfile:   "REGULAR_FIT",
-				TargetSAMMin: 14.85,
-			})
 		case "skus":
 			if get("PONUMBER") == "" {
 				continue
 			}
-			qty, _ := strconv.Atoi(get("ORDERQTY"))
-			if qty <= 0 {
+			qty, ok := positiveInt(out, "sku", "order_qty", get("ORDERQTY"), rowNum, sheet)
+			if !ok {
 				continue
 			}
 			colors[get("COLORCODE")] += qty
@@ -677,15 +713,8 @@ func parseTabularRows(rows [][]string, out *RawExtractionResult) {
 			Status:      "PROPOSED",
 		})
 	}
-	if style != "" && len(out.OperationsDAG) > 0 && len(out.Styles) == 0 {
-		out.Styles = append(out.Styles, onboarding.StyleRow{
-			StyleID:      "STYLE_" + style,
-			StyleCode:    style,
-			Category:     "WOVEN_TROUSER",
-			FitProfile:   "REGULAR_FIT",
-			TargetSAMMin: 14.85,
-		})
-	}
+	// Operation-level SAM does not imply a style's total SAM or garment category.
+	// The style remains a provisional reference until an explicit tech pack is reviewed.
 }
 
 var partPattern = regexp.MustCompile(`^\s*([0-9A-Za-z_-]+)\s*(?:\(([^)]+)\))?`)
@@ -758,8 +787,13 @@ func extractSheetsFromXLSX(path string) ([][][]string, error) {
 					} `xml:"r"`
 				} `xml:"si"`
 			}
-			_ = xml.NewDecoder(rc).Decode(&sst)
-			rc.Close()
+			if err = xml.NewDecoder(rc).Decode(&sst); err != nil {
+				_ = rc.Close()
+				return nil, fmt.Errorf("malformed shared strings: %w", err)
+			}
+			if err = rc.Close(); err != nil {
+				return nil, err
+			}
 			for _, item := range sst.SI {
 				if item.T != "" {
 					sharedStrings = append(sharedStrings, item.T)
@@ -780,7 +814,7 @@ func extractSheetsFromXLSX(path string) ([][][]string, error) {
 		if strings.HasPrefix(f.Name, "xl/worksheets/sheet") && strings.HasSuffix(f.Name, ".xml") {
 			rc, err := f.Open()
 			if err != nil {
-				continue
+				return nil, fmt.Errorf("cannot read worksheet %s: %w", f.Name, err)
 			}
 			var data struct {
 				Row []struct {
@@ -794,8 +828,13 @@ func extractSheetsFromXLSX(path string) ([][][]string, error) {
 					} `xml:"c"`
 				} `xml:"sheetData>row"`
 			}
-			_ = xml.NewDecoder(rc).Decode(&data)
-			rc.Close()
+			if err = xml.NewDecoder(rc).Decode(&data); err != nil {
+				_ = rc.Close()
+				return nil, fmt.Errorf("malformed worksheet %s: %w", f.Name, err)
+			}
+			if err = rc.Close(); err != nil {
+				return nil, err
+			}
 
 			var sheetRows [][]string
 			for _, row := range data.Row {
@@ -828,6 +867,9 @@ func extractSheetsFromXLSX(path string) ([][][]string, error) {
 			}
 			allSheets = append(allSheets, sheetRows)
 		}
+	}
+	if len(allSheets) == 0 {
+		return nil, fmt.Errorf("XLSX has no readable worksheets")
 	}
 	return allSheets, nil
 }
@@ -1172,18 +1214,61 @@ func calculateSHA256(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func loadManifest(path string) *ProcessedManifest {
+func loadManifest(path string) (*ProcessedManifest, error) {
 	m := &ProcessedManifest{Files: make(map[string]FileRecord)}
-	if data, err := os.ReadFile(path); err == nil {
-		_ = json.Unmarshal(data, m)
+	raw, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return m, nil
 	}
-	return m
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(raw, m); err != nil {
+		return nil, fmt.Errorf("invalid existing manifest: %w", err)
+	}
+	if m.Files == nil {
+		m.Files = make(map[string]FileRecord)
+	}
+	return m, nil
 }
 
-func saveManifest(path string, m *ProcessedManifest) {
-	if data, err := json.MarshalIndent(m, "", "  "); err == nil {
-		_ = os.WriteFile(path, data, 0644)
+// saveManifest writes an atomic, synced replacement. Database captures are
+// idempotent; if manifest update fails, retrying cannot create another capture.
+func saveManifest(path string, m *ProcessedManifest) error {
+	raw, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return err
 	}
+	f, err := os.CreateTemp(filepath.Dir(path), ".agiparel-manifest-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(f.Name())
+	if err = f.Chmod(0600); err != nil {
+		f.Close()
+		return err
+	}
+	if _, err = f.Write(raw); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Close(); err != nil {
+		return err
+	}
+	if err = os.Rename(f.Name(), path); err != nil {
+		return err
+	}
+	dir, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return err
+	}
+	err = dir.Sync()
+	_ = dir.Close()
+	return err
 }
 
 func loadExistingWorkbook(path string) *onboarding.FactoryWorkbook {

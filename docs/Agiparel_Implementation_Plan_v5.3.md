@@ -26,3 +26,8 @@
 10. Go unit/HTTP tests, optional real PostgreSQL integration, Go build/vet, and manual website smoke testing pass on the user's Mac.
 
 **Explicit limitations:** No NLP agent dialogue in B1; next-question logic is deterministic. No OCR of image PDFs, no reliable classification of arbitrary file structures, no canonical machine/worker/inventory/cost normalization and no buyer-order auto-materialization in this release. Opening-stock confirmation here is *human observation*, not a ledger balance. The public demo and weak `dev`/`1212` barrier remain unsuitable for sensitive employee data or production approval.
+
+
+## Gate 06.5-B4 implemented increment — reference catalog (2026-10-26)
+
+After B3 human-reviewed conflict decisions, factories can publish source-backed **reference-only** machine identifiers/types, worker-skill observations and explicitly unit-qualified rates into an append-only per-tenant catalog (migration `0013`). Withdrawal is a new version, never an overwrite. Material opening-stock candidates remain excluded until Batch 07 physical stores verification and ledger authority. No employee authorizations, machine capabilities, approved costing, production release or buyer order data are changed by B4. UI: `/factory-setup#factory-references`. Next priority is real-document, source-linked canonical factory identities and approved buyer-document handoff (06.5-C) before operational stores.

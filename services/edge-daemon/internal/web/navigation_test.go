@@ -46,8 +46,8 @@ func TestGeneralUploadsUseCentralDocumentLibrary(t *testing.T) {
 		if strings.Contains(body, `onchange="uploadCustomerDocuments(this)"`) {
 			t.Errorf("%s still exposes its old general uploader", page)
 		}
-		if page == "onboarding.html" && (!strings.Contains(body, `Advanced · legacy planning import`) || !strings.Contains(body, `<details`)) {
-			t.Errorf("%s must confine legacy planning import to advanced details", page)
+		if page == "onboarding.html" && !strings.Contains(body, "The old CSV-to-factory importer has been retired.") {
+			t.Errorf("%s must clearly state that the legacy importer is retired", page)
 		}
 	}
 	// Specialist CSV inputs are not removed before Gate 06.5-C normalizes PDFs.

@@ -3,11 +3,9 @@ package main
 
 import (
 	"context"
-	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -30,7 +28,6 @@ import (
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/docscribe"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/logicweaver"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/onboarding"
-	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/planning"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/sewing"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/stores"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -204,6 +201,9 @@ func main() {
 	mux.HandleFunc("/api/v1/factory-onboarding/proposed-register", server.handleFactoryRegisterProposals)
 	mux.HandleFunc("/api/v1/factory-onboarding/draft-masters", server.handleFactoryDraftMasters)
 	mux.HandleFunc("/api/v1/factory-onboarding/draft-masters/review", server.handleFactoryDraftReview)
+	// Gate 06.5-B4: versioned, explicitly verified factory reference catalog.
+	mux.HandleFunc("/api/v1/factory-onboarding/reference-masters", server.handleFactoryReferenceMasters)
+	mux.HandleFunc("/api/v1/factory-onboarding/reference-masters/revise", server.handleFactoryReferenceRevision)
 	mux.HandleFunc("/api/v1/document-triage", server.handleDocumentTriage)
 	mux.HandleFunc("/documents", server.handleDocumentWorkspace)
 	mux.HandleFunc("/api/v1/documents", server.handleDocuments)
@@ -1120,104 +1120,18 @@ func (s *EdgeServer) handleOnboardingTemplate(w http.ResponseWriter, r *http.Req
 	_, _ = w.Write([]byte(onboarding.GenerateTemplateCSV()))
 }
 
+// handleOnboardingUpload is deliberately retired. The old CSV importer wrote directly
+// into machine, worker, store and work-order tables and could assign invented values.
+// Use the tenant-scoped /documents evidence pipeline and reviewed factory references.
 func (s *EdgeServer) handleOnboardingUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", "POST")
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	var csvReader io.Reader = r.Body
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
-		if err := r.ParseMultipartForm(10 << 20); err != nil {
-			http.Error(w, "Failed to parse multipart form: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-		file, _, err := r.FormFile("workbook")
-		if err != nil {
-			http.Error(w, "Missing 'workbook' file field: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-		defer file.Close()
-		csvReader = file
-	}
-
-	wb, err := onboarding.ParseWorkbookCSV(csvReader)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if err := onboarding.ApplyToDatabase(r.Context(), s.db, wb); err != nil {
-		http.Error(w, "Database provisioning failed: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Hydrate in-memory StoresEngine from workbook rolls
-	for _, r := range wb.StoreRolls {
-		s.stores.RegisterRoll(stores.RollStock{
-			RollID:          r.RollID,
-			OriginalLengthM: r.LengthM,
-			RemainingLength: r.LengthM,
-			ReservedOrderID: r.ReservedOrder,
-			ReservedCutNo:   r.ReservedCutNo,
-			Status:          r.Status,
-		})
-	}
-
-	// Hydrate in-memory AttachmentEngine DAG rules from workbook operations
-	for _, op := range wb.OperationsDAG {
-		if op.SourcePartCode != "" && op.TargetPartCode != "" {
-			s.attachment.RegisterRule(op.StyleCode, op.SourcePartCode, op.TargetPartCode)
-		}
-	}
-
-	pilotLine := "Line 01"
-	targetQty := 0
-	if len(wb.Lines) > 0 {
-		pilotLine = wb.Lines[0].LineID
-		targetQty = wb.Lines[0].TargetDailyCapacity
-	}
-	styleCode := ""
-	if len(wb.Styles) > 0 {
-		styleCode = wb.Styles[0].StyleCode
-	}
-	poNumber := ""
-	if len(wb.WorkOrders) > 0 {
-		poNumber = wb.WorkOrders[0].PONumber
-		if wb.WorkOrders[0].OrderedQty > 0 {
-			targetQty = wb.WorkOrders[0].OrderedQty
-		}
-	}
-
-	s.cfgMu.Lock()
-	s.activeConfig = map[string]interface{}{
-		"tenant_id":     wb.TenantID,
-		"plant_name":    wb.FactoryName,
-		"unit_code":     wb.UnitCode,
-		"pilot_line":    pilotLine,
-		"style_code":    styleCode,
-		"po_number":     poNumber,
-		"target_qty":    targetQty,
-		"lines":         wb.Lines,
-		"configured_at": time.Now().UTC().UnixMilli(),
-	}
-	s.cfgMu.Unlock()
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":          "ONBOARDED",
-		"tenant_id":       wb.TenantID,
-		"factory_name":    wb.FactoryName,
-		"unit_code":       wb.UnitCode,
-		"lines_loaded":    len(wb.Lines),
-		"machines_loaded": len(wb.Machines),
-		"workers_loaded":  len(wb.Workers),
-		"styles_loaded":   len(wb.Styles),
-		"parts_loaded":    len(wb.StyleParts),
-		"dag_ops_loaded":  len(wb.OperationsDAG),
-		"rolls_loaded":    len(wb.StoreRolls),
-		"orders_loaded":   len(wb.WorkOrders),
-	})
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Link", "</documents>; rel=alternate")
+	http.Error(w, "Legacy direct factory import retired: upload originals at /documents and review candidates in /factory-setup. No operational records were changed.", http.StatusGone)
 }
 
 func (s *EdgeServer) handlePlantOverview(w http.ResponseWriter, r *http.Request) {
@@ -1325,12 +1239,12 @@ func intakeFailureSummary(output string) string {
 	return "See container logs for the specific extraction error."
 }
 
+// Legacy cumulative-workbook planning is not authoritative. The new material
+// scenario workflow uses staged buyer evidence and explicit hold states.
 func (s *EdgeServer) handlePlanningAssessment(w http.ResponseWriter, r *http.Request) {
-	po := r.URL.Query().Get("po")
-	wb := s.loadCumulativeWorkbook()
-	assessment := planning.AssessWorkbook(wb, po)
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(assessment)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Link", "</material-planning>; rel=alternate")
+	http.Error(w, "Legacy workbook assessment is retired. Use /order-intake and /material-planning for proposed, source-backed planning.", http.StatusGone)
 }
 
 func (s *EdgeServer) handlePlanningQuickFix(w http.ResponseWriter, r *http.Request) {
@@ -1343,96 +1257,17 @@ func (s *EdgeServer) handlePlanningQuickFix(w http.ResponseWriter, r *http.Reque
 	http.Error(w, "Cannot automatically change physical inventory, attendance or machine status. Upload a verified update, then reassess.", http.StatusConflict)
 }
 
+// Do not permit a legacy workbook or PIN to release an unverified plan.
+// A separate approved, source-backed planning release will be implemented
+// after factory and order-domain validation; the v6 proposed HOLD is unchanged.
 func (s *EdgeServer) handlePlanningApprove(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", "POST")
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	var req struct {
-		PONumber   string `json:"po_number"`
-		LineID     string `json:"line_id"`
-		OrderedQty int    `json:"ordered_qty"`
-		PIN        string `json:"pin"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid plan", http.StatusBadRequest)
-		return
-	}
-	pin := os.Getenv("MANAGER_PIN")
-	if len(pin) != 4 {
-		http.Error(w, "Set a 4-digit MANAGER_PIN secret on the server before approving plans", http.StatusServiceUnavailable)
-		return
-	}
-	if len(req.PIN) != 4 || subtle.ConstantTimeCompare([]byte(req.PIN), []byte(pin)) != 1 {
-		http.Error(w, "Invalid manager PIN", http.StatusUnauthorized)
-		return
-	}
-	if s.db == nil {
-		http.Error(w, "Database required to lock plans", http.StatusServiceUnavailable)
-		return
-	}
-	wb := s.loadCumulativeWorkbook()
-	assessment := planning.AssessWorkbook(wb, req.PONumber)
-	if assessment.PONumber == "" || assessment.OverallStatus != planning.LightGreen {
-		http.Error(w, "Plan is not ready; fix the highlighted problems", http.StatusConflict)
-		return
-	}
-	if b, err := os.ReadFile("./data/staging/output/conflicts.json"); err == nil {
-		var conflicts []json.RawMessage
-		if json.Unmarshal(b, &conflicts) != nil || len(conflicts) > 0 {
-			http.Error(w, "Review and resolve document conflicts before locking the plan", http.StatusConflict)
-			return
-		}
-	}
-	if req.OrderedQty <= 0 || req.OrderedQty != assessment.OrderedQty || strings.TrimSpace(req.PONumber) == "" {
-		http.Error(w, "Plan quantity differs from intake; reload the assessment", http.StatusConflict)
-		return
-	}
-	if req.LineID == "" {
-		http.Error(w, "Line must be selected", http.StatusBadRequest)
-		return
-	}
-	cutTarget, err := cutting.CalculateCutTarget(req.PONumber, "ALL", req.OrderedQty)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
-	defer cancel()
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	defer tx.Rollback()
-	if _, err = tx.ExecContext(ctx, "SELECT set_config('app.current_tenant_id',$1,true)", wb.TenantID); err != nil {
-		http.Error(w, "Tenant scope failed", http.StatusInternalServerError)
-		return
-	}
-	result, err := tx.ExecContext(ctx, `UPDATE dynamic_work_orders SET status='LOCKED', line_id=$1 WHERE tenant_id=$2 AND po_number=$3 AND ordered_qty=$4 AND status IN ('PROPOSED','PLANNED')`, req.LineID, wb.TenantID, req.PONumber, req.OrderedQty)
-	if err != nil {
-		http.Error(w, "Database plan-lock failed", http.StatusInternalServerError)
-		return
-	}
-	affected, err := result.RowsAffected()
-	if err != nil || affected != 1 {
-		http.Error(w, "Expected one proposed plan to lock; none or several matched", http.StatusConflict)
-		return
-	}
-	if err = tx.Commit(); err != nil {
-		http.Error(w, "Plan transaction failed", http.StatusInternalServerError)
-		return
-	}
-	ev, ledgerErr := s.ledger.AppendEvent("PLANNING_DESK", "MANAGER_PIN", "PLAN_LOCKED", fmt.Sprintf(`{"po":%q,"cut_qty":%d}`, req.PONumber, cutTarget.TargetCutVolume))
-	if ledgerErr != nil {
-		log.Printf("[ERROR] Plan locked in DB, ledger event failed: %v", ledgerErr)
-	} else if evBytes, err := json.Marshal(ev); err == nil {
-		if _, err = s.wal.Append("LEDGER_EVENT", evBytes); err != nil {
-			log.Printf("[ERROR] Ledger WAL write after DB lock: %v", err)
-		}
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "LOCKED", "po_number": req.PONumber, "line_id": req.LineID, "target_cut_qty": cutTarget.TargetCutVolume, "audit_recorded": ledgerErr == nil})
+	w.Header().Set("Cache-Control", "no-store")
+	http.Error(w, "Legacy plan locking is disabled: no verified factory capacity or material authority is established by uploaded documents.", http.StatusConflict)
 }
 
 func (s *EdgeServer) handlePlanningEmail(w http.ResponseWriter, r *http.Request) {
