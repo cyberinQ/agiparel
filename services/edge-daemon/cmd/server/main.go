@@ -227,7 +227,13 @@ func main() {
 
 	if modules.IsEnabled("mod_stores") {
 		mux.HandleFunc("/api/v1/stores/indent-check", server.handleStoresIndentCheck)
-		mux.HandleFunc("/api/v1/stores/issue-double-witness", server.handleStoresIssueDoubleWitness)
+		// V5: retire the legacy demo endpoint. No environment flag can
+		// re-enable self-asserted two-witness material issuance.
+		mux.HandleFunc("/api/v1/stores/issue-double-witness", func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "ERR_LEGACY_ISSUE_RETIRED", http.StatusGone)
+		})
+		// Production commands stay fail-closed until IdP, DB and signed lease exist.
+		registerMaterialRoutes(mux, db)
 	}
 	if modules.IsEnabled("mod_cutting") {
 		mux.HandleFunc("/api/v1/cutting/plan-target", server.handleCuttingPlanTarget)

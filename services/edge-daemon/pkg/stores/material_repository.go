@@ -16,12 +16,21 @@ import (
 // Caller identity MUST come from an authenticated server-side context. Never
 // construct WitnessProof from a request's issuer_id / recipient_id strings.
 type MaterialRepository struct {
-	DB              *sql.DB
-	WitnessVerifier MaterialWitnessVerifier
+	DB                  *sql.DB
+	WitnessVerifier     MaterialWitnessVerifier
+	CEOApprovalVerifier CEOApprovalVerifier
+	AuthorityHolder     string // server-configured lease holder, NEVER from HTTP request
+}
+
+// CEOApprovalVerifier verifies fresh IdP-issued signed approvals bound to the
+// server-held variance challenge. A nil verifier MUST always deny approval.
+type CEOApprovalVerifier interface {
+	VerifyCEOApproval(ctx context.Context, tenant, subject, proofID, assertion, challenge string) error
 }
 
 type MaterialReserveCommand struct {
 	TenantID       string
+	PlantID        string
 	RollID         string
 	OrderID        string
 	CutNo          int
@@ -40,6 +49,8 @@ type ReservationReceipt struct {
 // WitnessProof refers to an independently authenticated and cryptographically
 // bound session assertion from an upstream identity service.
 type WitnessProof struct {
+	PlantID   string
+	Role      string
 	TenantID  string
 	Subject   string
 	ProofID   string
@@ -55,6 +66,7 @@ type MaterialWitnessVerifier interface {
 
 type MaterialIssueCommand struct {
 	TenantID       string
+	PlantID        string
 	ReservationID  string
 	RollID         string
 	OrderID        string
@@ -86,8 +98,8 @@ func nonblank(xs ...string) bool {
 // cryptographic assertion itself. Distinct proofs must sign this SAME string.
 func MaterialIssueChallenge(c MaterialIssueCommand) string {
 	// %q and newline delimiters prevent concatenation ambiguity.
-	raw := fmt.Sprintf("agiparel.material-issue.v5\n%q\n%q\n%q\n%q\n%d\n%d\n%q",
-		c.TenantID, c.ReservationID, c.RollID, c.OrderID, c.CutNo, c.LengthMM, c.IdempotencyKey)
+	raw := fmt.Sprintf("agiparel.material-issue.v5\n%q\n%q\n%q\n%q\n%q\n%d\n%d\n%q",
+		c.TenantID, c.PlantID, c.ReservationID, c.RollID, c.OrderID, c.CutNo, c.LengthMM, c.IdempotencyKey)
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])
 }
@@ -102,6 +114,7 @@ func VerifyMaterialWitnesses(ctx context.Context, verifier MaterialWitnessVerifi
 		return "", errors.New("ERR_ISSUE_INPUT")
 	}
 	if c.Issuer.TenantID != c.TenantID || c.Recipient.TenantID != c.TenantID ||
+		(c.PlantID != "" && (c.Issuer.PlantID != c.PlantID || c.Recipient.PlantID != c.PlantID)) ||
 		c.Issuer.Subject == c.Recipient.Subject || c.Issuer.ProofID == c.Recipient.ProofID {
 		return "", errors.New("ERR_INDEPENDENT_WITNESS")
 	}
@@ -134,7 +147,7 @@ func (r MaterialRepository) begin(ctx context.Context, tenant string) (*sql.Tx, 
 // and a per-roll row lock, backed by migration 0005's database trigger.
 func (r MaterialRepository) Reserve(ctx context.Context, c MaterialReserveCommand) (ReservationReceipt, error) {
 	var out ReservationReceipt
-	if !nonblank(c.TenantID, c.RollID, c.OrderID, c.IdempotencyKey) || c.CutNo <= 0 || c.LengthMM <= 0 {
+	if !nonblank(c.TenantID, c.PlantID, c.RollID, c.OrderID, c.IdempotencyKey) || c.CutNo <= 0 || c.LengthMM <= 0 {
 		return out, errors.New("ERR_RESERVATION_INPUT")
 	}
 	tx, err := r.begin(ctx, c.TenantID)
@@ -142,6 +155,9 @@ func (r MaterialRepository) Reserve(ctx context.Context, c MaterialReserveComman
 		return out, err
 	}
 	defer tx.Rollback()
+	if err = r.requireAuthorizedScope(ctx, tx, c.TenantID, c.OrderID, c.PlantID); err != nil {
+		return out, err
+	}
 	// Return replayed command exactly, rejecting attempts to change its body.
 	err = tx.QueryRowContext(ctx, `SELECT id::text,roll_id,order_id,cut_no,reserved_mm FROM material_reservations_v5
         WHERE tenant_id=$1 AND request_key=$2`, c.TenantID, c.IdempotencyKey).Scan(&out.ID, &out.RollID, &out.OrderID, &out.CutNo, &out.LengthMM)
@@ -155,18 +171,21 @@ func (r MaterialRepository) Reserve(ctx context.Context, c MaterialReserveComman
 		return ReservationReceipt{}, err
 	}
 	var remainingMM int64
-	var state, inspection string
+	var state, inspection, rollPlant string
 	var legacyOwner sql.NullString
-	err = tx.QueryRowContext(ctx, `SELECT ROUND(remaining_length_m*1000)::BIGINT,status,inspection_status,reserved_order_id
+	err = tx.QueryRowContext(ctx, `SELECT ROUND(remaining_length_m*1000)::BIGINT,status,inspection_status,reserved_order_id,plant_id
         FROM store_rolls WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, c.TenantID, c.RollID).
-		Scan(&remainingMM, &state, &inspection, &legacyOwner)
+		Scan(&remainingMM, &state, &inspection, &legacyOwner, &rollPlant)
 	if errors.Is(err, sql.ErrNoRows) {
 		return out, errors.New("ERR_ROLL_NOT_FOUND")
 	}
 	if err != nil {
 		return out, err
 	}
-	if inspection != "PASS" || state == "QUARANTINE" || state == "DEPLETED" {
+	if rollPlant != c.PlantID {
+		return out, errors.New("ERR_PLANT_SCOPE_MISMATCH")
+	}
+	if inspection != "PASS" || state == "QUARANTINE" || state == "DEPLETED" || state == "ISSUED" {
 		return out, errors.New("ERR_ROLL_NOT_RELEASED")
 	}
 	if legacyOwner.Valid && legacyOwner.String != c.OrderID {
@@ -197,6 +216,9 @@ func (r MaterialRepository) Reserve(ctx context.Context, c MaterialReserveComman
 // It atomically commits BOTH the reservation consumption and the stock delta.
 func (r MaterialRepository) Issue(ctx context.Context, c MaterialIssueCommand) (IssueReceipt, error) {
 	var out IssueReceipt
+	if !nonblank(c.PlantID) {
+		return out, errors.New("ERR_PLANT_SCOPE_MISSING")
+	}
 	challenge, err := VerifyMaterialWitnesses(ctx, r.WitnessVerifier, c)
 	if err != nil {
 		return out, err
@@ -206,6 +228,9 @@ func (r MaterialRepository) Issue(ctx context.Context, c MaterialIssueCommand) (
 		return out, err
 	}
 	defer tx.Rollback()
+	if err = r.requireAuthorizedScope(ctx, tx, c.TenantID, c.OrderID, c.PlantID); err != nil {
+		return out, err
+	}
 	var priorReservation string
 	var priorLength int64
 	var issuer, recipient string
@@ -223,14 +248,21 @@ func (r MaterialRepository) Issue(ctx context.Context, c MaterialIssueCommand) (
 		return IssueReceipt{}, err
 	}
 	var remaining int64
-	var status, inspection string
-	err = tx.QueryRowContext(ctx, `SELECT ROUND(remaining_length_m*1000)::BIGINT,status,inspection_status
-        FROM store_rolls WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, c.TenantID, c.RollID).Scan(&remaining, &status, &inspection)
+	var status, inspection, rollPlant string
+	var legacyOwner sql.NullString
+	err = tx.QueryRowContext(ctx, `SELECT ROUND(remaining_length_m*1000)::BIGINT,status,inspection_status,plant_id,reserved_order_id
+        FROM store_rolls WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, c.TenantID, c.RollID).Scan(&remaining, &status, &inspection, &rollPlant, &legacyOwner)
 	if errors.Is(err, sql.ErrNoRows) {
 		return out, errors.New("ERR_ROLL_NOT_FOUND")
 	}
 	if err != nil {
 		return out, err
+	}
+	if rollPlant != c.PlantID {
+		return out, errors.New("ERR_PLANT_SCOPE_MISMATCH")
+	}
+	if legacyOwner.Valid && legacyOwner.String != c.OrderID {
+		return out, errors.New("ERR_SACROSANCT_RESERVATION")
 	}
 	if inspection != "PASS" || status == "DEPLETED" || status == "QUARANTINE" {
 		return out, errors.New("ERR_ROLL_NOT_RELEASED")
