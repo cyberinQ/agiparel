@@ -210,6 +210,21 @@ func main() {
 	mux.HandleFunc("/api/v1/documents/uploads", server.handleDocumentUpload)
 	mux.HandleFunc("/api/v1/documents/", server.handleDocumentDetail)
 	mux.HandleFunc("/api/v1/order-intake", server.handleOrderIntake)
+	mux.HandleFunc("/api/v1/buyer-review", server.handleBuyerReview)
+	mux.HandleFunc("/buyer-review", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		data, err := web.GetBuyerReviewHTML()
+		if err != nil {
+			http.Error(w, "Buyer review unavailable", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = w.Write(data)
+	})
 	// Batch 06: tenant-scoped, immutable, non-authoritative material what-if scenarios.
 	mux.HandleFunc("/api/v1/material-scenario", server.handleMaterialScenario)
 	mux.HandleFunc("/material-planning", func(w http.ResponseWriter, r *http.Request) {

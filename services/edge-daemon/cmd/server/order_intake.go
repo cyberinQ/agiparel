@@ -324,11 +324,23 @@ func (s *EdgeServer) handleOrderIntake(w http.ResponseWriter, r *http.Request) {
 	writeIntakeJSON(w, map[bool]int{true: 200, false: 201}[reused], rep)
 }
 func (s *EdgeServer) persistIntake(ctx context.Context, tenant string, sub sourceSubmission) (intakeReport, bool, error) {
-	tx, e := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
-	if e != nil {
-		return intakeReport{}, false, e
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	if err != nil {
+		return intakeReport{}, false, err
 	}
 	defer tx.Rollback()
+	report, reused, err := persistIntakeInTx(ctx, tx, tenant, sub)
+	if err != nil {
+		return intakeReport{}, false, err
+	}
+	if err = tx.Commit(); err != nil {
+		return intakeReport{}, false, err
+	}
+	return report, reused, nil
+}
+
+func persistIntakeInTx(ctx context.Context, tx *sql.Tx, tenant string, sub sourceSubmission) (intakeReport, bool, error) {
+	var e error
 	if _, e = tx.ExecContext(ctx, `SELECT set_config('app.current_tenant_id',$1,true)`, tenant); e != nil {
 		return intakeReport{}, false, e
 	}
@@ -348,9 +360,6 @@ func (s *EdgeServer) persistIntake(ctx context.Context, tenant string, sub sourc
 		if e = tx.QueryRowContext(ctx, `SELECT id,captured_at FROM order_intakes_v5 WHERE tenant_id=$1 AND source_sha256=$2`, tenant, sub.Report.SourceSHA256).Scan(&sub.Report.ID, &sub.Report.CapturedAt); e != nil {
 			return intakeReport{}, false, e
 		}
-		if e = tx.Commit(); e != nil {
-			return intakeReport{}, false, e
-		}
 		return sub.Report, true, nil
 	}
 	for i, line := range sub.Report.SKUs {
@@ -362,9 +371,6 @@ func (s *EdgeServer) persistIntake(ctx context.Context, tenant string, sub sourc
 		if _, e = tx.ExecContext(ctx, `INSERT INTO order_intake_bom_v5(tenant_id,intake_id,line_no,material_sku,category,qty_per_garment,uom) VALUES($1,$2,$3,$4,$5,$6,$7)`, tenant, id, i+1, line.SKU, line.Category, line.PerGarment, line.UOM); e != nil {
 			return intakeReport{}, false, e
 		}
-	}
-	if e = tx.Commit(); e != nil {
-		return intakeReport{}, false, e
 	}
 	now := time.Now().UTC()
 	sub.Report.ID = id
@@ -412,6 +418,14 @@ func (s *EdgeServer) readOrderIntakes(ctx context.Context, w http.ResponseWriter
 		}
 		rep.Readiness = "HOLD"
 		rep.Origin = "SOURCE_CSV"
+		var linked bool
+		if e = tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM buyer_order_handoffs_v65c1 WHERE tenant_id=$1 AND intake_id=$2)`, tenant, id).Scan(&linked); e != nil {
+			http.Error(w, "Source linkage query failed", 503)
+			return
+		}
+		if linked {
+			rep.Origin = "REVIEWED_DOCUMENT_MAPPING"
+		}
 		rep.SourceSHA256 = digest
 		rep.POFile = pof
 		rep.BOMFile = bomf

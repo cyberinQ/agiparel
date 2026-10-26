@@ -52,3 +52,6 @@ func GetDocumentsHTML() ([]byte, error) { return staticFS.ReadFile("static/docum
 
 // Gate 06.5-B1: factory discovery before buyer order intake.
 func GetFactorySetupHTML() ([]byte, error) { return staticFS.ReadFile("static/factory_setup.html") }
+
+// Gate 06.5-C1: original-document-to-proposed-order review.
+func GetBuyerReviewHTML() ([]byte, error) { return staticFS.ReadFile("static/buyer_review.html") }

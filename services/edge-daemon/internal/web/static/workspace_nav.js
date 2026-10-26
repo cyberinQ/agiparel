@@ -7,6 +7,7 @@
     ['/', 'Home'],
     ['/factory-setup', 'Set up factory'],
     ['/documents', 'Upload documents'],
+    ['/buyer-review', 'Buyer review'],
     ['/order-intake', 'Order readiness'],
     ['/material-planning', 'Material planning'],
     ['/planning', 'Factory planning'],
