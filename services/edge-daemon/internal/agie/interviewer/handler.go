@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,11 +54,19 @@ func NewInterviewerEngine() *InterviewerEngine {
 	if model == "" {
 		model = "qwen3-coder:30b"
 	}
+	// Larger locally hosted models can take longer than 30 seconds to load and answer.
+	// Keep this configurable without changing the server's public API.
+	timeoutSeconds := 180
+	if raw := strings.TrimSpace(os.Getenv("AGIE_HTTP_TIMEOUT_SECONDS")); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n >= 10 && n <= 600 {
+			timeoutSeconds = n
+		}
+	}
 	return &InterviewerEngine{
 		cloudEndpoint: endpoint,
 		ollamaHost:    oHost,
 		modelName:     model,
-		client:        &http.Client{Timeout: 30 * time.Second},
+		client:        &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
 	}
 }
 

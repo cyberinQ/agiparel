@@ -196,10 +196,10 @@ func main() {
 	mux.HandleFunc("/api/v1/onboarding/template.csv", server.handleOnboardingTemplate)
 	mux.HandleFunc("/api/v1/onboarding/upload", server.handleOnboardingUpload)
 	mux.HandleFunc("/api/v1/plant/overview", server.handlePlantOverview)
-	mux.HandleFunc("/api/v1/issues", server.handleGetIssues)
 	mux.HandleFunc("/api/v1/issues/resolve", server.handleResolveIssue)
 	mux.HandleFunc("/api/v1/planning/assessment", server.handlePlanningAssessment)
 	mux.HandleFunc("/api/v1/planning/upload-docs", server.handlePlanningUploadDocs)
+	mux.HandleFunc("/api/v1/planning/readiness-questions", server.handlePlanningReadinessQuestions)
 	mux.HandleFunc("/planning", func(w http.ResponseWriter, r *http.Request) {
 		data, err := web.GetOnboardingHTML()
 		if err != nil {

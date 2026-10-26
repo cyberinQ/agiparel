@@ -20,6 +20,10 @@ func operationalIntent(messages []interviewer.LLMMessage) string {
 		}
 		q := strings.ToLower(strings.TrimSpace(messages[i].Content))
 		switch {
+		case (strings.Contains(q, "list") || strings.Contains(q, "show") || strings.Contains(q, "who are") || strings.Contains(q, "what are")) &&
+			(strings.Contains(q, "worker") || strings.Contains(q, "employee") || strings.Contains(q, "staff")) &&
+			(strings.Contains(q, "machine") || strings.Contains(q, "equipment")):
+			return "workers_and_machines"
 		case strings.Contains(q, "capacity") || strings.Contains(q, "how many pieces can") || strings.Contains(q, "daily output capability"):
 			return "factory_capacity"
 		case (strings.Contains(q, "present") || strings.Contains(q, "attendance")) && (strings.Contains(q, "worker") || strings.Contains(q, "employee") || strings.Contains(q, "staff")):
@@ -48,6 +52,57 @@ func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (s
 	}
 
 	switch intent {
+	case "workers_and_machines":
+		workers := make([]string, 0, 100)
+		rows, err := tx.QueryContext(queryCtx, `SELECT name, employee_code, primary_skill FROM workers WHERE tenant_id=$1 ORDER BY name, id LIMIT 100`, "TENANT_DEFAULT")
+		if err != nil {
+			return "", err
+		}
+		for rows.Next() {
+			var name, code, skill string
+			if err := rows.Scan(&name, &code, &skill); err != nil {
+				rows.Close()
+				return "", err
+			}
+			workers = append(workers, fmt.Sprintf("%s (%s, %s)", name, code, skill))
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return "", err
+		}
+		rows.Close()
+
+		machines := make([]string, 0, 100)
+		rows, err = tx.QueryContext(queryCtx, `SELECT name, line_id, station_id, status FROM machine_roster WHERE tenant_id=$1 ORDER BY line_id, station_id, id LIMIT 100`, "TENANT_DEFAULT")
+		if err != nil {
+			return "", err
+		}
+		for rows.Next() {
+			var name, line, station, status string
+			if err := rows.Scan(&name, &line, &station, &status); err != nil {
+				rows.Close()
+				return "", err
+			}
+			machines = append(machines, fmt.Sprintf("%s (%s, %s, %s)", name, line, station, status))
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return "", err
+		}
+		rows.Close()
+
+		reply := fmt.Sprintf("Factory records: %d workers and %d machines are listed below (up to 100 each).", len(workers), len(machines))
+		if len(workers) == 0 {
+			reply += " No workers are recorded."
+		} else {
+			reply += "\nWorkers:\n- " + strings.Join(workers, "\n- ")
+		}
+		if len(machines) == 0 {
+			reply += " No machines are recorded."
+		} else {
+			reply += "\nMachines:\n- " + strings.Join(machines, "\n- ")
+		}
+		return reply, nil
 	case "factory_capacity":
 		// These are independently verifiable resource counts. Summing rated machine
 		// UPH would be incorrect: garment operations form a sequential bottlenecked line.
