@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+ <meta name="robots" content="noindex,nofollow">
+ <title>Order readiness · Agiparel Factory OS</title>
+ <link rel="stylesheet" href="/static/order_intake.css">
+ <script src="/static/order_intake.js" defer></script>
+</head>
+<body>
+ <header class="top">
+   <a href="/" class="wordmark">agiparel <span>FACTORY OS</span></a>
+   <span class="ops-pill">RESTRICTED · DEVELOPMENT</span>
+   <a href="/planning">Existing planning workspace ↗</a>
+ </header>
+ <main class="layout">
+  <section class="hero"><div class="eyebrow">01 / SOURCE-BACKED ORDER INTAKE</div><h1>From buyer files<br>to a reviewable order.</h1><p>Preview exact PO quantities and BOM requirements before staging originals. No AI-invented values. No automatic material reservation, factory order creation, or release.</p></section>
+  <div class="guard"><strong>HOLD by design</strong><span>All intakes remain PROPOSED until buyer identity/revision, approved tech pack, operation bulletin, material, packing and shipping obligations are verified by authorized owners. CSVs are user-supplied evidence, not proof of buyer approval.</span></div>
+  <div class="columns">
+   <section class="surface">
+     <div class="section-num">A / DOCUMENTS</div><h2>Upload two CSVs</h2>
+     <p class="muted">One PO and one style per submission. Use the provided templates. Maximum 2 MiB each, 2,000 data rows.</p>
+     <form id="intake-form">
+       <label class="upload">Buyer PO lines <small>po_number, style_code, color_code, size_code, ordered_qty, upc</small><input id="po-file" name="po_file" type="file" accept=".csv,text/csv" required></label>
+       <label class="upload">Style BOM <small>style_code, material_sku, category, qty_per_garment, uom</small><input id="bom-file" name="bom_file" type="file" accept=".csv,text/csv" required></label>
+       <div class="templates"><button type="button" data-template="po">Download PO template</button><button type="button" data-template="bom">Download BOM template</button></div>
+       <div class="actions"><button class="primary" id="preview-btn" type="submit">Validate & preview</button><button class="secondary" id="stage-btn" type="button" disabled>Stage source evidence</button></div>
+     </form>
+     <p id="alert" class="alert" role="status" aria-live="polite">Select files to begin. All data stays within the restricted development environment.</p>
+   </section>
+   <section class="surface">
+     <div class="section-num">B / VALIDATION</div><h2>Order readiness</h2>
+     <div class="metrics"><div><small>PO</small><strong id="po-name">—</strong></div><div><small>Style</small><strong id="style-name">—</strong></div><div><small>Ordered pieces</small><strong id="quantity">—</strong></div><div><small>Release gate</small><strong class="held" id="release">HOLD</strong></div></div>
+     <div class="result-area"><h3>Color / size matrix</h3><div class="table-wrap"><table><thead><tr><th>Color</th><th>Size</th><th>UPC</th><th class="num">Qty</th></tr></thead><tbody id="sku-rows"><tr><td colspan="4" class="empty">No validated source yet</td></tr></tbody></table></div></div>
+     <div class="result-area"><h3>Material demand (not inventory availability)</h3><div class="table-wrap"><table><thead><tr><th>Material</th><th>Class</th><th class="num">Per garment</th><th class="num">Total / unit</th></tr></thead><tbody id="bom-rows"><tr><td colspan="4" class="empty">Upload a BOM to calculate</td></tr></tbody></table></div></div>
+     <div class="result-area"><h3>Release blockers</h3><ul id="holds"><li>Upload and validate source CSVs</li></ul></div>
+     <div class="digest"><small>Source SHA-256</small><code id="digest">—</code></div>
+   </section>
+  </div>
+  <section class="surface recent"><div class="head-row"><div><div class="section-num">C / STORED EVIDENCE</div><h2>Recent staged intakes</h2></div><button type="button" id="refresh">Refresh</button></div><p class="muted">Tenant-scoped PostgreSQL records. Click an intake to inspect stored proposed facts. Original CSV bytes are retained but never returned to this page.</p><div id="history" class="history">No records loaded.</div></section>
+  <footer>Agiparel Factory OS · Development operator workflow · Proposed source data is never production approval.</footer>
+ </main>
+</body>
+</html>

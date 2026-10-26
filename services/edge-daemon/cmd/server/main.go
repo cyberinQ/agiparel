@@ -176,15 +176,8 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	// Root landing page links to the independently served embedded HMIs.
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = io.WriteString(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agiparel Factory OS</title></head><body><main><h1>Agiparel Factory OS</h1><nav aria-label="Applications"><ul><li><a href="/plant">Plant dashboard</a></li><li><a href="/sew01">Sewing HMI</a></li><li><a href="/onboarding">Onboarding</a></li><li><a href="/planning">Planning</a></li><li><a href="/cutting">Cutting</a></li></ul></nav></main></body></html>`)
-	})
+	// Public routes are isolated; every other route requires operator access.
+	registerPublicPortal(mux)
 
 	mux.HandleFunc("/healthz", server.handleHealth)
 	mux.HandleFunc("/api/v1/modules", server.handleGetModules)
@@ -199,6 +192,21 @@ func main() {
 	mux.HandleFunc("/api/v1/onboarding/upload", server.handleOnboardingUpload)
 	mux.HandleFunc("/api/v1/plant/overview", server.handlePlantOverview)
 	mux.HandleFunc("/api/v1/issues/resolve", server.handleResolveIssue)
+	mux.HandleFunc("/api/v1/order-intake", server.handleOrderIntake)
+	mux.HandleFunc("/order-intake", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		data, err := web.GetOrderIntakeHTML()
+		if err != nil {
+			http.Error(w, "Order intake unavailable", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = w.Write(data)
+	})
 	mux.HandleFunc("/api/v1/planning/assessment", server.handlePlanningAssessment)
 	mux.HandleFunc("/api/v1/planning/upload-docs", server.handlePlanningUploadDocs)
 	mux.HandleFunc("/api/v1/planning/readiness-questions", server.handlePlanningReadinessQuestions)
@@ -291,7 +299,7 @@ func main() {
 
 	httpServer := &http.Server{
 		Addr:         ":" + port,
-		Handler:      mux,
+		Handler:      configuredOperatorGate(mux),
 		ReadTimeout:  60 * time.Second,
 		WriteTimeout: 240 * time.Second,
 		IdleTimeout:  120 * time.Second,

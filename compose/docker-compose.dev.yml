@@ -52,6 +52,11 @@ services:
       AGIE_MODEL: ${AGIE_MODEL:-qwen3-coder:30b}
       OLLAMA_VISION_MODEL: ${OLLAMA_VISION_MODEL:-qwen3-vl:8b}
       MANAGER_PIN: ${MANAGER_PIN:-}
+      # DEV-only Basic barrier for legacy HMI/API routes; never use for production identity.
+      AGIPAREL_OPERATOR_USER: ${AGIPAREL_OPERATOR_USER:-}
+      AGIPAREL_OPERATOR_PASSWORD: ${AGIPAREL_OPERATOR_PASSWORD:-}
+      # DEVELOPMENT ONLY: server-pinned tenant for operator intake; never accept client-supplied tenant.
+      AGIPAREL_OPERATOR_TENANT: ${AGIPAREL_OPERATOR_TENANT:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

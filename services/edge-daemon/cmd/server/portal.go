@@ -1,0 +1,141 @@
+// Author: CyberinQ, 2026-10-26 — Read-only public demonstration and operator boundary.
+package main
+
+import (
+	"crypto/sha256"
+	"crypto/subtle"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+
+	"github.com/cyberinq/agiparel/services/edge-daemon/internal/web"
+)
+
+// operatorAccessGate is a temporary, single-operator access barrier for the
+// brownfield development server. This is NOT workforce identity, MFA, tenant
+// authorization, or approval of any real production material transaction.
+// The public demo must never invoke privileged APIs or disclose real factory data.
+func operatorAccessGate(next http.Handler, user, password string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/", "/demo", "/demo-assets/portal.css", "/demo-assets/portal.js", "/healthz":
+			next.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		// Fail closed if the deployment forgot to supply real credentials.
+		if user == "" || len(password) < 16 {
+			http.Error(w, "Operator access is not configured", http.StatusServiceUnavailable)
+			return
+		}
+		suppliedUser, suppliedPassword, ok := r.BasicAuth()
+		if !ok || !sameSecret(user, suppliedUser) || !sameSecret(password, suppliedPassword) {
+			w.Header().Set("WWW-Authenticate", `Basic realm="Agiparel Factory Operations", charset="UTF-8"`)
+			http.Error(w, "Operator authentication required", http.StatusUnauthorized)
+			return
+		}
+		// Browsers can resend Basic credentials to a malicious form. Reject
+		// cross-site writes before reaching the legacy operational handlers.
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions {
+			if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
+				http.Error(w, "Cross-site operation rejected", http.StatusForbidden)
+				return
+			}
+			if origin := r.Header.Get("Origin"); origin != "" {
+				u, err := url.Parse(origin)
+				if err != nil || !strings.EqualFold(u.Host, r.Host) || (u.Scheme != "https" && u.Scheme != "http") {
+					http.Error(w, "Cross-site operation rejected", http.StatusForbidden)
+					return
+				}
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func sameSecret(expected, supplied string) bool {
+	a := sha256.Sum256([]byte(expected))
+	b := sha256.Sum256([]byte(supplied))
+	return subtle.ConstantTimeCompare(a[:], b[:]) == 1
+}
+
+func portalHeaders(w http.ResponseWriter) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+}
+
+func servePublicPortal(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	portalHeaders(w)
+	data, err := web.GetPortalHTML()
+	if err != nil {
+		http.Error(w, "Portal unavailable", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	if r.Method == http.MethodGet {
+		_, _ = w.Write(data)
+	}
+}
+
+func servePublicPortalAsset(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	portalHeaders(w)
+	var data []byte
+	var err error
+	switch r.URL.Path {
+	case "/demo-assets/portal.css":
+		data, err = web.GetPortalCSS()
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	case "/demo-assets/portal.js":
+		data, err = web.GetPortalJS()
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	default:
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Asset unavailable", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	if r.Method == http.MethodGet {
+		_, _ = w.Write(data)
+	}
+}
+
+func registerPublicPortal(mux *http.ServeMux) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		servePublicPortal(w, r)
+	})
+	mux.HandleFunc("/demo", servePublicPortal)
+	mux.HandleFunc("/demo-assets/portal.css", servePublicPortalAsset)
+	mux.HandleFunc("/demo-assets/portal.js", servePublicPortalAsset)
+}
+
+func configuredOperatorGate(next http.Handler) http.Handler {
+	// A shared Basic credential is acceptable only for a disposable DEV HMI.
+	// Production must use a tenant-scoped workforce identity provider instead.
+	if os.Getenv("ENV") != "development" {
+		return operatorAccessGate(next, "", "")
+	}
+	return operatorAccessGate(next, os.Getenv("AGIPAREL_OPERATOR_USER"), os.Getenv("AGIPAREL_OPERATOR_PASSWORD"))
+}

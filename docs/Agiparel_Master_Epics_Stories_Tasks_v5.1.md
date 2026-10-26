@@ -3474,3 +3474,121 @@ The second backlog's proposed six two-week sprints are retained here with their 
 - 26 alternate stories mapped and their distinct acceptance/tasks preserved inside canonical tickets (00.x in TD tickets); all remain source proposals when numerical claims lack validation.
 - All original 16 technical debts preserved; TD17/TD18/TD19/TD20/TD21/TD22 added and TD02 augmented.
 - Cross-reference: PRD/ARD V5 A–J + reconciliations M1–M12 + inherited V4/V3.
+
+
+
+
+I recommend 12 core development batches in total, with Batch 04 delivering the first visible improvements to [agiparel.empowerai.us](https://agiparel.empowerai.us?utm_source=chatgpt.com). That means three batches completed and nine remaining for a credible end-to-end factory pilot.
+
+After reviewing your latest repository, I would also change our priorities. We've spent enough time on invisible backend foundations. From Batch 04 onward, every batch should deliver a customer-visible business capability, not merely more infrastructure.
+
+## 1. Repository reconciliation
+
+Source reconciled
+
+Uploaded Git HEAD: `c004a7f` — “batch 03 complete”
+
+The repository contains more than an early prototype, but considerably less than the complete V5.1 Factory OS.
+
+| Area                              | What I verified in your source                                                                              | Assessment                                |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Material transaction control      | PostgreSQL material repository, scoped writer authority, CEO controls, signed HTTP tests                    | Tested development foundation             |
+| Development identity provisioning | `materialctl`, CEO enrollment, authority leases                                                             | Working for development                   |
+| Customer UI                       | Four HTML applications: Plant, Onboarding/Planning, Cutting, Sewing                                         | Exists; substantial integration missing   |
+| Planning and document ingestion   | Upload, readiness, assessment, approval handlers                                                            | Partial                                   |
+| Material optimization and cutting | Roll eligibility, geometry optimizer, classic bundle logic                                                  | Partial                                   |
+| RFID integration                  | EPC identity and LLRP reader source                                                                         | Physical commissioning unverified         |
+| Quality and finishing             | No complete durable inspection and repair workflow                                                          | Major gap                                 |
+| Packing and order closure         | Packing/OCR logic and endpoints                                                                             | Partial; complete conservation unverified |
+| Enterprise security               | Material API protected, but general HTTP router is directly exposed without a universal identity middleware | Important gap                             |
+
+The uploaded repository also contains the merged V5.1 PRD and backlog, covering 25 epics and 109 stories. The proposed 12 batches are a focused pilot delivery plan—not a claim that all 109 stories and 113 proposed screens can be finished in 12 iterations.
+
+## 2. Revised 12-batch roadmap
+
+Pilot roadmap
+
+3 / 12 batches delivered
+
+25% of planned batch count, not 25% of functionality or engineering effort.
+
+| Batch | Business outcome                                                                                                                        | Priority             |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| 01–03 | Material authority, signed transaction contracts, PostgreSQL and integration tests                                                      | Completed foundation |
+| 04    | Customer-facing Factory OS portal, navigation, demonstrable order lifecycle, safe demo-data separation, deployment/ingress verification | Next — immediate     |
+| 05    | Buyer PO, tech pack, BOM, GRN ingestion → consolidated order readiness with source-backed warnings                                      | Very high ROI        |
+| 06    | Commercial costing, surplus-first material eligibility, net indent, planning commitments and exceptions                                 | Very high ROI        |
+| 07    | Real stores ledger, roll passport, reservations, independently authenticated issuance, CEO material exceptions                          | Very high ROI        |
+| 08    | Cutting execution: approved markers, actual plies, classic sub-sub-bundles, RFID tag binding, reconciliation                            | Very high ROI        |
+| 09    | Sewing: operation bulletin, authenticated RFID station execution, typed production credit, offline recovery                             | Very high ROI        |
+| 10    | Quality inspection, repair/redo loops, finishing and buyer hangtag identity                                                             | High ROI             |
+| 11    | Carton packing, repack control, shipment manifest, dispatch and order closure                                                           | High ROI             |
+| 12    | Cross-stage conservation, true cycle/queue time, variability and bottlenecks; integrated pilot acceptance and measured ROI              | High ROI             |
+
+This is a dependency-aware scope plan, not a validated calendar estimate. Hardware access, document quality, CAD interfaces and pilot staffing will affect how much can fit into a batch.
+
+## 3. When will the customer website change?
+
+Batch 04 — the next batch.
+
+The website already has useful underlying UI code:
+
+Plant overview
+
+[Factory Manufacture Dashboard by Prodhan Chandro Shil on Dribbble](https://images.openai.com/static-rsc-4/esmtsFpzgDoAYG7g5yPvUzmglMkhDNIyAhZ_dVftL9L-1xNwSM-GFUZZc194oh3cbH2mi-Q60eiEUOGnjLmTt-2n_ALNRBAc_rszrOoCCHYwPwN0xryy9t1P37sLUb1m8A1JXjNhF5fLG7wy5OvqU735LOuUQ-wsFOhRkf3rjjg?purpose=inline)
+
+Existing `/plant` page, not yet a validated end-to-end production dashboard
+
+Planning / onboarding
+
+[Clothing Manufacturing Solution for Enterprise | Labwear Studios](https://images.openai.com/static-rsc-4/oY_2e9bC8Ajdl9ENrtJcdKWEKFqnLXoaf_KDXaijZZ_F-yipilIvEPTT7YLaWwWJKczaNsT_ZgXW6NRzuZzJia2lMFHatqM1k65-NwM6fWEtPG0TXOrBCYLAa9jL3DzKwIJiZn1_evcamuQVP2E0Lcp6JQ9MDRryXtN2oq_LV0s?purpose=inline)
+
+Existing `/onboarding` and `/planning` routes
+
+Images are illustrative UI references, not screenshots of your running Agiparel website.
+
+The immediate issue isn't the absence of HTML. It's that the root route returns a minimal plain page, the four screens are only partly connected to durable production state, and deployment to the public domain is not demonstrated by the repository alone.
+
+I also attempted to retrieve `agiparel.empowerai.us` externally and could not verify its current content. That does not establish that it is down, but it means I cannot claim the public deployment matches the Go service you rebuilt.
+
+I would make Batch 04 deliver a clean, coherent website where a prospective customer can select a sample order and follow it across Planning → Stores → Cutting → Sewing → Quality → Shipping. Stages without implemented authoritative transactions would explicitly show simulated or pending status. All publicly accessible demo routes must be read-only or isolated from writable factory operations.
+
+Because the current router lacks general-purpose authentication around several existing write endpoints, public access separation must be addressed in this same batch rather than deferred.
+
+After Batch 04 is merged, compiled and deployed through the correct reverse proxy, the visual change should be apparent immediately. The first meaningful interactive business workflow should follow in Batch 05.
+
+## 4. Are we prioritizing the big-ticket items?
+
+Not sufficiently so far.
+
+Batches 01–03 built legitimate P0 security and material-control foundations, including no-borrowing, independently authenticated issuance and CEO-only exception rules. Those are necessary.
+
+But all three were backend-focused. They did not establish a sellable, demonstrable vertical workflow. We should correct that now.
+
+For the next several batches, I would judge priority by business value delivered rather than sophistication of the engineering:
+
+- Prevent duplicate purchasing and fabric waste through surplus-first material planning and roll-level conservation.
+- Reduce time from customer documents to an executable factory plan through PO/BOM/OB ingestion and feasibility assessment.
+- Establish trustworthy production progress from physical RFID evidence, not manually entered or inferred output.
+- Prevent wrong-part assembly, rework leakage and shipping discrepancies through garment identity and conservation.
+- Expose actual interprocess durations and variability from timestamped events with clear evidence quality, rather than inventing precise cycle times.
+
+We should defer large-scale optimizer research, A/B experimentation infrastructure, speculative AI features, 29 separate microservice deployments, all 113 screens, exhaustive localization, and advanced theoretical analytics until the first factory vertical slice demonstrates measurable value. P0 controls related to identity, safety, data integrity and RFID cannot be deferred just because their ROI is less visible.
+
+## 5. Recommended immediate execution
+
+Batch 04 should consist of a working public-facing demonstration, a safe separation between public and authenticated factory functions, and verification that GitHub → Docker → domain deployment produces the expected user-visible result.
+
+On the iMac, these two checks will help establish the current routing boundary:
+
+```
+curl -sS -o /dev/null -w "Local edge: %{http_code}\n" \
+  http://127.0.0.1:18530/plant
+
+curl -sS -o /dev/null -w "Public site: %{http_code}\n" \
+  https://agiparel.empowerai.us/plant
+```
+
+If local returns `200` and public does not, the domain proxy/routing needs correction before we count any website release as delivered.
+
+My recommendation is to lock Batch 04 as the customer-facing release and adopt the 12-batch plan as the pilot roadmap. Keep the complete V5.1 backlog, but stop letting low-value breadth delay the first commercially demonstrable end-to-end factory workflow.
