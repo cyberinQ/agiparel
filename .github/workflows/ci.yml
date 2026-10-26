@@ -1,0 +1,27 @@
+# Author: Sunil Jain, 2026-10-26 — Require tests, vet, race detection and compilation before merging or releasing.
+name: Verify Agiparel OS
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Static vet
+        run: go vet ./...
+      - name: Test all packages
+        run: go test -count=1 ./...
+      - name: Race detection
+        run: go test -race -count=1 ./...
+      - name: Build all packages
+        run: go build ./...

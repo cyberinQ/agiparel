@@ -1,29 +1,43 @@
+# Author: Sunil Jain, 2026-10-26 — Publish the edge executable only after the exact tagged commit passes CI.
 name: Build and Release Agiparel OS
-
 on:
   push:
-    tags:
-      - 'v*'
-
+    tags: ['v*']
+permissions:
+  contents: read
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
-
-      - name: Build Edge Binary
+          go-version-file: go.mod
+          cache: true
+      - run: go vet ./...
+      - run: go test -count=1 ./...
+      - run: go test -race -count=1 ./...
+      - run: go build ./...
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Compile release edge binary
         run: |
-          CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o dist/plant-edge-os ./services/edge-daemon/cmd/server
-
-      - name: Create GitHub Release & Upload Asset
-        uses: softprops/action-gh-release@v1
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o dist/plant-edge-os ./services/edge-daemon/cmd/server
+          (cd dist && sha256sum plant-edge-os > SHA256SUMS)
+      - name: Publish release assets with SHA256 manifest
+        uses: softprops/action-gh-release@v2
         with:
-          files: dist/plant-edge-os
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            dist/plant-edge-os
+            dist/SHA256SUMS

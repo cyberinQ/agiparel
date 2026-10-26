@@ -123,14 +123,17 @@ func main() {
 	log.Printf("Active modular engines: %s", enabledMods)
 
 	storesEng := stores.NewStoresEngine()
-	storesEng.RegisterRoll(stores.RollStock{
-		RollID:          "ROLL-007",
-		OriginalLengthM: 59.0,
-		RemainingLength: 59.0,
-		ReservedOrderID: "MK6574J9",
-		ReservedCutNo:   1,
-		Status:          "RESERVED",
-	})
+	// Author: Sunil Jain, 2026-10-26 — Never synthesize factory inventory at production startup.
+	if os.Getenv("AGIPAREL_ENVIRONMENT") == "development" && os.Getenv("AGIPAREL_DEMO_SEED") == "true" {
+		storesEng.RegisterRoll(stores.RollStock{
+			RollID:          "ROLL-007",
+			OriginalLengthM: 59.0,
+			RemainingLength: 59.0,
+			ReservedOrderID: "MK6574J9",
+			ReservedCutNo:   1,
+			Status:          "RESERVED",
+		})
+	}
 
 	dbURL := os.Getenv("DATABASE_URL")
 	var db *sql.DB
@@ -146,13 +149,14 @@ func main() {
 
 	twin := topology.NewSpatialTwin()
 
+	// Author: Sunil Jain, 2026-10-26 — Demo context must not become real factory truth.
 	defaultCfg := map[string]interface{}{
-		"plant_name":    "Noble Garments",
-		"unit_code":     "Unit 002/02",
-		"pilot_line":    "Line 14",
-		"style_code":    "KK524867",
-		"po_number":     "MK6574J9",
-		"target_qty":    600,
+		"plant_name":    os.Getenv("AGIPAREL_PLANT_NAME"),
+		"unit_code":     os.Getenv("AGIPAREL_UNIT_CODE"),
+		"pilot_line":    "",
+		"style_code":    "",
+		"po_number":     "",
+		"target_qty":    0,
 		"configured_at": time.Now().UTC().UnixMilli(),
 	}
 
@@ -496,7 +500,13 @@ func (s *EdgeServer) handleStoresIndentCheck(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	calc, _ := stores.EvaluateIndent(stores.IndentRequest{SKU: req.SKU, BOMRequiredQty: req.BOMRequiredQty, UnreservedQty: req.UnreservedQty})
+	calc, err := stores.EvaluateIndent(stores.IndentRequest{SKU: req.SKU, BOMRequiredQty: req.BOMRequiredQty, UnreservedQty: req.UnreservedQty})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+	// Caller-provided unreserved stock is NOT an authoritative procurement gate.
+	w.Header().Set("X-Agiparel-Authority", "ADVISORY_ONLY")
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(calc)
 }
@@ -513,6 +523,13 @@ type DoubleWitnessIssueRequest struct {
 func (s *EdgeServer) handleStoresIssueDoubleWitness(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// Author: Sunil Jain, 2026-10-26 — Fail closed until independent witness authentication
+	// and the durable inventory transaction are wired. Legacy string IDs are NOT proof.
+	if os.Getenv("AGIPAREL_ENVIRONMENT") != "development" ||
+		os.Getenv("AGIPAREL_DEMO_ALLOW_UNAUTHENTICATED_ISSUANCE") != "true" {
+		http.Error(w, "ERR_ISSUANCE_DISABLED: Authenticated dual-witness durable issuance is not enabled", http.StatusServiceUnavailable)
 		return
 	}
 	var req DoubleWitnessIssueRequest
