@@ -217,6 +217,10 @@ func main() {
 	mux.HandleFunc("/api/v1/stores/reconciliation", server.handleStoresReconciliation)
 	mux.HandleFunc("/api/v1/stores/reconciliation-requests", server.handleStoresReconciliationRequests)
 	mux.HandleFunc("/api/v1/stores/reservations", server.handleStoresReservations)
+	// Batch 07C: read-only admission readiness; signed stock promotion has its own API.
+	mux.HandleFunc("/api/v1/stores/admissions", server.handleStoresAdmissions)
+	// Batch 07D: buyer-PO/BOM to surplus-first tentative roll picks; NEVER reserve or issue here.
+	mux.HandleFunc("/api/v1/stores/pick-proposals", server.handleStoresPickProposals)
 	mux.HandleFunc("/api/v1/order-intake", server.handleOrderIntake)
 	mux.HandleFunc("/api/v1/buyer-review", server.handleBuyerReview)
 	mux.HandleFunc("/buyer-review", func(w http.ResponseWriter, r *http.Request) {
@@ -278,6 +282,9 @@ func main() {
 	mux.HandleFunc("/api/v1/planning/quick-fix", server.handlePlanningQuickFix)
 	mux.HandleFunc("/api/v1/planning/approve", server.handlePlanningApprove)
 	mux.HandleFunc("/api/v1/planning/email", server.handlePlanningEmail)
+	// Batch 08A: append-only source-linked marker/lay and classic bundle drafts.
+	mux.HandleFunc("/api/v1/cutting/lay-drafts", server.handleCuttingLayDrafts)
+	mux.HandleFunc("/api/v1/cutting/spreads", server.handleCuttingSpreads)
 	mux.HandleFunc("/api/v1/cutting/optimize-geometry", server.handleCuttingOptimizeGeometry)
 	mux.HandleFunc("/cutting", func(w http.ResponseWriter, r *http.Request) {
 		data, err := web.GetCuttingViewHTML()
@@ -301,7 +308,9 @@ func main() {
 	}
 	if modules.IsEnabled("mod_cutting") {
 		mux.HandleFunc("/api/v1/cutting/plan-target", server.handleCuttingPlanTarget)
-		mux.HandleFunc("/api/v1/cutting/lay-roll", server.handleCuttingLayRoll)
+		mux.HandleFunc("/api/v1/cutting/lay-roll", func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "ERR_LEGACY_SIMULATED_LAY_RETIRED; use /api/v1/cutting/lay-drafts (PROPOSED_HOLD)", http.StatusGone)
+		})
 	}
 	if modules.IsEnabled("mod_sewing") {
 		mux.HandleFunc("/api/v1/sewing/bind-tag", server.handleSewingBindTag)

@@ -89,6 +89,12 @@ func registerMaterialRoutes(mux *http.ServeMux, db *sql.DB) {
 	mux.HandleFunc("/api/v1/material/issues", a.issue)
 	mux.HandleFunc("/api/v1/material/variances", a.varianceRequest)
 	mux.HandleFunc("/api/v1/material/variances/", a.varianceAction)
+	// Batch 07C: signed two-person registration of new, reviewed rolls only.
+	mux.HandleFunc("/api/v1/material/roll-admissions/challenge", a.rollAdmissionChallenge)
+	mux.HandleFunc("/api/v1/material/roll-admissions", a.rollAdmission)
+	// Batch 08B: externally signed cutting RFID witness; no machine-gateway attestation.
+	mux.HandleFunc("/api/v1/cutting/bundle-scans/challenge", a.cutScanChallengeRoute)
+	mux.HandleFunc("/api/v1/cutting/bundle-scans", a.cutSignedScanRoute)
 }
 
 func (a *materialAPI) ready(w http.ResponseWriter) bool {
@@ -143,6 +149,8 @@ func materialError(w http.ResponseWriter, err error) {
 		status = http.StatusForbidden
 	case strings.HasPrefix(code, "ERR_RESERVATION_NOT_FOUND"), strings.HasPrefix(code, "ERR_ROLL_NOT_FOUND"):
 		status = http.StatusNotFound
+	case strings.HasPrefix(code, "ERR_ROLL_NOT_READY"), strings.HasPrefix(code, "ERR_REVIEW_SNAPSHOT"), strings.HasPrefix(code, "ERR_REVIEW_STATE"):
+		status = http.StatusConflict
 	case strings.HasPrefix(code, "ERR_IDEMPOTENCY"), strings.HasPrefix(code, "ERR_VARIANCE_ALREADY"), strings.HasPrefix(code, "ERR_UNRESERVED"), strings.HasPrefix(code, "ERR_CEO_CANNOT"), strings.HasPrefix(code, "ERR_RESERVED"):
 		status = http.StatusConflict
 	case !strings.HasPrefix(code, "ERR_"):

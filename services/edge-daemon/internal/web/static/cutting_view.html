@@ -1,266 +1,83 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CUT-01 | Smart Cutting Table & Camera Vision</title>
-  <style>
-    :root {
-      --bg: #F1F4F8; --surface: #FFFFFF; --brand: #1E3A8A; --text: #0F172A;
-      --green: #10B981; --yellow: #F59E0B; --red: #DC2626; --line: #CBD5E1;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: -apple-system, Roboto, sans-serif; padding: 20px; }
-    header {
-      background: var(--surface); padding: 20px 24px; border-radius: 14px;
-      border: 2px solid var(--line); display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
-    }
-    header h1 { font-size: 24px; color: var(--brand); font-weight: 900; }
-    .kpi-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
-    .kpi-box { background: var(--surface); padding: 18px; border-radius: 14px; border: 2px solid var(--line); }
-    .kpi-label { font-size: 13px; font-weight: 800; color: #475569; text-transform: uppercase; }
-    .kpi-val { font-size: 28px; font-weight: 900; margin-top: 6px; }
-
-    .main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-    .card { background: var(--surface); border: 2px solid var(--line); border-radius: 14px; padding: 22px; }
-    .card h2 { font-size: 19px; font-weight: 900; margin-bottom: 12px; color: var(--brand); }
-
-    canvas {
-      width: 100%; height: 340px; background: #1E293B; border-radius: 12px;
-      border: 3px solid #334155; display: block; margin-bottom: 14px;
-    }
-    .btn {
-      border: none; padding: 14px 20px; border-radius: 10px; font-size: 16px;
-      font-weight: 800; cursor: pointer; color: #fff;
-    }
-    .btn-green { background: var(--green); }
-    .btn-red { background: var(--red); }
-    .btn-blue { background: var(--brand); }
-    .reuse-banner {
-      background: #ECFDF5; border: 2px solid var(--green); color: #065F46;
-      padding: 14px; border-radius: 10px; font-weight: 800; font-size: 16px; margin-top: 12px;
-    }
-    .bundle-item {
-      padding: 12px; border: 2px solid var(--line); border-radius: 10px;
-      margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
-    }
-  </style>
-  <script src="/static/workspace_nav.js" defer></script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agiparel · Cutting & Bundle Genealogy · Batch 08B</title>
+<link rel="stylesheet" href="/static/cutting_lay.css">
+<script src="/static/workspace_nav.js" defer></script>
+<script src="/static/cutting_lay.js" defer></script>
+<script src="/static/cutting_spread.js" defer></script>
 </head>
 <body>
-  <header>
-    <div>
-      <h1>Smart Cutting Table & Camera Vision</h1>
-      <p style="font-size:15px; color:#475569; font-weight:600;">Roll: ROLL-007 (59m Denim) | Order: MK6574J9 | Style: KK524867</p>
-    </div>
-    <div style="display:flex; gap:10px;">
-      <a href="/onboarding" class="btn btn-blue" style="text-decoration:none;">&larr; Planning</a>
-      <a href="/plant" class="btn btn-green" style="text-decoration:none;">Floor Dashboard &rarr;</a>
-    </div>
-  </header>
+<main>
+ <header class="top">
+  <div><p class="eyebrow">AGIPAREL · MANUFACTURING OPERATIONS</p><h1>Cutting & Bundle Genealogy</h1>
+   <p>Buyer PO → marker and lay → reported plies → classic part × position × ply-group bundle drafts</p></div>
+  <a class="back" href="/stores">Fabric Stores</a>
+ </header>
+ <div class="alert" role="note"><strong>08A · PROPOSED / HOLD</strong> — These are traceable cutting drafts, not confirmed physical cuts. Entered ply counts are operator reports. Printable label codes are <strong>not RFID EPCs or observed reader scans</strong>. No material is reserved or consumed here. Physical release requires signed issuance and independent production evidence. Batch 08B separately records reported spread evidence without converting these draft labels into released bundles.</div>
+ <section class="stats" aria-label="Cutting overview">
+  <article><span>Stored lay drafts</span><strong id="metric-lays">—</strong></article>
+  <article><span>Planned garments (latest)</span><strong id="metric-garments">—</strong></article>
+  <article><span>Proposed sub-bundles</span><strong id="metric-bundles">—</strong></article>
+  <article><span>Production release</span><strong class="hold">NOT RELEASED</strong></article>
+ </section>
+ <div class="columns">
+  <section class="panel"><h2>1 · Lay worksheet</h2><p class="hint">Select a real staged buyer order. Color/size positions must appear in its source-linked SKU matrix. A new revision replaces the previous revision <em>for planning calculations</em>; the historical record is never altered.</p>
+   <form id="cut-form">
+    <label>Buyer order <select name="intake_id" id="cut-order" required><option value="">Loading orders…</option></select></label>
+    <div class="source-facts" id="cut-source-facts" aria-live="polite">Select a buyer PO to inspect its fabric BOM and color/size quantities.</div>
+    <div class="two"><label>Cut number<input name="cut_no" type="number" min="1" max="100000" value="1" required></label>
+      <label>Expected revision<input name="expected_revision" type="number" min="0" max="10000" value="0" required></label></div>
+    <div class="two"><label>Marker code<input name="marker_code" maxlength="64" placeholder="MARK-001" required></label>
+      <label>Fabric SKU<input name="fabric_sku" maxlength="128" placeholder="Match buyer BOM" required></label></div>
+    <div class="two"><label>Shade band<input name="shade_band" maxlength="32" placeholder="SHADE-A" required></label>
+      <label>Reported plies<input name="reported_plies" type="number" min="1" max="210" placeholder="30" required></label></div>
+    <label>Sub-bundle ply group size <small>Maximum plies per classic sub-sub-bundle (e.g. 20; remainder forms final group)</small><input name="bundle_ply_group_size" type="number" min="1" max="210" value="20" required></label>
+    <div class="two"><label>Marker length (mm)<input name="marker_length_mm" type="number" min="100" max="100000000" placeholder="6500" required></label>
+      <label>Usable fabric width (mm)<input name="usable_width_mm" type="number" min="100" max="4000" placeholder="1450" required></label></div>
+    <label>Marker positions <small>One per line: position,color_code,size_code</small>
+      <textarea name="positions" rows="5" spellcheck="false" placeholder="1,BLACK,32\n2,BLACK,34" required></textarea></label>
+    <label>Pattern parts <small>One per line: part_code,pieces_per_garment</small>
+      <textarea name="parts" rows="5" spellcheck="false" placeholder="FRONT,2\nBACK,2\nWAISTBAND,1" required></textarea></label>
+    <label>Evidence / planning note <small>12–1000 characters</small><textarea name="note" rows="3" maxlength="1000" required placeholder="Marker checked against tech pack; physical spread not verified."></textarea></label>
+    <button type="submit" id="save-cut">Save immutable cutting draft</button>
+    <p class="hint">Saving a revision preserves the previous version. Draft quantities cannot exceed the buyer's ordered color/size quantities across the latest cuts.</p>
+   </form>
+  </section>
+  <section class="panel"><h2>2 · Source-linked lay register</h2>
+   <p class="hint">Select a record to inspect its part-by-position-by-ply genealogy. The register shows the latest revision per cut.</p>
+   <button class="secondary" id="refresh-cut" type="button">Refresh register</button>
+   <div id="cut-register" class="register" aria-live="polite"></div>
+  </section>
+ </div>
+ <section class="panel detail"><div class="detail-head"><div><h2>3 · Classic sub-sub-bundles</h2><p class="hint" id="cut-title">Choose or save a lay to inspect its labels.</p></div>
+    <button class="secondary" id="print-cut" type="button" disabled>Print draft labels</button></div>
+   <div class="chips" id="cut-summary"></div>
+   <div class="table-wrap"><table><thead><tr><th>Draft label code</th><th>Marker position</th><th>Color / size</th><th>Part</th><th>Ply group</th><th>Plies</th><th>Pieces</th><th>RFID status</th></tr></thead><tbody id="cut-bundles"><tr><td colspan="8">No lay selected.</td></tr></tbody></table></div>
+   <p class="hint">Bundle count = marker positions × unique parts × ply groups. Each bundle represents its specific ply range, with piece count = plies in that range × pieces per garment. Label codes are deterministic within the lay revision and are not assigned as physical EPCs.</p>
+ </section>
 
-  <div class="kpi-strip">
-    <div class="kpi-box">
-      <div class="kpi-label">Cloth Used (Saved)</div>
-      <div class="kpi-val" style="color:var(--green);" id="cut-util">--%</div>
-    </div>
-    <div class="kpi-box">
-      <div class="kpi-label">Cloth Waste</div>
-      <div class="kpi-val" style="color:var(--yellow);" id="cut-waste">--%</div>
-    </div>
-    <div class="kpi-box">
-      <div class="kpi-label">Layers to Spread</div>
-      <div class="kpi-val" id="cut-plies">-- Layers</div>
-    </div>
-    <div class="kpi-box">
-      <div class="kpi-label">Pants from This Roll</div>
-      <div class="kpi-val" style="color:var(--brand);" id="cut-total">-- Pants</div>
-    </div>
+ <section class="panel detail" id="cut-spread-workbench" aria-label="08B issued-fabric reconciliation">
+  <h2>4 · Batch 08B — physical spread reporting & signed-issue reconciliation</h2>
+  <div class="alert"><strong>REPORTING / HOLD:</strong> This workbench records operator-reported ply/length evidence attributed to existing independently witnessed material issues. It does not decrement stores a second time, assert machine vision, confirm RFID hardware scans, or release bundles to sewing.</div>
+  <p id="spread-selection" class="hint">Open an 08A lay draft to inspect matching signed issues and prepare a physical-spread report.</p>
+  <div class="two">
+   <section><h3>Signed material issues for selected lay</h3><div class="table-wrap"><table><thead><tr><th>Issue ID</th><th>Roll</th><th>Signed issued (mm)</th><th>Already attributed (mm)</th><th>Open (mm)</th></tr></thead><tbody id="spread-issues"><tr><td colspan="5">Select a lay.</td></tr></tbody></table></div></section>
+   <section><h3>Record measured spread</h3><form id="spread-form">
+    <label>Observed actual plies <small>Must equal this lay revision or revise the lay first</small><input name="actual_plies" type="number" min="1" max="210" required></label>
+    <label>Measured marker length (mm)<input name="measured_marker_length_mm" type="number" min="100" max="100000000" required></label>
+    <label>Reported fabric consumed (mm) <small>Must cover measured marker × plies; all mm must be attributed to signed issues</small><input name="reported_consumption_mm" type="number" min="1" required></label>
+    <label>Issue allocations <small>One signed issue UUID,consumed_mm per line. The sum must equal reported consumption.</small><textarea name="issue_allocations" rows="4" spellcheck="false" placeholder="00000000-0000-0000-0000-000000000000,125000" required></textarea></label>
+    <label>Spread evidence note <small>12–1000 characters, actual operator observations; not a physical scanner credential</small><textarea name="evidence_note" rows="3" minlength="12" maxlength="1000" required></textarea></label>
+    <button type="submit" id="save-spread" disabled>Save immutable reported spread</button>
+   </form></section>
   </div>
-
-  <div class="main-grid">
-    <!-- Left: 2D Nesting & Machine Vision Canvas -->
-    <div class="card">
-      <h2>1. Picture of Cloth Layout (Click Red Button to Test Camera Hole Check)</h2>
-      <canvas id="marker-canvas" width="820" height="340"></canvas>
-
-      <div style="display:flex; gap:12px; flex-wrap:wrap;">
-        <button class="btn btn-red" onclick="simulateCameraFlaw()">
-          📷 Simulate Camera Spotting a Hole on Cloth
-        </button>
-        <button class="btn btn-blue" onclick="resetCameraFlaws()">
-          ↺ Clear Camera Holes
-        </button>
-        <button class="btn btn-green" onclick="speakCuttingGuide()">
-          🔊 Speak Instructions (Hindi / English)
-        </button>
-      </div>
-
-      <div class="reuse-banner" id="reuse-box">
-        Loading leftover cloth reuse plan...
-      </div>
-    </div>
-
-    <!-- Right: Double Witness & NFC Bundle Tagging -->
-    <div class="card">
-      <h2>2. Tap NFC Tags for Cut Bundles</h2>
-      <p style="font-size:14px; color:#475569; margin-bottom:14px;">After cutting the cloth, tap one green button per stack to lock its NFC tag.</p>
-      <div id="bundle-list"></div>
-    </div>
-  </div>
-
-  <script>
-    let simulatedDefects = [];
-    let currentPlan = null;
-
-    async function loadCutGeometry() {
-      const res = await fetch("/api/v1/cutting/optimize-geometry", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order_id: "MK6574J9",
-          style_code: "KK524867",
-          roll_length_m: 59.0,
-          usable_width_cm: 148.0,
-          garments_per_ply: 2,
-          defects: simulatedDefects
-        })
-      });
-      if (!res.ok) return;
-      currentPlan = await res.json();
-
-      document.getElementById('cut-util').innerText = currentPlan.utilization_pct + '%';
-      document.getElementById('cut-waste').innerText = currentPlan.wastage_pct + '%';
-      document.getElementById('cut-plies').innerText = currentPlan.recommended_plies + ' Layers';
-      document.getElementById('cut-total').innerText = currentPlan.total_garments_cut + ' Pants';
-      document.getElementById('reuse-box').innerText = '♻️ Leftover Cloth Rule: ' + currentPlan.end_bit_reuse_plan;
-
-      drawMarkerCanvas(currentPlan);
-      renderBundles(currentPlan.placed_pieces || []);
-    }
-
-    function drawMarkerCanvas(plan) {
-      const canvas = document.getElementById('marker-canvas');
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      const scaleX = (canvas.width - 40) / (plan.marker_length_m * 100);
-      const scaleY = (canvas.height - 20) / plan.fabric_width_cm;
-
-      // Draw cloth background
-      ctx.fillStyle = '#0F172A';
-      ctx.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
-
-      // Draw nested pattern polygons
-      (plan.placed_pieces || []).forEach(p => {
-        const x = 15 + p.x_cm * scaleX;
-        const y = 10 + p.y_cm * scaleY;
-        const w = p.width_cm * scaleX;
-        const h = p.height_cm * scaleY;
-
-        ctx.fillStyle = p.avoided_flaw ? '#F59E0B' : '#10B981';
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 1.5;
-        ctx.fillRect(x, y, w, h);
-        ctx.strokeRect(x, y, w, h);
-
-        ctx.fillStyle = '#000000';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.fillText(`${p.part_name} (${p.size_variant})`, x + 4, y + 16);
-      });
-
-      // Draw Machine Vision Red Defect Zones
-      (plan.defects_detected || []).forEach(d => {
-        const cx = 15 + (d.x_meter * 100) * scaleX;
-        const cy = 10 + d.y_cm * scaleY;
-        const r = Math.max(12, d.radius_cm * scaleY);
-
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(220, 38, 38, 0.75)';
-        ctx.fill();
-        ctx.strokeStyle = '#FCA5A5';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.fillText('HOLE!', cx - 16, cy + 4);
-      });
-    }
-
-    function simulateCameraFlaw() {
-      simulatedDefects.push({
-        id: "CAM-FLAW-" + (simulatedDefects.length + 1),
-        x_meter: 0.65 + Math.random() * 1.2,
-        y_cm: 30 + Math.random() * 80,
-        radius_cm: 8.0,
-        defect_type: "HOLE"
-      });
-      loadCutGeometry();
-    }
-
-    function resetCameraFlaws() {
-      simulatedDefects = [];
-      loadCutGeometry();
-    }
-
-    function speakCuttingGuide() {
-      if (!currentPlan || !('speechSynthesis' in window)) return;
-      const msg = new SpeechSynthesisUtterance(
-        `Spread ${currentPlan.recommended_plies} layers of cloth. You will get ${currentPlan.total_garments_cut} pants. ${currentPlan.end_bit_reuse_plan}`
-      );
-      window.speechSynthesis.speak(msg);
-    }
-
-    function renderBundles(pieces) {
-      const box = document.getElementById('bundle-list');
-      const sampleParts = [
-        { code: "101", name: "Left Pocket Stack (20 pcs)" },
-        { code: "102", name: "Front Leg Panel Stack (20 pcs)" },
-        { code: "103", name: "Back Leg Panel Stack (20 pcs)" },
-        { code: "104", name: "Waistband Stack (20 pcs)" }
-      ];
-      box.innerHTML = sampleParts.map((b, idx) => `
-        <div class="bundle-item">
-          <div>
-            <div style="font-weight:900; font-size:16px;">Bundle #${idx+1}: ${b.name}</div>
-            <div style="font-size:13px; color:#475569;">Shade A | Cut #1 | Ply 1 to 20</div>
-          </div>
-          <button class="btn btn-green" style="padding:10px 14px; font-size:14px;" onclick="bindBundleTag(this, '${b.code}', '${b.name}', ${idx+1})">
-            Tap NFC Tag
-          </button>
-        </div>
-      `).join('');
-    }
-
-    async function bindBundleTag(btn, partCode, partName, seqId) {
-      const uid = `NFC-CUT1-${partCode}`;
-      const res = await fetch("/api/v1/sewing/bind-tag", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nfc_uid: uid,
-          node: {
-            sequential_id: seqId,
-            cut_no: 1,
-            pant_position: 1,
-            sub_bundle_id: seqId,
-            part_code: partCode,
-            part_name: partName,
-            ply_start: 1,
-            ply_end: 20
-          }
-        })
-      });
-      if (res.ok) {
-        btn.innerText = `✓ Tagged (${uid})`;
-        btn.style.background = '#0F172A';
-        btn.disabled = true;
-      }
-    }
-
-    loadCutGeometry();
-  </script>
+  <div class="two"><section><h3>Evidence register</h3><div id="spread-register" class="register">No spread report.</div></section>
+  <section><h3>Bundle EPC witnesses</h3><p class="hint">Only signed, strongly authenticated cutting-reader witnesses may register EPCs through the secure API. The dev login is read-only. Hardware RF presence is not verified by an operator signature alone.</p><div id="spread-scans" class="register">No signed bundle witnesses.</div></section></div>
+  <p id="spread-message" role="status" aria-live="polite"></p>
+ </section>
+ <p id="cut-message" role="status" aria-live="polite"></p>
+</main>
 </body>
 </html>
