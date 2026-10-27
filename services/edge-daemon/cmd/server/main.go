@@ -337,6 +337,14 @@ func main() {
 		mux.HandleFunc("/api/v1/packing/sim/event", server.handlePackSimEvent)
 		mux.HandleFunc("/packing", servePackSimulation)
 	}
+	// Batch 12A/B: source-derived, rehearsal-only factory intelligence.
+	if modules.IsEnabled("mod_sewing") && modules.IsEnabled("mod_packing") {
+		mux.HandleFunc("/api/v1/intelligence/sim/catalog", server.handleIntelSimCatalog)
+		mux.HandleFunc("/api/v1/intelligence/sim/report", server.handleIntelSimReport)
+		mux.HandleFunc("/api/v1/intelligence/sim/capture", server.handleIntelSimCapture)
+		mux.HandleFunc("/api/v1/intelligence/sim/snapshots", server.handleIntelSimSnapshots)
+		mux.HandleFunc("/intelligence", serveIntelSimulation)
+	}
 	if modules.IsEnabled("mod_packing") {
 		mux.HandleFunc("/api/v1/packing/session/start", server.handlePackingStart)
 		mux.HandleFunc("/api/v1/packing/session/scan", server.handlePackingScan)

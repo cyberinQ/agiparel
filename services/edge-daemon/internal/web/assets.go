@@ -64,4 +64,11 @@ func GetSewSimulationHTML() ([]byte, error) { return staticFS.ReadFile("static/s
 
 func GetQCSimulationHTML() ([]byte, error) { return staticFS.ReadFile("static/quality_execution.html") }
 
-func GetPackSimulationHTML() ([]byte, error) { return staticFS.ReadFile("static/packing_execution.html") }
+func GetPackSimulationHTML() ([]byte, error) {
+	return staticFS.ReadFile("static/packing_execution.html")
+}
+
+// Batch 12A/B: restricted factory intelligence rehearsal.
+func GetIntelSimulationHTML() ([]byte, error) {
+	return staticFS.ReadFile("static/factory_intelligence.html")
+}
