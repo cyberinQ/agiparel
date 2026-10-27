@@ -1,29 +1,37 @@
-# Operating System
+# OS and editor artifacts
 .DS_Store
 .DS_Store?
 ._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# IDE & History Snapshots
+__MACOSX/
+.Spotlight-V100/
+.Trashes/
 .history/
 .vscode/
 .idea/
 *.swp
 *~
 
-# Go Build Artifacts & Tests
+# Build, test, and local caches
 bin/
 dist/
 *.test
 *.out
 coverage/
+coverage.out
+*.prof
+*.log
 
-# Runtime Data & WAL
+# Runtime state: never commit databases, uploads, caches or event journals
+backups/
+*.dump
+*.backup
+*.bak
+data/staging/
 data/wal/
+data/tmp/
 *.wal
 compose/pgdata/
 compose/redisdata/
 compose/edge_wal_data/
+.env
+.env.local

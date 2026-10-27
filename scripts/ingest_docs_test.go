@@ -14,7 +14,7 @@ import (
 )
 
 func TestSevenStagingDocumentsDeterministic(t *testing.T) {
-	dir := filepath.Join("..", "data", "staging", "docs")
+	dir := filepath.Join("..", "tests", "fixtures", "intake")
 	docs := []struct {
 		name                                         string
 		operations, machines, workers, rolls, orders int
