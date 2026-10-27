@@ -95,6 +95,8 @@ func registerMaterialRoutes(mux *http.ServeMux, db *sql.DB) {
 	// Batch 08B: externally signed cutting RFID witness; no machine-gateway attestation.
 	mux.HandleFunc("/api/v1/cutting/bundle-scans/challenge", a.cutScanChallengeRoute)
 	mux.HandleFunc("/api/v1/cutting/bundle-scans", a.cutSignedScanRoute)
+	mux.HandleFunc("/api/v1/cutting/releases/challenge", a.cutReleaseChallengeRoute)
+	mux.HandleFunc("/api/v1/cutting/releases", a.cutReleaseRoute)
 }
 
 func (a *materialAPI) ready(w http.ResponseWriter) bool {

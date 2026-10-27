@@ -285,6 +285,8 @@ func main() {
 	// Batch 08A: append-only source-linked marker/lay and classic bundle drafts.
 	mux.HandleFunc("/api/v1/cutting/lay-drafts", server.handleCuttingLayDrafts)
 	mux.HandleFunc("/api/v1/cutting/spreads", server.handleCuttingSpreads)
+	mux.HandleFunc("/api/v1/cutting/reader-events", server.handleCuttingReaderEvent)
+	mux.HandleFunc("/api/v1/cutting/release-status", server.handleCuttingReleaseStatus)
 	mux.HandleFunc("/api/v1/cutting/optimize-geometry", server.handleCuttingOptimizeGeometry)
 	mux.HandleFunc("/cutting", func(w http.ResponseWriter, r *http.Request) {
 		data, err := web.GetCuttingViewHTML()

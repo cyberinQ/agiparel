@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Agiparel · Cutting & Bundle Genealogy · Batch 08B</title>
+<title>Agiparel · Cutting & Bundle Genealogy</title>
 <link rel="stylesheet" href="/static/cutting_lay.css">
 <script src="/static/workspace_nav.js" defer></script>
 <script src="/static/cutting_lay.js" defer></script>
 <script src="/static/cutting_spread.js" defer></script>
+<script src="/static/cutting_release_status.js" defer></script>
 </head>
 <body>
 <main>
@@ -15,7 +16,7 @@
    <p>Buyer PO → marker and lay → reported plies → classic part × position × ply-group bundle drafts</p></div>
   <a class="back" href="/stores">Fabric Stores</a>
  </header>
- <div class="alert" role="note"><strong>08A · PROPOSED / HOLD</strong> — These are traceable cutting drafts, not confirmed physical cuts. Entered ply counts are operator reports. Printable label codes are <strong>not RFID EPCs or observed reader scans</strong>. No material is reserved or consumed here. Physical release requires signed issuance and independent production evidence. Batch 08B separately records reported spread evidence without converting these draft labels into released bundles.</div>
+ <div class="alert" role="note"><strong>PROPOSED / HOLD</strong> — These are traceable cutting drafts, not confirmed physical cuts. Entered ply counts are operator reports. Printable label codes are <strong>not RFID EPCs or observed reader scans</strong>. No material is reserved or consumed here. Physical release requires signed issuance and independent production evidence. The execution register separately records reported spread evidence without converting these draft labels into released bundles.</div>
  <section class="stats" aria-label="Cutting overview">
   <article><span>Stored lay drafts</span><strong id="metric-lays">—</strong></article>
   <article><span>Planned garments (latest)</span><strong id="metric-garments">—</strong></article>
@@ -58,10 +59,10 @@
    <p class="hint">Bundle count = marker positions × unique parts × ply groups. Each bundle represents its specific ply range, with piece count = plies in that range × pieces per garment. Label codes are deterministic within the lay revision and are not assigned as physical EPCs.</p>
  </section>
 
- <section class="panel detail" id="cut-spread-workbench" aria-label="08B issued-fabric reconciliation">
-  <h2>4 · Batch 08B — physical spread reporting & signed-issue reconciliation</h2>
+ <section class="panel detail" id="cut-spread-workbench" aria-label="Issued-fabric reconciliation">
+  <h2>4 · Physical spread reporting & signed-issue reconciliation</h2>
   <div class="alert"><strong>REPORTING / HOLD:</strong> This workbench records operator-reported ply/length evidence attributed to existing independently witnessed material issues. It does not decrement stores a second time, assert machine vision, confirm RFID hardware scans, or release bundles to sewing.</div>
-  <p id="spread-selection" class="hint">Open an 08A lay draft to inspect matching signed issues and prepare a physical-spread report.</p>
+  <p id="spread-selection" class="hint">Open a lay draft to inspect matching signed issues and prepare a physical-spread report.</p>
   <div class="two">
    <section><h3>Signed material issues for selected lay</h3><div class="table-wrap"><table><thead><tr><th>Issue ID</th><th>Roll</th><th>Signed issued (mm)</th><th>Already attributed (mm)</th><th>Open (mm)</th></tr></thead><tbody id="spread-issues"><tr><td colspan="5">Select a lay.</td></tr></tbody></table></div></section>
    <section><h3>Record measured spread</h3><form id="spread-form">
@@ -76,6 +77,13 @@
   <div class="two"><section><h3>Evidence register</h3><div id="spread-register" class="register">No spread report.</div></section>
   <section><h3>Bundle EPC witnesses</h3><p class="hint">Only signed, strongly authenticated cutting-reader witnesses may register EPCs through the secure API. The dev login is read-only. Hardware RF presence is not verified by an operator signature alone.</p><div id="spread-scans" class="register">No signed bundle witnesses.</div></section></div>
   <p id="spread-message" role="status" aria-live="polite"></p>
+ </section>
+ <section class="panel detail" id="cut-release-workbench">
+  <div class="detail-head"><div><h2>5 · Reader events & sewing handoff</h2>
+   <p class="hint">Track registered RFID gateway reports against independently signed bundle witnesses. A full match alone does not authorize release.</p></div>
+   <button class="secondary" type="button" id="release-refresh">Refresh evidence</button></div>
+  <div class="alert"><strong>SECURE HANDOFF:</strong> Only enrolled gateway keys may submit signed read reports. Supervisor and quality approvers must separately authorize release with strong external identities. Basic development credentials cannot approve production.</div>
+  <div id="cut-release-evidence" class="register" aria-live="polite">Select a cutting draft to see release evidence.</div>
  </section>
  <p id="cut-message" role="status" aria-live="polite"></p>
 </main>

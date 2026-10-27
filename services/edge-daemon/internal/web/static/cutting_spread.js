@@ -25,9 +25,10 @@ async function spreadRefresh(){
   if(!(data.spreads||[]).length)reg.append(spreadText('p','No spread evidence recorded.'));
   const witnesses=spreadEl('spread-scans');witnesses.replaceChildren();
   for(const w of data.bundle_witnesses||[])witnesses.append(spreadText('p',`${w.label_code} · EPC ${w.epc_hex} · ${w.witness_subject} · ${w.state}`));
-  if(!(data.bundle_witnesses||[]).length)witnesses.append(spreadText('p','No signed EPC witnesses; printable 08A labels are not RFID reads.'));
+  if(!(data.bundle_witnesses||[]).length)witnesses.append(spreadText('p','No signed EPC witnesses; printable draft labels are not RFID reads.'));
   const hasReport=(data.spreads||[]).length>0;
   spreadEl('save-spread').disabled=hasReport||!(data.matching_signed_issues||[]).some(i=>i.available_for_attribution_mm>0);
+  document.dispatchEvent(new CustomEvent('cut-spread-refreshed',{detail:{draft_id:requestedDraftID}}));
   spreadMsg(hasReport?'Immutable report already exists for this draft. A new revision cannot overwrite physical evidence.':'Report requires matching signed issued mm; physical cut and RFID reader evidence remain unverified.');
  }catch(e){spreadEl('save-spread').disabled=true;spreadMsg(`Cannot load issue evidence: ${e.message}`);}
 }
