@@ -61,3 +61,5 @@ func GetStoresHTML() ([]byte, error) { return staticFS.ReadFile("static/stores.h
 
 // E09 browser-based station scanner emulation (read-only embedded assets).
 func GetSewSimulationHTML() ([]byte, error) { return staticFS.ReadFile("static/sewing_execution.html") }
+
+func GetQCSimulationHTML() ([]byte, error) { return staticFS.ReadFile("static/quality_execution.html") }

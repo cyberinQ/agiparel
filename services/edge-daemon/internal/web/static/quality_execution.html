@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quality &amp; Finishing | Agiparel</title>
+<style>
+:root{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#f3f6fa;color:#192a42}*{box-sizing:border-box}body{margin:0}main{max-width:1360px;margin:auto;padding:26px 22px 60px}h1{font-size:27px;margin:8px 0 3px}h2{font-size:18px;margin:0 0 14px}p{line-height:1.45}.muted{color:#516782;font-size:13px}.banner{background:#fff4df;border:1px solid #e8b352;color:#734e05;padding:15px;border-radius:10px;font-weight:650;margin:16px 0 20px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{border:1px solid #dae3ef;background:white;padding:21px;border-radius:12px}.wide{grid-column:1/-1}label{font-size:12px;color:#354a66;font-weight:800;display:block;margin:12px 0 5px}input,select{width:100%;background:white;border:1px solid #b8c9dd;border-radius:7px;min-height:40px;padding:9px;font:inherit;font-size:14px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}button{border:1px solid #244c81;background:#245ec9;color:white;border-radius:7px;padding:10px 13px;font-weight:750;cursor:pointer;font-size:13px}button:disabled{opacity:.5;cursor:not-allowed}.secondary{background:white;color:#265286;border-color:#b7cbe4}.red{background:#ac3f37;border-color:#ac3f37}.green{background:#167753;border-color:#167753}.actions{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}.info{background:#eef5ff;color:#204b79;padding:11px;border-radius:7px;font-size:13px;white-space:pre-wrap}.error{background:#fff0ee;color:#922b22}.ok{background:#e5f5ed;color:#116b49}.mono{font-family:ui-monospace,Menlo,monospace;overflow-wrap:anywhere;font-size:12px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px;text-align:left;border-bottom:1px solid #e7edf5}th{color:#526982}tr[data-serial]{cursor:pointer}tr[data-serial]:hover{background:#eef4ff}.selected{background:#e6f0ff}.badge{display:inline-block;padding:3px 7px;border-radius:12px;background:#f1e6d3;color:#765100;font-weight:800;font-size:10px}.small{font-size:12px}.stat{font-size:23px;font-weight:800}.metrics{display:flex;gap:35px;flex-wrap:wrap}.step{font-size:12px;padding:5px 8px;margin:3px;border-radius:5px;display:inline-block;background:#e8eef6}.step.done{background:#d6f4e5}@media(max-width:900px){.grid,.two{grid-template-columns:1fr}.wide{grid-column:auto}}
+</style><script src="/static/workspace_nav.js" defer></script></head>
+<body><main>
+<h1>Quality inspection &amp; finishing</h1>
+<p class="muted">Rehearse individual garment QA, partial holds, independent repairs, ordered finishing steps, and buyer-label uniqueness.</p>
+<div class="banner">SIMULATION ONLY — All garment identities originate from simulated sewing completions. UI clicks represent unverified reader events, not physical RFID scans, authenticated inspections, approved style routes, production QA release, or shipping authority. No real finished-goods ledger is updated.</div>
+<div class="grid">
+<section class="card"><h2>1 · Source garments</h2>
+<div class="two"><div><label for="lay">Cutting lay / sewing output</label><select id="lay"><option value="">Loading…</option></select></div><div><label for="plant">Plant</label><input id="plant" value="SIM-PLANT-01"></div></div>
+<div class="actions"><button id="reload" class="secondary">Reload source</button></div>
+<p class="muted" id="sourceStatus">No simulated sewing output selected.</p>
+<label for="serial">Garment serial (source-derived)</label><select id="serial"><option value="">Choose garment</option></select>
+<div class="actions"><button id="enroll">Emulate garment arrival / enroll</button></div>
+<p class="mono" id="garmentInfo"></p></section>
+<section class="card"><h2>2 · Finishing route (unapproved rehearsal)</h2>
+<label for="profile">Style-specific route *proposal*</label><select id="profile"><option value="WOVEN_STANDARD">Woven · trim → press</option><option value="WASH_FINISH">Wash · wash → dry → press → trim</option><option value="HANGER_FINISH">Hanger · trim → press → hanger</option><option value="KNIT_FOLD">Knit · trim → press → fold</option></select>
+<div class="actions"><button id="setRoute" class="secondary">Set immutable simulated route</button></div><p class="muted">The profile cannot be changed after creation. No route is considered buyer-approved without independent style-document approval.</p>
+<div id="routeSteps"></div><p id="routeInfo" class="muted"></p></section>
+<section class="card"><h2>3 · Inspect, hold &amp; repair</h2>
+<div class="two"><div><label for="actor">Operator / inspector</label><input id="actor" value="QC-INSPECTOR-01"></div><div><label for="station">Station</label><input id="station" value="QC-STATION-01"></div></div>
+<label for="defect">Defect code for failed inspection</label><input id="defect" value="STITCH_DEFECT" maxlength="64">
+<div class="actions"><button id="pass" class="green">Pass initial inspection</button><button id="fail" class="red">Fail · hold only this garment</button><button id="repair" class="secondary">Record repair (different actor)</button><button id="repass" class="green">Independent reinspection: pass</button><button id="refail" class="red">Independent reinspection: fail</button></div>
+<p class="muted">After failure, change the actor to a repair worker, then change again to a separate quality inspector. The original failing inspector cannot self-approve the repair.</p></section>
+<section class="card"><h2>4 · Ordered finishing &amp; buyer identity</h2>
+<div class="actions"><button id="finish">Emulate next finishing step</button></div><p class="muted" id="finishInfo">Awaiting QC acceptance and route.</p>
+<div class="two"><div><label for="style">Buyer style code</label><input id="style" placeholder="Exact PO style code"></div><div><label for="size">Garment size</label><input id="size" placeholder="Size from source"></div></div>
+<label for="buyer">Buyer garment / hangtag serial</label><input id="buyer" placeholder="BUYER-GARMENT-0001">
+<div class="actions"><button id="bind" class="secondary">Check &amp; bind simulated buyer identifier</button></div><p class="muted">Style and size are checked against the existing PO and cutting lineage. A buyer serial cannot be assigned to two active garments. Binding is not physical hangtag authentication.</p></section>
+<section class="card wide"><h2>5 · Quality register and conservation</h2>
+<div id="metrics" class="metrics"></div><div class="actions"><button id="retry" class="secondary">Retry pending event (same ID)</button><button id="discard" class="secondary">Discard pending UI request only</button></div><p class="muted" id="pendingInfo"></p><p id="feedback" class="info" role="status">Select a lay that has completed 09 sewing simulation cycles.</p>
+<div style="overflow-x:auto"><table><thead><tr><th>Garment serial</th><th>Color / size</th><th>QA state</th><th>Defect</th><th>Finished</th><th>Buyer identity</th></tr></thead><tbody id="units"></tbody></table></div>
+<p class="muted">Each garment can be accepted once. A failure holds only that garment. All changes are recorded as idempotent, tenant-isolated PostgreSQL events. This table excludes unenrolled source garments from pass counts.</p></section>
+</div></main><script src="/static/quality_execution.js" defer></script></body></html>

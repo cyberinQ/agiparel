@@ -325,6 +325,13 @@ func main() {
 		mux.HandleFunc("/api/v1/sewing/validate-pair", server.handleSewingValidatePair)
 		mux.HandleFunc("/api/v1/sewing/register-rule", server.handleSewingRegisterRule)
 	}
+	// Batch 10A/B: development-only garment-level QC & finishing rehearsal.
+	if modules.IsEnabled("mod_sewing") {
+		mux.HandleFunc("/api/v1/quality/sim/catalog", server.handleQCSimCatalog)
+		mux.HandleFunc("/api/v1/quality/sim/route", server.handleQCSimRoute)
+		mux.HandleFunc("/api/v1/quality/sim/event", server.handleQCSimEvent)
+		mux.HandleFunc("/quality", serveQCSimulation)
+	}
 	if modules.IsEnabled("mod_packing") {
 		mux.HandleFunc("/api/v1/packing/session/start", server.handlePackingStart)
 		mux.HandleFunc("/api/v1/packing/session/scan", server.handlePackingScan)
