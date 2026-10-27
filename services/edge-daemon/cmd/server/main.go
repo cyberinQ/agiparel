@@ -333,6 +333,11 @@ func main() {
 		mux.HandleFunc("/quality", serveQCSimulation)
 	}
 	if modules.IsEnabled("mod_packing") {
+		mux.HandleFunc("/api/v1/packing/sim/catalog", server.handlePackSimCatalog)
+		mux.HandleFunc("/api/v1/packing/sim/event", server.handlePackSimEvent)
+		mux.HandleFunc("/packing", servePackSimulation)
+	}
+	if modules.IsEnabled("mod_packing") {
 		mux.HandleFunc("/api/v1/packing/session/start", server.handlePackingStart)
 		mux.HandleFunc("/api/v1/packing/session/scan", server.handlePackingScan)
 		mux.HandleFunc("/api/v1/packing/session/seal", server.handlePackingSeal)

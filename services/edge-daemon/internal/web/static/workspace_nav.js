@@ -16,6 +16,7 @@
     ['/cutting', 'Cutting'],
     ['/sewing', 'Sewing execution'],
     ['/quality', 'Quality & finishing'],
+    ['/packing', 'Packing & dispatch'],
     ['/onboarding', 'Onboarding']
   ];
   const pathname = window.location.pathname;
