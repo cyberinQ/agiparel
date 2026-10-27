@@ -55,3 +55,6 @@ func GetFactorySetupHTML() ([]byte, error) { return staticFS.ReadFile("static/fa
 
 // Gate 06.5-C1: original-document-to-proposed-order review.
 func GetBuyerReviewHTML() ([]byte, error) { return staticFS.ReadFile("static/buyer_review.html") }
+
+// Batch 07A: restricted stores observation / roll identity workspace.
+func GetStoresHTML() ([]byte, error) { return staticFS.ReadFile("static/stores.html") }

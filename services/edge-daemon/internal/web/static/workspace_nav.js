@@ -10,6 +10,7 @@
     ['/buyer-review', 'Buyer review'],
     ['/order-intake', 'Order readiness'],
     ['/material-planning', 'Material planning'],
+    ['/stores', 'Fabric stores'],
     ['/planning', 'Factory planning'],
     ['/plant', 'Plant control'],
     ['/cutting', 'Cutting'],

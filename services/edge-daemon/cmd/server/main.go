@@ -209,6 +209,10 @@ func main() {
 	mux.HandleFunc("/api/v1/documents", server.handleDocuments)
 	mux.HandleFunc("/api/v1/documents/uploads", server.handleDocumentUpload)
 	mux.HandleFunc("/api/v1/documents/", server.handleDocumentDetail)
+	// Batch 07A: tenant-scoped, append-only observed roll passports and read-only material ledger overview.
+	mux.HandleFunc("/stores", server.handleStoresWorkspace)
+	mux.HandleFunc("/api/v1/stores/passports", server.handleStoresPassports)
+	mux.HandleFunc("/api/v1/stores/authority", server.handleStoresAuthority)
 	mux.HandleFunc("/api/v1/order-intake", server.handleOrderIntake)
 	mux.HandleFunc("/api/v1/buyer-review", server.handleBuyerReview)
 	mux.HandleFunc("/buyer-review", func(w http.ResponseWriter, r *http.Request) {
