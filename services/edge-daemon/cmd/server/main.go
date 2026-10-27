@@ -213,6 +213,10 @@ func main() {
 	mux.HandleFunc("/stores", server.handleStoresWorkspace)
 	mux.HandleFunc("/api/v1/stores/passports", server.handleStoresPassports)
 	mux.HandleFunc("/api/v1/stores/authority", server.handleStoresAuthority)
+	// Batch 07B: read-only secure ledger status and immutable reconciliation requests.
+	mux.HandleFunc("/api/v1/stores/reconciliation", server.handleStoresReconciliation)
+	mux.HandleFunc("/api/v1/stores/reconciliation-requests", server.handleStoresReconciliationRequests)
+	mux.HandleFunc("/api/v1/stores/reservations", server.handleStoresReservations)
 	mux.HandleFunc("/api/v1/order-intake", server.handleOrderIntake)
 	mux.HandleFunc("/api/v1/buyer-review", server.handleBuyerReview)
 	mux.HandleFunc("/buyer-review", func(w http.ResponseWriter, r *http.Request) {
