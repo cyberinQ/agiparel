@@ -1,0 +1,48 @@
+/* Agiparel workspaces: shared paper-and-ink design language. Phase identity is not approval status. */
+:root { --ag-page:#f6f8fa; --ag-card:#ffffff; --ag-ink:#243746; --ag-muted:#556878; --ag-line:#dbe3e9;
+  --ag-action:#1f5262; --ag-good:#23754d; --ag-hold:#ad6c11; --ag-bad:#ac403d; }
+body[data-ag-phase] { --ag-accent:#167e88; background:var(--ag-page)!important; color:var(--ag-ink)!important;
+  font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif; line-height:1.5; border-top:6px solid var(--ag-accent); }
+body[data-ag-phase="factory"] {--ag-accent:#218aaa}
+body[data-ag-phase="documents"] {--ag-accent:#5966cf}
+body[data-ag-phase="buyer"] {--ag-accent:#306ccb}
+body[data-ag-phase="material"] {--ag-accent:#8557bd}
+body[data-ag-phase="stores"] {--ag-accent:#b47712}
+body[data-ag-phase="cutting"] {--ag-accent:#df6b23}
+body[data-ag-phase="sewing"] {--ag-accent:#087f79}
+body[data-ag-phase="quality"] {--ag-accent:#2b844b}
+body[data-ag-phase="packing"] {--ag-accent:#bb3975}
+body[data-ag-phase="reports"] {--ag-accent:#486484}
+body[data-ag-phase] :is(.panel,.card,.surface,.step-card,.candidate-panel,.source-preview) {
+  border-radius:12px; box-shadow:0 2px 8px #1832410b; }
+body[data-ag-phase] :is(.panel,.card,.surface,.step-card,.candidate-panel) {border-color:var(--ag-line)}
+body[data-ag-phase] :is(input,select,textarea) {font-family:inherit;font-size:max(14px,0.925rem);border-radius:7px;min-height:43px}
+body[data-ag-phase] :is(input,select,textarea):focus-visible,
+body[data-ag-phase] :is(button,a,summary):focus-visible {outline:3px solid var(--ag-accent);outline-offset:3px}
+body[data-ag-phase] :is(button,.btn,.action-button) {min-height:43px;border-radius:8px;line-height:1.35}
+body[data-ag-phase] :is(label,th) {letter-spacing:0}
+body[data-ag-phase] :is(label) {font-size:max(13px,.84rem)}
+body[data-ag-phase] :is(h1,h2,h3) {letter-spacing:-.015em;line-height:1.2}
+body[data-ag-phase] :is(.hero,.intro,.top,.panel,.card,.surface) p {line-height:1.55}
+body[data-ag-phase] :is(.step-num,.step-badge,.step) {font-variant-numeric:tabular-nums}
+body[data-ag-phase] table {font-variant-numeric:tabular-nums}
+body[data-ag-phase] :is(.scroll,.table-wrap) {max-width:100%;overflow-x:auto}
+body[data-ag-phase] a {text-underline-offset:3px}
+body[data-ag-phase] .ag-steps {display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 20px;padding:0;list-style:none}
+body[data-ag-phase] .ag-steps li {display:flex;align-items:center;gap:9px;background:var(--ag-card);border:1px solid var(--ag-line);border-radius:9px;padding:9px 12px;color:var(--ag-ink);font-size:14px;font-weight:650;flex:1 1 185px;min-width:0}
+body[data-ag-phase] .ag-steps b {background:var(--ag-accent);color:white;display:inline-grid;place-items:center;border-radius:7px;padding:4px 7px;min-width:26px;font-size:12px}
+body[data-ag-phase] .ag-note {padding:12px 14px;border:1px solid #dfc28c;background:#fff9ed;color:#654c21;border-radius:9px;font-size:14px;line-height:1.5;margin:15px 0}
+body[data-ag-phase] .ag-note strong {font-weight:750}
+body[data-ag-phase] .ag-details {margin:9px 0 15px;border-top:1px solid var(--ag-line);padding-top:8px;color:var(--ag-muted);font-size:13px}
+body[data-ag-phase] .ag-details summary {cursor:pointer;font-weight:650;padding:7px 2px}
+body[data-ag-phase] .ag-details p {margin:6px 0 8px;max-width:90ch}
+body[data-ag-phase] .ag-status-hold {font-weight:800;color:var(--ag-hold)}
+body[data-ag-phase] .ag-status-bad {font-weight:800;color:var(--ag-bad)}
+body[data-ag-phase] .ag-status-good {font-weight:800;color:var(--ag-good)}
+/* Existing private screens have some old navigation bars; one shared bar is enough. */
+body[data-ag-phase] > header.nav,
+body[data-ag-phase] > header.top {display:none}
+/* The specialist station demo remains a fixed/touch layout, so only share colors and navigation there. */
+body[data-ag-phase="sewing"].ag-legacy-station {border-top:6px solid var(--ag-accent)}
+@media(max-width:760px){body[data-ag-phase] .ag-steps {display:grid;grid-template-columns:1fr}body[data-ag-phase] .ag-steps li {min-width:0}body[data-ag-phase] :is(.panel,.card,.surface) {min-width:0}}
+@media(prefers-reduced-motion:reduce){body[data-ag-phase] * {scroll-behavior:auto!important}}

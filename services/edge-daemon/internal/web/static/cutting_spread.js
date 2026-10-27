@@ -52,7 +52,7 @@ spreadEl('spread-form').addEventListener('submit',async(event)=>{
   reported_consumption_mm:Number(data.get('reported_consumption_mm')),issue_allocations:allocations,evidence_note:String(data.get('evidence_note')).trim()};
   spreadEl('save-spread').disabled=true;
   const saved=await spreadFetch(spreadAPI,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)});
-  spreadMsg(`Saved immutable ${saved.spread.report_id}; remains NOT RELEASED.`);
+  spreadMsg(`Spread saved: ${saved.spread.report_id}. Cutting is still on hold.`);
   await spreadRefresh();
  }catch(e){spreadMsg(`Spread evidence rejected: ${e.message}`);spreadEl('save-spread').disabled=false;}
 });

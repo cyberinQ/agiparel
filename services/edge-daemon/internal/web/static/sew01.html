@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Station 4 | Operator Screen</title>
+  <title>Agiparel · Old sewing demo</title>
   <style>
     :root {
       --bg: #F1F4F8; --card: #FFFFFF; --text: #0F172A;
@@ -51,20 +51,21 @@
     .ledger-time { color: var(--brand); margin-right: 8px; font-weight: 700; }
   </style>
   <script src="/static/workspace_nav.js" defer></script>
+<link rel="stylesheet" href="/static/ux_unified.css">
 </head>
-<body>
+<body data-ag-phase="sewing" class="ag-legacy-station">
 
   <header>
     <div class="station-title">
-      Station 4: Sewing Machine
+      Old sewing station demo
       <div class="station-sub" id="op-identity">
-        <strong>Worker:</strong> Vikram Singh (W-05) &nbsp;|&nbsp; <strong>Order:</strong> MK6574J9 &nbsp;|&nbsp; <strong>Factory:</strong> Noble Garments
+        <strong>Demo worker</strong> · <strong>Demo order</strong> · Not linked to factory records
       </div>
     </div>
-    <div class="badge">Task: Sew the Back Seam (Target: 36s)</div>
+    <div class="badge">Sample task · Back seam (36s)</div>
   </header>
 
-  <div class="dashboard">
+  <p class="ag-note"><strong>Old training screen:</strong> All names, jobs, times and counts here are examples. For saved sewing work, use <a href="/sewing">Sewing</a>.</p><div class="dashboard">
     <!-- Controls (Left) -->
     <div class="panel">
       <h2 id="state-header">Current Status: Waiting</h2>
@@ -89,7 +90,7 @@
         </div>
         <div class="kpi-box">
           <div class="kpi-label">Pass Rate</div>
-          <div class="kpi-val" id="kpi-fpy" style="color: var(--green);">100%</div>
+          <div class="kpi-val" id="kpi-fpy" style="color: var(--green);">—</div>
         </div>
         <div class="kpi-box">
           <div class="kpi-label">Time Working</div>
@@ -103,7 +104,7 @@
       
       <h2 style="margin-top: 10px;">Activity Log</h2>
       <div class="ledger" id="ledger-box">
-        <div class="ledger-entry"><span class="ledger-time">System</span> Screen is ready to use.</div>
+        <div class="ledger-entry"><span class="ledger-time">System</span> Old training page · For real demo records, open /sewing.</div>
       </div>
     </div>
   </div>

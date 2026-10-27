@@ -98,8 +98,14 @@ func TestFactoryHTTPMethodAndFailClosed(t *testing.T) {
 	s := &EdgeServer{}
 	w := httptest.NewRecorder()
 	s.handleFactorySetup(w, httptest.NewRequest(http.MethodGet, "/factory-setup", nil))
-	if w.Code != 200 || !strings.Contains(w.Body.String(), "Start with what you know") {
+	if w.Code != http.StatusOK {
 		t.Fatalf("factory setup HTTP=%d", w.Code)
+	}
+	// The copy is intentionally editable. Verify the actual factory setup controls.
+	for _, required := range []string{`id="topics"`, `id="fact-form"`, `id="candidate-source"`, `id="factory-references"`} {
+		if !strings.Contains(w.Body.String(), required) {
+			t.Errorf("factory setup missing %q", required)
+		}
 	}
 	w = httptest.NewRecorder()
 	s.handleFactoryFact(w, httptest.NewRequest(http.MethodGet, "/api/v1/factory-onboarding/facts", nil))

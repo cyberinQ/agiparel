@@ -8,23 +8,24 @@
 <script src="/static/cutting_lay.js" defer></script>
 <script src="/static/cutting_spread.js" defer></script>
 <script src="/static/cutting_release_status.js" defer></script>
+<link rel="stylesheet" href="/static/ux_unified.css">
 </head>
-<body>
+<body data-ag-phase="cutting">
 <main>
  <header class="top">
-  <div><p class="eyebrow">AGIPAREL · MANUFACTURING OPERATIONS</p><h1>Cutting & Bundle Genealogy</h1>
-   <p>Buyer PO → marker and lay → reported plies → classic part × position × ply-group bundle drafts</p></div>
+  <div><p class="eyebrow">CUTTING</p><h1>Cutting and bundle history</h1>
+   <p>Choose an order, plan the lay and check cut bundles.</p></div>
   <a class="back" href="/stores">Fabric Stores</a>
  </header>
- <div class="alert" role="note"><strong>PROPOSED / HOLD</strong> — These are traceable cutting drafts, not confirmed physical cuts. Entered ply counts are operator reports. Printable label codes are <strong>not RFID EPCs or observed reader scans</strong>. No material is reserved or consumed here. Physical release requires signed issuance and independent production evidence. The execution register separately records reported spread evidence without converting these draft labels into released bundles.</div>
+ <div class="ag-note" role="note"><strong>PROPOSED / HOLD · NOT RELEASED.</strong> This is a cutting plan. Bundles cannot move to real sewing without the required checks.</div><details class="ag-details"><summary>Why is cutting on hold?</summary><p>Draft labels are not RFID EPCs or reader scans. Entered ply counts are reports, not proven cuts. Cutting needs signed issue and reader checks before real release.</p></details>
  <section class="stats" aria-label="Cutting overview">
-  <article><span>Stored lay drafts</span><strong id="metric-lays">—</strong></article>
-  <article><span>Planned garments (latest)</span><strong id="metric-garments">—</strong></article>
-  <article><span>Proposed sub-bundles</span><strong id="metric-bundles">—</strong></article>
-  <article><span>Production release</span><strong class="hold">NOT RELEASED</strong></article>
+  <article><span>Saved lay plans</span><strong id="metric-lays">—</strong></article>
+  <article><span>Pieces in latest plan</span><strong id="metric-garments">—</strong></article>
+  <article><span>Planned bundles</span><strong id="metric-bundles">—</strong></article>
+  <article><span>Production release</span><strong class="hold" id="metric-cut-release">NOT RELEASED</strong></article>
  </section>
- <div class="columns">
-  <section class="panel"><h2>1 · Lay worksheet</h2><p class="hint">Select a real staged buyer order. Color/size positions must appear in its source-linked SKU matrix. A new revision replaces the previous revision <em>for planning calculations</em>; the historical record is never altered.</p>
+ <ol class="ag-steps" aria-label="Steps on this page"><li><b>1</b>Choose order and set lay</li><li><b>2</b>Record spread and bundles</li><li><b>3</b>Check release status</li></ol><div class="columns">
+  <section class="panel"><h2>Step 1 — Make a lay plan</h2><p class="hint">Choose a buyer order. Enter marker, fabric, shade and ply details.</p>
    <form id="cut-form">
     <label>Buyer order <select name="intake_id" id="cut-order" required><option value="">Loading orders…</option></select></label>
     <div class="source-facts" id="cut-source-facts" aria-live="polite">Select a buyer PO to inspect its fabric BOM and color/size quantities.</div>
@@ -42,17 +43,17 @@
     <label>Pattern parts <small>One per line: part_code,pieces_per_garment</small>
       <textarea name="parts" rows="5" spellcheck="false" placeholder="FRONT,2\nBACK,2\nWAISTBAND,1" required></textarea></label>
     <label>Evidence / planning note <small>12–1000 characters</small><textarea name="note" rows="3" maxlength="1000" required placeholder="Marker checked against tech pack; physical spread not verified."></textarea></label>
-    <button type="submit" id="save-cut">Save immutable cutting draft</button>
+    <button type="submit" id="save-cut">Save lay draft</button>
     <p class="hint">Saving a revision preserves the previous version. Draft quantities cannot exceed the buyer's ordered color/size quantities across the latest cuts.</p>
    </form>
   </section>
-  <section class="panel"><h2>2 · Source-linked lay register</h2>
-   <p class="hint">Select a record to inspect its part-by-position-by-ply genealogy. The register shows the latest revision per cut.</p>
+  <section class="panel"><h2>Saved lay plans</h2>
+   <p class="hint">Choose a plan to see its cut parts and bundles.</p>
    <button class="secondary" id="refresh-cut" type="button">Refresh register</button>
    <div id="cut-register" class="register" aria-live="polite"></div>
   </section>
  </div>
- <section class="panel detail"><div class="detail-head"><div><h2>3 · Classic sub-sub-bundles</h2><p class="hint" id="cut-title">Choose or save a lay to inspect its labels.</p></div>
+ <section class="panel detail"><div class="detail-head"><div><h2>Cut bundles</h2><p class="hint" id="cut-title">Choose or save a lay to inspect its labels.</p></div>
     <button class="secondary" id="print-cut" type="button" disabled>Print draft labels</button></div>
    <div class="chips" id="cut-summary"></div>
    <div class="table-wrap"><table><thead><tr><th>Draft label code</th><th>Marker position</th><th>Color / size</th><th>Part</th><th>Ply group</th><th>Plies</th><th>Pieces</th><th>RFID status</th></tr></thead><tbody id="cut-bundles"><tr><td colspan="8">No lay selected.</td></tr></tbody></table></div>
@@ -60,28 +61,28 @@
  </section>
 
  <section class="panel detail" id="cut-spread-workbench" aria-label="Issued-fabric reconciliation">
-  <h2>4 · Physical spread reporting & signed-issue reconciliation</h2>
-  <div class="alert"><strong>REPORTING / HOLD:</strong> This workbench records operator-reported ply/length evidence attributed to existing independently witnessed material issues. It does not decrement stores a second time, assert machine vision, confirm RFID hardware scans, or release bundles to sewing.</div>
+  <h2>Step 2 — Record the fabric spread</h2>
+  <p class="ag-note"><strong>Draft only.</strong> Entered fabric use does not decrement stores again or approve bundles for sewing.</p><details class="ag-details"><summary>What must be checked before release?</summary><p>Match measured cloth against signed-issue reconciliation. Operator reports alone do not prove a scanner read or cutting approval.</p></details>
   <p id="spread-selection" class="hint">Open a lay draft to inspect matching signed issues and prepare a physical-spread report.</p>
   <div class="two">
-   <section><h3>Signed material issues for selected lay</h3><div class="table-wrap"><table><thead><tr><th>Issue ID</th><th>Roll</th><th>Signed issued (mm)</th><th>Already attributed (mm)</th><th>Open (mm)</th></tr></thead><tbody id="spread-issues"><tr><td colspan="5">Select a lay.</td></tr></tbody></table></div></section>
-   <section><h3>Record measured spread</h3><form id="spread-form">
-    <label>Observed actual plies <small>Must equal this lay revision or revise the lay first</small><input name="actual_plies" type="number" min="1" max="210" required></label>
+   <section><h3>Fabric issued for this lay</h3><div class="table-wrap"><table><thead><tr><th>Issue ID</th><th>Roll</th><th>Signed issued (mm)</th><th>Already attributed (mm)</th><th>Open (mm)</th></tr></thead><tbody id="spread-issues"><tr><td colspan="5">Select a lay.</td></tr></tbody></table></div></section>
+   <section><h3>Enter measured spread</h3><form id="spread-form">
+    <label>Actual number of plies <small>Must equal this lay revision or revise the lay first</small><input name="actual_plies" type="number" min="1" max="210" required></label>
     <label>Measured marker length (mm)<input name="measured_marker_length_mm" type="number" min="100" max="100000000" required></label>
-    <label>Reported fabric consumed (mm) <small>Must cover measured marker × plies; all mm must be attributed to signed issues</small><input name="reported_consumption_mm" type="number" min="1" required></label>
-    <label>Issue allocations <small>One signed issue UUID,consumed_mm per line. The sum must equal reported consumption.</small><textarea name="issue_allocations" rows="4" spellcheck="false" placeholder="00000000-0000-0000-0000-000000000000,125000" required></textarea></label>
-    <label>Spread evidence note <small>12–1000 characters, actual operator observations; not a physical scanner credential</small><textarea name="evidence_note" rows="3" minlength="12" maxlength="1000" required></textarea></label>
-    <button type="submit" id="save-spread" disabled>Save immutable reported spread</button>
+    <label>Fabric used (mm) <small>Must cover measured marker × plies; all mm must be attributed to signed issues</small><input name="reported_consumption_mm" type="number" min="1" required></label>
+    <label>Fabric issue amounts <small>One signed issue UUID,consumed_mm per line. The sum must equal reported consumption.</small><textarea name="issue_allocations" rows="4" spellcheck="false" placeholder="00000000-0000-0000-0000-000000000000,125000" required></textarea></label>
+    <label>Spread check note <small>12–1000 characters, actual operator observations; not a physical scanner credential</small><textarea name="evidence_note" rows="3" minlength="12" maxlength="1000" required></textarea></label>
+    <button type="submit" id="save-spread" disabled>Save spread report</button>
    </form></section>
   </div>
-  <div class="two"><section><h3>Evidence register</h3><div id="spread-register" class="register">No spread report.</div></section>
-  <section><h3>Bundle EPC witnesses</h3><p class="hint">Only signed, strongly authenticated cutting-reader witnesses may register EPCs through the secure API. The dev login is read-only. Hardware RF presence is not verified by an operator signature alone.</p><div id="spread-scans" class="register">No signed bundle witnesses.</div></section></div>
+  <div class="two"><section><h3>Spread reports</h3><div id="spread-register" class="register">No spread report.</div></section>
+  <section><h3>Bundle scan checks</h3><p class="hint">Only signed, strongly authenticated cutting-reader witnesses may register EPCs through the secure API. The dev login is read-only. Hardware RF presence is not verified by an operator signature alone.</p><div id="spread-scans" class="register">No signed bundle witnesses.</div></section></div>
   <p id="spread-message" role="status" aria-live="polite"></p>
  </section>
  <section class="panel detail" id="cut-release-workbench">
-  <div class="detail-head"><div><h2>5 · Reader events & sewing handoff</h2>
-   <p class="hint">Track registered RFID gateway reports against independently signed bundle witnesses. A full match alone does not authorize release.</p></div>
-   <button class="secondary" type="button" id="release-refresh">Refresh evidence</button></div>
+  <div class="detail-head"><div><h2>Step 3 — Check bundles before sewing</h2>
+   <p class="hint">Check reader records and approvals. A matching scan alone does not release bundles.</p></div>
+   <button class="secondary" type="button" id="release-refresh">Refresh status</button></div>
   <div class="alert"><strong>SECURE HANDOFF:</strong> Only enrolled gateway keys may submit signed read reports. Supervisor and quality approvers must separately authorize release with strong external identities. Basic development credentials cannot approve production.</div>
   <div id="cut-release-evidence" class="register" aria-live="polite">Select a cutting draft to see release evidence.</div>
  </section>

@@ -108,7 +108,13 @@ func TestStoresAPIFailClosedAndMethodGuards(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/stores", nil)
 	w := httptest.NewRecorder()
 	s.handleStoresWorkspace(w, r)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), "NOT authorized inventory") {
-		t.Errorf("page %d: %.80s", w.Code, w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("stores page status=%d", w.Code)
+	}
+	// Saving an observed roll is not an inventory-admission action.
+	for _, required := range []string{`id="passport-form"`, `id="roll-admission-workbench"`, "does not create available stock"} {
+		if !strings.Contains(w.Body.String(), required) {
+			t.Errorf("stores page missing %q", required)
+		}
 	}
 }

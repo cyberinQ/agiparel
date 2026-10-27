@@ -1,92 +1,123 @@
-// Shared restricted-workspace navigation. Does not read or modify factory records.
-// Encapsulated styles avoid changing legacy HMI layouts and their event handlers.
+// Agiparel customer navigation: one guided journey, advanced tools kept available.
+// Shadow DOM isolates navigation styles from legacy operator screens.
 (() => {
   'use strict';
   if (document.getElementById('agiparel-workspace-navigation')) return;
-  const pages = [
-    ['/', 'Home'],
-    ['/factory-setup', 'Set up factory'],
-    ['/documents', 'Upload documents'],
-    ['/buyer-review', 'Buyer review'],
-    ['/order-intake', 'Order readiness'],
-    ['/material-planning', 'Material planning'],
-    ['/stores', 'Fabric stores'],
-    ['/planning', 'Factory planning'],
-    ['/plant', 'Plant control'],
-    ['/cutting', 'Cutting'],
-    ['/sewing', 'Sewing execution'],
-    ['/quality', 'Quality & finishing'],
-    ['/packing', 'Packing & dispatch'],
-    ['/intelligence', 'Factory intelligence'],
-    ['/onboarding', 'Onboarding']
+
+  const journey = [
+    { path: '/', label: 'Home', phase: 'home' },
+    { path: '/factory-setup', label: 'Factory setup', phase: 'factory' },
+    { path: '/documents', label: 'Upload files', phase: 'documents' },
+    { path: '/buyer-review', label: 'Buyer order', phase: 'buyer' },
+    { path: '/material-planning', label: 'Plan material', phase: 'material' },
+    { path: '/stores', label: 'Fabric store', phase: 'stores' },
+    { path: '/cutting', label: 'Cutting', phase: 'cutting' },
+    { path: '/sewing', label: 'Sewing', phase: 'sewing' },
+    { path: '/quality', label: 'Quality', phase: 'quality' },
+    { path: '/packing', label: 'Packing', phase: 'packing' },
+    { path: '/intelligence', label: 'Factory report', phase: 'reports' }
   ];
-  const pathname = window.location.pathname;
-  const known = new Set(pages.map(([path]) => path));
+  // Preserve specialist URLs and their existing implementations.
+  const tools = [
+    { path: '/order-intake', label: 'CSV order upload', phase: 'buyer' },
+    { path: '/planning', label: 'Line planning', phase: 'material' },
+    { path: '/plant', label: 'Floor board', phase: 'reports' },
+    { path: '/onboarding', label: 'Setup help', phase: 'factory' },
+    { path: '/sew01', label: 'Old station demo', phase: 'sewing' }
+  ];
+  const path = window.location.pathname.replace(/\/$/, '') || '/';
+  const currentIndex = journey.findIndex(item => item.path === path);
+  const current = journey[currentIndex] || tools.find(item => item.path === path) || journey[0];
+  const palette = {
+    home: '#167e88', factory: '#218aaa', documents: '#5966cf', buyer: '#306ccb',
+    material: '#8557bd', stores: '#b47712', cutting: '#df6b23', sewing: '#087f79',
+    quality: '#2b844b', packing: '#bb3975', reports: '#486484'
+  };
+  const accent = palette[current.phase] || palette.home;
+  document.body.dataset.agPhase = current.phase;
+
   const host = document.createElement('div');
   host.id = 'agiparel-workspace-navigation';
   host.setAttribute('role', 'navigation');
-  host.setAttribute('aria-label', 'Agiparel global navigation');
+  host.setAttribute('aria-label', 'Agiparel work areas');
   const root = host.attachShadow({ mode: 'open' });
   const css = document.createElement('style');
   css.textContent = `
-    :host{display:block;position:sticky;top:0;z-index:2147480000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#1c3151}
-    *,*::before,*::after{box-sizing:border-box}
-    .bar{display:flex;align-items:center;gap:12px;padding:9px 18px;background:#fff;border-bottom:1px solid #dce4ef;box-shadow:0 1px 3px #16325a0a;min-height:54px}
-    a,button{font-family:inherit;font-weight:600;font-size:12px;line-height:1.3;color:#304968;text-decoration:none;white-space:nowrap;border-radius:7px}
-    a{padding:8px 10px}
-    a:hover,a:focus-visible,button:hover,button:focus-visible{background:#e8f0ff;color:#2059cd;outline-offset:2px}
-    a[aria-current]{background:#eaf1ff;color:#1d56c9;font-weight:800}
-    .brand{font-weight:900;color:#17365e;font-size:16px;letter-spacing:-.9px}
-    .brand small{font-size:8px;letter-spacing:1.1px;font-weight:800;margin-left:6px;color:#8393ae}
-    .back{border:1px solid #d6e0ee;background:#f8fafe;padding:8px 11px;cursor:pointer;font-weight:750}
-    .links{display:flex;align-items:center;gap:3px;flex:1;overflow-x:auto;scrollbar-width:thin}
-    .upload{background:#245ee6!important;color:#fff!important;padding:10px 14px!important;font-weight:800!important}
-    .location{font-size:11px;color:#788ba8;white-space:nowrap}
-    @media(max-width:850px){.bar{padding:8px}.location,.brand small{display:none}.links{gap:0}.brand{font-size:14px}.back{padding:8px}}
+    :host {display:block;position:sticky;top:0;z-index:1000;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#263747}
+    *,*::before,*::after {box-sizing:border-box}
+    a,button,summary {font:inherit}
+    a {text-decoration:none;color:inherit}
+    .shell {background:#fff;border-bottom:1px solid #dce3e9;box-shadow:0 2px 9px #132e4410}
+    .top {max-width:1440px;margin:auto;min-height:60px;display:flex;align-items:center;gap:15px;padding:9px 22px}
+    .brand {font-size:21px;font-weight:850;letter-spacing:-1.2px;color:#203744;white-space:nowrap}
+    .brand i {display:inline-block;width:9px;height:22px;background:${accent};border-radius:7px;margin-right:8px;vertical-align:-4px}
+    .phase {font-size:13px;font-weight:700;color:#506273;border-left:1px solid #dce3e9;padding-left:13px;min-width:0}
+    .spacer {flex:1}
+    .pager {display:flex;align-items:center;gap:8px}
+    .pager a {border:1px solid #c7d1da;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:750;white-space:nowrap;color:#2e4b5d;background:#fff}
+    .pager a.next {background:#1f5262;border-color:#1f5262;color:#fff}
+    .pager a:hover,.pager a:focus-visible {outline:2px solid ${accent};outline-offset:2px}
+    .areas {max-width:1440px;margin:auto;display:flex;gap:3px;align-items:center;padding:0 18px 9px;overflow-x:auto;scrollbar-width:thin}
+    .areas a {display:flex;gap:5px;align-items:center;white-space:nowrap;padding:8px 10px;border-radius:7px;font-size:12px;font-weight:700;color:#526476}
+    .areas a .number {font-size:10px;font-weight:850;color:#7a8998}
+    .areas a:hover,.areas a:focus-visible {background:#f1f5f7;color:#244d5d}
+    .areas a[aria-current] {background:${accent};color:#fff}
+    .areas a[aria-current] .number {color:#fff}
+    .more {position:relative;margin-left:auto;flex-shrink:0}
+    .more summary {cursor:pointer;list-style:none;border:1px solid #dbe3ea;border-radius:7px;padding:7px 11px;font-size:12px;font-weight:750;color:#3c5366;white-space:nowrap;background:#fff}
+    .more summary::-webkit-details-marker {display:none}
+    .more .menu {position:absolute;right:0;top:calc(100% + 8px);z-index:20;background:#fff;border:1px solid #d7e0e7;border-radius:10px;box-shadow:0 16px 35px #0e273526;min-width:210px;padding:7px}
+    .more .menu a {display:block;font-size:13px;padding:11px 13px}
+    .more[open] summary {border-color:${accent}}
+    .mobile-menu {display:none}
+    @media(max-width:900px){.top{padding:8px 13px;gap:9px}.brand{font-size:19px}.phase{font-size:12px}.pager a{padding:8px;font-size:12px}.areas{padding:0 9px 8px}.areas a{padding:8px}}
+    @media(max-width:620px){.phase{display:none}.pager a{font-size:11px}.areas{display:none}.mobile-menu{display:block;padding:0 12px 10px}.mobile-menu summary{cursor:pointer;background:#eef4f6;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:750}.mobile-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:8px 0}.mobile-links a{font-size:13px;padding:11px 8px;border-radius:7px}.mobile-links a[aria-current]{background:${accent};color:#fff}}
+    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
   `;
   root.append(css);
-  const bar = document.createElement('div');
-  bar.className = 'bar';
-  const brand = document.createElement('a');
-  brand.className = 'brand';
-  brand.href = '/';
-  brand.textContent = 'agiparel';
-  const small = document.createElement('small');
-  small.textContent = 'FACTORY OS';
-  brand.append(small);
-  bar.append(brand);
-  const back = document.createElement('button');
-  back.className = 'back';
-  back.type = 'button';
-  back.textContent = '← Back';
-  back.setAttribute('aria-label', 'Return to previous Agiparel page or home');
-  back.addEventListener('click', () => {
-    try {
-      const previous = new URL(document.referrer);
-      if (previous.origin === window.location.origin && known.has(previous.pathname) && previous.pathname !== pathname) {
-        window.location.assign(previous.pathname + previous.search + previous.hash);
-        return;
-      }
-    } catch (_) { /* Direct visit or untrusted referrer: go to home. */ }
-    window.location.assign('/');
+  const shell = document.createElement('div'); shell.className = 'shell';
+  const top = document.createElement('div'); top.className = 'top';
+  const brand = document.createElement('a'); brand.href = '/'; brand.className = 'brand';
+  const bar = document.createElement('i'); bar.setAttribute('aria-hidden', 'true');
+  brand.append(bar, document.createTextNode('agiparel')); top.append(brand);
+  const phase = document.createElement('span'); phase.className = 'phase'; phase.textContent = current.label;
+  top.append(phase);
+  const spacer = document.createElement('span'); spacer.className = 'spacer'; top.append(spacer);
+  const pager = document.createElement('div'); pager.className = 'pager';
+  if (currentIndex > 0) addPager(pager, journey[currentIndex - 1], '← Back');
+  if (currentIndex >= 0 && currentIndex < journey.length - 1) addPager(pager, journey[currentIndex + 1], 'Next →', 'next');
+  if (currentIndex < 0) addPager(pager, journey[0], 'Home');
+  top.append(pager); shell.append(top);
+  const areas = document.createElement('nav'); areas.className = 'areas';
+  areas.setAttribute('aria-label', 'Main factory journey');
+  journey.forEach((item, i) => {
+    const link = document.createElement('a'); link.href = item.path;
+    if (item.path === path) link.setAttribute('aria-current', 'page');
+    const n = document.createElement('span'); n.className = 'number';
+    n.textContent = i === 0 ? '⌂' : String(i);
+    link.append(n, document.createTextNode(item.label)); areas.append(link);
   });
-  bar.append(back);
-  const links = document.createElement('nav');
-  links.className = 'links';
-  links.setAttribute('aria-label', 'Factory OS pages');
-  for (const [url, label] of pages) {
-    const a = document.createElement('a');
-    a.href = url;
-    a.textContent = label;
-    if (url === pathname) a.setAttribute('aria-current', 'page');
-    if (url === '/documents') a.className = 'upload';
-    links.append(a);
+  const more = document.createElement('details'); more.className = 'more';
+  const summary = document.createElement('summary'); summary.textContent = 'More tools ▾'; more.append(summary);
+  const menu = document.createElement('div'); menu.className = 'menu';
+  tools.forEach(item => menu.append(linkTo(item)));
+  more.append(menu); areas.append(more); shell.append(areas);
+  const mobile = document.createElement('details'); mobile.className = 'mobile-menu';
+  const mobileSummary = document.createElement('summary'); mobileSummary.textContent = 'Work areas ▾'; mobile.append(mobileSummary);
+  const mobileLinks = document.createElement('div'); mobileLinks.className = 'mobile-links';
+  [...journey, ...tools].forEach(item => mobileLinks.append(linkTo(item)));
+  mobile.append(mobileLinks); shell.append(mobile);
+  root.append(shell);
+  function addPager(parent, item, text, extra = '') {
+    const a = document.createElement('a'); a.href = item.path; a.className = extra;
+    a.textContent = text; a.setAttribute('aria-label', `${text.replace(/[←→]/g, '').trim()}: ${item.label}`); parent.append(a);
   }
-  bar.append(links);
-  const location = document.createElement('span');
-  location.className = 'location';
-  location.textContent = 'DEV · EVIDENCE FIRST';
-  bar.append(location);
-  root.append(bar);
-  document.body.prepend(host);
+  function linkTo(item) {
+    const a = document.createElement('a'); a.href = item.path; a.textContent = item.label;
+    if (path === item.path) a.setAttribute('aria-current', 'page');
+    return a;
+  }
+  const mount = () => { if (!host.isConnected) document.body.prepend(host); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, {once:true});
+  else mount();
 })();

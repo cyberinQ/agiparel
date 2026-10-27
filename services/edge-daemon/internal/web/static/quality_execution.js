@@ -19,7 +19,7 @@ const hasPending=!!pending();$('pendingInfo').textContent=hasPending?'One unackn
 $('retry').disabled=!hasPending||st.busy;$('discard').disabled=!hasPending||st.busy;
 $('enroll').disabled=!s||!!u||st.busy||hasPending;$('profile').disabled=!!st.route||st.busy;$('setRoute').disabled=!!st.route||st.busy||!$('lay').value;
 for(const [id,enabled] of Object.entries({pass:u?.qc_state==='PENDING',fail:u?.qc_state==='PENDING',repair:u?.qc_state==='HOLD',repass:u?.qc_state==='REINSPECT',refail:u?.qc_state==='REINSPECT',finish:u?.qc_state==='ACCEPTED'&&route.length>0&&u.finished_steps<route.length,bind:u?.qc_state==='ACCEPTED'&&route.length>0&&u.finished_steps===route.length&&!u.buyer_code}))$(id).disabled=!enabled||st.busy||hasPending;
-$('routeSteps').innerHTML=route.map((x,i)=>`<span class="step ${u&&i<u.finished_steps?'done':''}">${i+1}. ${esc(x)}</span>`).join('')||'<span class="muted">No rehearsal route selected</span>';
+$('routeSteps').innerHTML=route.map((x,i)=>`<span class="step ${u&&i<u.finished_steps?'done':''}">${i+1}. ${esc(x)}</span>`).join('')||'<span class="muted">No finishing steps chosen</span>';
 $('routeInfo').textContent=st.route?st.route.profile+' · UNAPPROVED SIMULATION ROUTE':'Choose one route for this lay and plant.';
 $('finishInfo').textContent=u?`${u.finished_steps}/${route.length} simulated finishing steps${route[u.finished_steps]?' · next '+route[u.finished_steps]:''}`:'Select enrolled garment';
 if(s){$('size').value=s.size}
@@ -40,7 +40,7 @@ async function action(a){if(st.busy)return;if(pending()){info('Retry or explicit
 storePending(v);await flushPending()}
 $('lay').addEventListener('change',()=>refresh(false));$('plant').addEventListener('change',()=>refresh(false));$('serial').addEventListener('change',render);$('reload').addEventListener('click',()=>refresh());
 $('retry').addEventListener('click',flushPending);
-$('discard').addEventListener('click',()=>{if(!pending())return;const answer=confirm('Discard only the saved UI request? If it reached PostgreSQL, its evidence remains recorded. Refresh and verify the garment state before a new action.');if(answer){localStorage.removeItem(pendingKey);info('Pending UI request discarded; database not changed. Verify current state.');refresh()}});
+$('discard').addEventListener('click',()=>{if(!pending())return;const answer=confirm('Clear the unsent tap? The server may have saved it already. Refresh and check this piece before tapping again.');if(answer){localStorage.removeItem(pendingKey);info('Unsent tap cleared. Refresh to check this piece.');refresh()}});
 $('setRoute').addEventListener('click',async()=>{try{const r=await request('/route',{lay_id:$('lay').value,plant_id:$('plant').value.trim(),profile:$('profile').value});info('Simulated route '+r.profile+' created; independent approval still required');await refresh()}catch(e){info('Route rejected: '+e.message,true)}});
 for(const [b,a] of Object.entries({enroll:'ENROLL',pass:'INSPECT_PASS',fail:'INSPECT_FAIL',repair:'REPAIR_COMPLETE',repass:'REINSPECT_PASS',refail:'REINSPECT_FAIL',finish:'FINISH_STEP',bind:'BIND_BUYER'}))$(b).addEventListener('click',()=>action(a));
 refresh(false).then(()=>{if(pending())flushPending()});

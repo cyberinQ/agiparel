@@ -11,8 +11,14 @@ func TestDocumentIntakeWorkspace(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/documents", nil)
 	w := httptest.NewRecorder()
 	(&EdgeServer{}).handleDocumentWorkspace(w, r)
-	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "One place for every file.") {
-		t.Fatalf("workspace status=%d body=%q", w.Code, w.Body.String())
+	// Assert the usable intake workspace rather than a marketing headline.
+	if w.Code != http.StatusOK {
+		t.Fatalf("workspace status=%d", w.Code)
+	}
+	for _, required := range []string{`id="files"`, `id="upload"`, `id="document-triage"`, `/static/documents.js`} {
+		if !strings.Contains(w.Body.String(), required) {
+			t.Errorf("document workspace missing %q", required)
+		}
 	}
 }
 func TestDocumentIntakeFailClosedWithoutTenant(t *testing.T) {

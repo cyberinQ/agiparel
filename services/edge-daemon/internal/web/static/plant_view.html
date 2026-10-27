@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PM-01 | Plant Overview Situation Room</title>
+  <title>Agiparel · Floor board</title>
   <style>
     :root {
       --bg: #F1F4F8;
@@ -307,11 +307,12 @@
     }
   </style>
   <script src="/static/workspace_nav.js" defer></script>
+<link rel="stylesheet" href="/static/ux_unified.css">
 </head>
-<body>
+<body data-ag-phase="reports">
   <header>
     <div class="header-left">
-      <h1 id="plant-header-title">PM-01 | Plant Overview Situation Room</h1>
+      <h1 id="plant-header-title">Agiparel · Floor board</h1>
       <p id="plant-header-sub">Loading factory profile...</p>
     </div>
     <div class="header-right">
@@ -324,7 +325,7 @@
     </div>
   </header>
 
-  <div id="document-upload-status" role="status" aria-live="polite" style="padding:8px 24px;color:#1E40AF;"></div>
+  <ol class="ag-steps" aria-label="Steps on this page"><li><b>1</b>Choose a line</li><li><b>2</b>Check counts and issues</li><li><b>3</b>Open details or ask Agie</li></ol><div id="document-upload-status" role="status" aria-live="polite" style="padding:8px 24px;color:#1E40AF;"></div>
   <div class="kpi-row">
     <div class="kpi-card">
       <div class="kpi-caption">Plant Output (Achieved / Target)</div>
@@ -358,14 +359,14 @@
 
     <div class="triage-rail">
       <div class="triage-card">
-        <h3>Live Floor Issues (PM-02)</h3>
+        <h3>Problems on the floor</h3>
         <div id="issue-list">
           <div style="color: var(--muted); font-size: 13px; padding: 12px 0;">Loading floor issues...</div>
         </div>
       </div>
 
       <div class="triage-card">
-        <h3>Quick Links</h3>
+        <h3>Work areas</h3>
         <div style="display: flex; flex-direction: column; gap: 8px;">
           <a href="/onboarding" style="color: var(--brand); text-decoration: none; font-size: 13px; font-weight: 600;">&rarr; Planning &amp; Onboarding</a>
           <a href="/cutting" style="color: var(--brand); text-decoration: none; font-size: 13px; font-weight: 600;">&rarr; CUT-01 Smart Cutting Table</a>
@@ -379,7 +380,7 @@
   <div class="drawer" id="agie-drawer">
     <div class="drawer-header">
       <div>
-        <h2>Agie Executive AI</h2>
+        <h2>Ask Agie</h2>
         <span style="font-size: 11px; opacity: 0.8;">Zero-Hallucination ReAct Ground Truth</span>
       </div>
       <button class="drawer-close" onclick="toggleAgieDrawer()">&times;</button>

@@ -24,16 +24,24 @@ func TestPublicPortalAndAssetsNoOperatorAuth(t *testing.T) {
 		needle      string
 		contentType string
 	}{
-		{"/", "Illustrative scenario", "text/html"},
-		{"/demo", "Every garment has a story", "text/html"},
-		{"/demo-assets/portal.css", ".sidebar", "text/css"},
-		{"/demo-assets/portal.js", "sample", "text/javascript"},
+		{"/", `href="/documents"`, "text/html"},
+		{"/demo", `href="/stores"`, "text/html"},
+		{"/demo-assets/portal.css", ".phase-grid", "text/css"},
+		{"/demo-assets/portal.js", "No fabricated orders", "text/javascript"},
 	} {
 		w := httptest.NewRecorder()
 		gate.ServeHTTP(w, httptest.NewRequest(http.MethodGet, c.path, nil))
 		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), c.needle) {
 			t.Errorf("%s: status %d, body=%q", c.path, w.Code, w.Body.String()[:min(60, w.Body.Len())])
 			continue
+		}
+		// The public Home must not present made-up buyers as live operational data.
+		if c.contentType == "text/html" {
+			for _, fake := range []string{"GP240812", "PO-4518", "MK6574J9"} {
+				if strings.Contains(w.Body.String(), fake) {
+					t.Errorf("%s leaks fictional production record %q", c.path, fake)
+				}
+			}
 		}
 		if !strings.Contains(w.Header().Get("Content-Type"), c.contentType) {
 			t.Errorf("%s: content type %q", c.path, w.Header().Get("Content-Type"))
