@@ -41,8 +41,19 @@ func TestPublicHomeShowsWorkAreasNotInventedOrders(t *testing.T) {
     for _, fake := range []string{"MK6574J9", "GP240812", "PO-4518", "order-select", "metric-evidence"} {
         if strings.Contains(page, fake) || strings.Contains(string(js), fake) { t.Errorf("home must not show fabricated live-looking data %q", fake) }
     }
-    if !strings.Contains(page, "Button taps stand in for scans") && !strings.Contains(page, "button tap stands in for a scanner read") {
-        t.Fatal("public home must describe simulated reader provenance")
+    // Home is a chapter index. Scan provenance belongs where scanning actually occurs.
+    for _, removed := range []string{"Work areas require sign-in", "Open area", "Practice now. Connect scanners later.", "CHOOSE YOUR WORK AREA", "01 <span>→</span> 10"} {
+        if strings.Contains(page, removed) { t.Errorf("home still contains removed clutter %q", removed) }
+    }
+    if !strings.Contains(page, "Every garment") || !strings.Contains(page, "tells a story.") || !strings.Contains(page, "CHAPTERS") || !strings.Contains(page, "Empowered by CyberinQ.") {
+        t.Error("home must contain the requested heading, chapters label and footer")
+    }
+    ordered := []string{"/factory-setup", "/buyer-review", "/material-planning", "/stores", "/cutting", "/sewing", "/quality", "/packing", "/intelligence", "/documents"}
+    previous := -1
+    for _, route := range ordered {
+        pos := strings.Index(page, `href="` + route + `"`)
+        if pos < previous { t.Errorf("chapter %s is out of order", route) }
+        previous = pos
     }
 }
 
