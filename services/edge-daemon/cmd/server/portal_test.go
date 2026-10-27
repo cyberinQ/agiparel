@@ -58,6 +58,35 @@ func TestPublicPortalAndAssetsNoOperatorAuth(t *testing.T) {
 		}
 	}
 }
+func TestPublicAggieUsesAuthenticatedChatOnly(t *testing.T) {
+	public := operatorAccessGate(portalTestMux(), "", "")
+	w := httptest.NewRecorder()
+	public.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `id="aggie-chat"`) || !strings.Contains(w.Body.String(), `Aggie is here to help you.`) {
+		t.Fatalf("public homepage missing Aggie chat: status=%d", w.Code)
+	}
+	csp := w.Header().Get("Content-Security-Policy")
+	if !strings.Contains(csp, "connect-src 'self'") || strings.Contains(csp, "connect-src *") {
+		t.Fatalf("portal must allow same-origin API only: %q", csp)
+	}
+	mux := portalTestMux()
+	mux.HandleFunc("/api/v1/agie/chat", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+	// A chatbot on the public homepage must NOT make factory records public.
+	gate := operatorAccessGate(mux, "dev", "1212")
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/agie/chat", strings.NewReader(`{"messages":[]}`))
+	resp := httptest.NewRecorder()
+	gate.ServeHTTP(resp, req)
+	if resp.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous chat status=%d, want 401", resp.Code)
+	}
+	req.SetBasicAuth("dev", "1212")
+	resp = httptest.NewRecorder()
+	gate.ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("signed-in chat status=%d, want 200", resp.Code)
+	}
+}
+
 func TestOperationalRoutesFailClosedWithoutCredentials(t *testing.T) {
 	gate := operatorAccessGate(portalTestMux(), "", "")
 	for _, path := range []string{"/api/v1/ledger/append", "/api/v1/planning/approve", "/plant", "/static/plant_view.html", "/api/v1/material/issues", "/demo-assets/not-public.html"} {

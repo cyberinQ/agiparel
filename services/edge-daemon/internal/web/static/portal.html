@@ -7,21 +7,28 @@
 <header class="site-top"><a href="/" class="brand"><span class="brand-mark" aria-hidden="true"></span>agiparel</a></header>
 <main>
 <section class="hero"><div><p class="eyebrow">ONE FACTORY. ONE CLEAR WORKFLOW.</p><h1>Every garment<br><em>tells a story.</em></h1>
-<p class="lead">From buyer order to packed carton, keep every step audited. Start with what you know. Fill in the rest as you work.</p>
+<p class="lead">From buyer order to packed carton, keep every step audited. Start with what you know. Fill in the rest as you work. <button id="aggie-open" class="aggie-invite" type="button" aria-controls="aggie-chat" aria-expanded="false"><span class="aggie-face" aria-hidden="true">😄</span><span>Aggie is here to help you.</span></button></p>
 </div>
 </section>
 <section class="journey" aria-label="Chapters"><div class="section-title"><h2>CHAPTERS</h2></div>
 <div class="phase-grid">
-<a class="phase" style="--color:#218aaa" href="/factory-setup"><span class="phase-num">01</span><h3>Factory setup</h3><p>List machines, workers and skills.</p></a>
-<a class="phase" style="--color:#306ccb" href="/buyer-review"><span class="phase-num">02</span><h3>Buyer order</h3><p>Check style, color, size and material needs.</p></a>
-<a class="phase" style="--color:#8557bd" href="/material-planning"><span class="phase-num">03</span><h3>Plan material</h3><p>Use suitable stock first. See what to buy.</p></a>
-<a class="phase" style="--color:#b47712" href="/stores"><span class="phase-num">04</span><h3>Fabric store</h3><p>Check fabric rolls, lengths and shade.</p></a>
-<a class="phase" style="--color:#df6b23" href="/cutting"><span class="phase-num">05</span><h3>Cutting</h3><p>Make lays and keep track of bundles.</p></a>
-<a class="phase" style="--color:#087f79" href="/sewing"><span class="phase-num">06</span><h3>Sewing</h3><p>Move bundles through sewing jobs.</p></a>
-<a class="phase" style="--color:#2b844b" href="/quality"><span class="phase-num">07</span><h3>Quality</h3><p>Check pieces, fix defects and finish them.</p></a>
-<a class="phase" style="--color:#bb3975" href="/packing"><span class="phase-num">08</span><h3>Packing</h3><p>Pack checked pieces and seal cartons.</p></a>
-<a class="phase" style="--color:#486484" href="/intelligence"><span class="phase-num">09</span><h3>Factory report</h3><p>See counts, delays and work on hold.</p></a>
-<a class="phase" style="--color:#5966cf" href="/documents"><span class="phase-num">10</span><h3>Upload files</h3><p>Keep all buyer and factory papers in one place.</p></a>
+<a class="phase phase-01" href="/factory-setup"><span class="phase-num">01</span><h3>Factory setup</h3><p>List machines, workers and skills.</p></a>
+<a class="phase phase-02" href="/buyer-review"><span class="phase-num">02</span><h3>Buyer order</h3><p>Check style, color, size and material needs.</p></a>
+<a class="phase phase-03" href="/material-planning"><span class="phase-num">03</span><h3>Plan material</h3><p>Use suitable stock first. See what to buy.</p></a>
+<a class="phase phase-04" href="/stores"><span class="phase-num">04</span><h3>Fabric store</h3><p>Check fabric rolls, lengths and shade.</p></a>
+<a class="phase phase-05" href="/cutting"><span class="phase-num">05</span><h3>Cutting</h3><p>Make lays and keep track of bundles.</p></a>
+<a class="phase phase-06" href="/sewing"><span class="phase-num">06</span><h3>Sewing</h3><p>Move bundles through sewing jobs.</p></a>
+<a class="phase phase-07" href="/quality"><span class="phase-num">07</span><h3>Quality</h3><p>Check pieces, fix defects and finish them.</p></a>
+<a class="phase phase-08" href="/packing"><span class="phase-num">08</span><h3>Packing</h3><p>Pack checked pieces and seal cartons.</p></a>
+<a class="phase phase-09" href="/intelligence"><span class="phase-num">09</span><h3>Factory report</h3><p>See counts, delays and work on hold.</p></a>
+<a class="phase phase-10" href="/documents"><span class="phase-num">10</span><h3>Upload files</h3><p>Keep all buyer and factory papers in one place.</p></a>
 </div></section>
 </main><footer><strong>agiparel</strong><span>Empowered by CyberinQ.</span><span>Public home · No customer records</span></footer>
+
+<section id="aggie-chat" class="aggie-chat" role="dialog" aria-label="Chat with Aggie" aria-modal="false" hidden>
+  <div class="aggie-top"><div class="aggie-identity"><span class="aggie-chat-face" aria-hidden="true">😄</span><strong>Aggie</strong><span class="aggie-bot-note">Factory helper</span></div><button id="aggie-close" class="aggie-close" type="button" aria-label="Close Aggie chat">×</button></div>
+  <div id="aggie-messages" class="aggie-messages" role="log" aria-live="polite" aria-relevant="additions text"><p class="aggie-msg aggie-msg-bot">Hi! What would you like to know?</p></div>
+  <div class="aggie-compose"><label class="aggie-label" for="aggie-input">Ask Aggie</label><div class="aggie-compose-row"><textarea id="aggie-input" rows="2" maxlength="1000" placeholder="Type your question…"></textarea><button id="aggie-send" class="aggie-send" type="button">Send</button></div><p id="aggie-status" class="aggie-status" role="status">To check factory records, sign in when asked.</p></div>
+</section>
+<script src="/demo-assets/portal.js" defer></script>
 </body></html>

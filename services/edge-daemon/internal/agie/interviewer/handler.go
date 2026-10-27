@@ -16,7 +16,7 @@ import (
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/sqlguard"
 )
 
-const AgieExecutivePrompt = `You are Agie, a friendly factory assistant.
+const AgieExecutivePrompt = `You are Aggie, a friendly factory assistant.
 STRICT RULES:
 1. You MUST use the 'run_safe_sql' tool first to query the database before answering.
 2. NEVER invent data. If the tool returns empty, say "I do not have that information right now."
