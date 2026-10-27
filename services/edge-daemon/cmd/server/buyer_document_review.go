@@ -479,7 +479,9 @@ func (s *EdgeServer) handleBuyerReview(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		opts, _, issues := detectBuyerOptions(po.Segments)
 		_, mats, bomIssues := detectBuyerOptions(bom.Segments)
+		techHints, techCoverage, techIssues := detectTechPackBOM(bom.Segments)
 		issues = append(issues, bomIssues...)
+		issues = append(issues, techIssues...)
 		if po.Truncated || bom.Truncated {
 			issues = append(issues, "Only the first 1200 segments from each source were assessed; inspect originals for omitted content")
 		}
@@ -490,7 +492,7 @@ func (s *EdgeServer) handleBuyerReview(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Database unavailable", 503)
 			return
 		}
-		docJSON(w, 200, map[string]any{"po_source": po, "bom_source": bom, "po_options": opts, "materials": mats, "issues": issues, "status": "UNREVIEWED", "release": "HOLD"})
+		docJSON(w, 200, map[string]any{"po_source": po, "bom_source": bom, "po_options": opts, "materials": mats, "techpack_material_hints": techHints, "techpack_bom_coverage": techCoverage, "issues": issues, "status": "UNREVIEWED", "release": "HOLD"})
 		return
 	}
 	sub, err := prepareBuyerSubmission(req, po, bom)
