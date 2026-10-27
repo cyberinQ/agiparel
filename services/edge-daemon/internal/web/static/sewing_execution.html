@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sewing Execution | Agiparel</title>
+<style>
+:root{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#142238;background:#f1f5fa}*{box-sizing:border-box}body{margin:0}main{max-width:1440px;margin:0 auto;padding:20px 24px 50px}h1{font-size:26px;margin:12px 0 4px}h2{font-size:17px;margin:0 0 14px}p{line-height:1.5}.sub{color:#54677f;margin:0 0 24px}.banner{border:1px solid #f4c366;background:#fff7e7;color:#744900;border-radius:10px;padding:15px 18px;font-size:14px;font-weight:650;margin-bottom:20px}.layout{display:grid;grid-template-columns:1fr 1fr;gap:18px}.wide{grid-column:1/-1}.card{border:1px solid #dce5ef;background:#fff;border-radius:13px;padding:20px;box-shadow:0 2px 8px #14365c0a}label{display:block;font-size:12px;font-weight:750;color:#42536d;margin:10px 0 5px}select,input,textarea{font-family:inherit;border:1px solid #b9c9dc;background:#fff;color:#142238;padding:10px;border-radius:7px;font-size:14px;width:100%;min-height:41px}select:focus,input:focus{outline:2px solid #73a1ee}.inline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.tri{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}button{font-family:inherit;font-size:14px;font-weight:750;padding:11px 13px;border-radius:8px;border:1px solid #244c87;background:#245acf;color:#fff;cursor:pointer}button:hover:not(:disabled){filter:brightness(.94)}button:disabled{opacity:.45;cursor:not-allowed}.secondary{background:#fff;color:#264774;border-color:#bbcee5}.green{background:#08784e;border-color:#08784e}.warning{background:#eaa625;color:#181100;border-color:#cd8b1c}.danger{background:#a53e35;border-color:#a53e35}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.line{height:1px;background:#e5edf5;margin:18px 0}.status{padding:13px 16px;border-radius:8px;background:#ecf6ff;color:#144578;font-size:13px;white-space:pre-wrap;margin:12px 0}.status.error{background:#fff0ef;color:#932d20}.status.ok{background:#e9faf1;color:#0c6642}.mono{font-family:ui-monospace,Menlo,Consolas,monospace}.small{font-size:12px;color:#58718e}.chip{display:inline-block;font-weight:700;font-size:11px;color:#8a5c03;background:#fff4cf;padding:4px 8px;border-radius:20px}.scan-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #edf1f7;padding:10px 0}.scan-meta{font-size:11px;color:#62748e;overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:10px;border-bottom:1px solid #e9eef6}th{color:#60728d}.muted{color:#697b96}.value{font-weight:800;font-size:24px}.hidden{display:none!important}@media(max-width:900px){.layout{grid-template-columns:1fr}.tri{grid-template-columns:1fr}.wide{grid-column:auto}}@media(min-width:901px){.sticky{position:sticky;top:68px;align-self:start}}
+</style><script src="/static/workspace_nav.js" defer></script></head>
+<body><main>
+<h1>Sewing station execution</h1>
+<p class="sub">Run end-to-end garment movement using buttons that emit reader-shaped simulated events.</p>
+<div class="banner">SIMULATION ONLY — Button clicks are not RF reads, worker signatures, published operation bulletins, earned production credit, payroll, quality release or shipping authority. The software enforces genealogy and idempotency, but hardware and signed workforce identity remain separate acceptance gates.</div>
+<div class="layout">
+<section class="card"><h2>1. Source bundles from cutting</h2>
+<label for="lay">Cutting lay / order</label><select id="lay"><option value="">Loading available cutting lays…</option></select>
+<label for="group">Marker position and ply group</label><select id="group"></select>
+<div id="bundlePreview" class="status">Select a cutting lay.</div>
+<p class="small">You may rehearse against a cutting draft without pretending that cutting has signed release. Signed-release status is shown above the bundle list.</p>
+<button id="reload" class="secondary">Refresh cutting genealogy</button></section>
+<section class="card"><h2>2. Station and operation routing</h2>
+<div class="tri"><div><label for="plant">Plant</label><input id="plant" value="SIM-PLANT-01"></div><div><label for="station">Station</label><input id="station" value="SEW-ST04"></div><div><label for="worker">Worker code (simulation)</label><input id="worker" value="SIM-OP01"></div><div><label for="machine">Machine class</label><input id="machine" value="LOCKSTITCH"></div></div>
+<label for="op">Operation to execute</label><select id="op"></select>
+<div class="line"></div><details><summary style="cursor:pointer;font-weight:750">Configure a simulated operation (unpublished OB)</summary>
+<div class="inline"><div><label for="newCode">Operation code</label><input id="newCode" placeholder="JOIN_PANEL"></div><div><label for="newMode">Execution mode</label><select id="newMode"><option value="BUNDLE_TO_BUNDLE">Bundle → bundle</option><option value="BUNDLE_TO_SINGLE">Multiple part bundles → garment serials</option><option value="SINGLE_TO_SINGLE">Single piece → single piece</option></select></div></div>
+<label for="newParts">Required part codes (comma-separated; match cutting exactly)</label><input id="newParts" placeholder="FRONT_PANEL,BACK_PANEL">
+<div class="inline"><div><label for="newPred">Prerequisite operation codes (comma-separated)</label><input id="newPred" placeholder="PREP_PANEL"></div><div><label for="newSam">Reference SAM (seconds)</label><input id="newSam" type="number" min="1" step="0.1" value="36"></div></div>
+<div class="actions"><button id="create">Create simulated operation</button></div></details>
+<div id="opInfo" class="small" style="padding-top:12px"></div></section>
+<section class="card sticky"><h2>3. Emulate reader at this station</h2>
+<div id="scanButtons"><p class="muted">Choose an operation and a bundle group.</p></div>
+<div class="status" id="scanStatus">No simulated scans recorded during this session.</div>
+<div class="actions"><button id="claim" class="green" disabled>Claim scanned bundle(s)</button></div>
+<div class="line"></div><h2>4. Station cycle</h2>
+<div id="currentCycle" class="status">No active cycle selected.</div>
+<div class="actions"><button id="pause" class="warning" disabled>Pause / break</button><button id="resume" class="secondary" disabled>Resume</button><button id="complete" class="green" disabled>Confirm operation complete</button></div>
+<label for="issue">Problem / anomaly</label><input id="issue" placeholder="Wrong part, damaged tag, machine down…">
+<div class="actions"><button id="report" class="danger" disabled>Report issue</button></div>
+<p class="small">Cycle time comes from server-received clicks. Pauses are excluded; this is not a calibrated machine timer.</p></section>
+<section class="card"><h2>5. Durable simulated ledger</h2>
+<div class="tri"><div><div class="small">Simulated operation units</div><div class="value" id="total">0</div></div><div><div class="small">Production credit</div><div class="value">0</div></div><div><div class="small">Pending replay commands</div><div class="value" id="pending">0</div></div></div>
+<div class="actions"><button class="secondary" id="sync">Replay queued commands</button><button class="secondary" id="refresh">Refresh ledger</button></div>
+<div class="small" id="netState">Connected status not yet checked</div>
+<div style="max-height:430px;overflow:auto;margin-top:14px"><table><thead><tr><th>Operation</th><th>Group</th><th>Status</th><th>Sim. units</th><th>Active</th></tr></thead><tbody id="cycles"></tbody></table></div>
+<p class="small">Offline commands are queued locally in this browser and replayed in order. An unacknowledged request is never displayed as completed. Refresh preserves committed PostgreSQL state.</p></section>
+<section class="card wide"><h2>Trace / operator feedback</h2><div id="feedback" class="status" role="status" aria-live="polite">Ready. Select an existing cutting lay.</div><ol class="small" id="log" style="max-height:180px;overflow:auto"></ol></section>
+</div></main><script src="/static/sewing_execution.js" defer></script></body></html>

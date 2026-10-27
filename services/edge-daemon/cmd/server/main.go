@@ -315,6 +315,12 @@ func main() {
 		})
 	}
 	if modules.IsEnabled("mod_sewing") {
+		mux.HandleFunc("/api/v1/sewing/sim/catalog", server.handleSewSimCatalog)
+		mux.HandleFunc("/api/v1/sewing/sim/operations", server.handleSewSimOperations)
+		mux.HandleFunc("/api/v1/sewing/sim/scan", server.handleSewSimScan)
+		mux.HandleFunc("/api/v1/sewing/sim/command", server.handleSewSimCommand)
+		mux.HandleFunc("/api/v1/sewing/sim/status", server.handleSewSimStatus)
+		mux.HandleFunc("/sewing", serveSewSimulation)
 		mux.HandleFunc("/api/v1/sewing/bind-tag", server.handleSewingBindTag)
 		mux.HandleFunc("/api/v1/sewing/validate-pair", server.handleSewingValidatePair)
 		mux.HandleFunc("/api/v1/sewing/register-rule", server.handleSewingRegisterRule)
@@ -344,14 +350,9 @@ func main() {
 
 	mux.Handle("/static/", http.StripPrefix("/static/", web.StaticHandler()))
 
+	// Retire the old browser-only stopwatch that generated phantom tags and counters.
 	mux.HandleFunc("/sew01", func(w http.ResponseWriter, r *http.Request) {
-		data, err := web.GetSEW01HTML()
-		if err != nil {
-			http.Error(w, "HMI not found", http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write(data)
+		http.Redirect(w, r, "/sewing", http.StatusTemporaryRedirect)
 	})
 
 	mux.HandleFunc("/onboarding", func(w http.ResponseWriter, r *http.Request) {

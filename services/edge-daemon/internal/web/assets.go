@@ -58,3 +58,6 @@ func GetBuyerReviewHTML() ([]byte, error) { return staticFS.ReadFile("static/buy
 
 // Batch 07A: restricted stores observation / roll identity workspace.
 func GetStoresHTML() ([]byte, error) { return staticFS.ReadFile("static/stores.html") }
+
+// E09 browser-based station scanner emulation (read-only embedded assets).
+func GetSewSimulationHTML() ([]byte, error) { return staticFS.ReadFile("static/sewing_execution.html") }

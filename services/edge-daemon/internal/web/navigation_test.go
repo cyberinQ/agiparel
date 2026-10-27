@@ -10,7 +10,7 @@ import (
 func TestRestrictedPagesLoadSharedNavigation(t *testing.T) {
 	for _, page := range []string{
 		"factory_setup.html", "documents.html", "order_intake.html", "material_planning.html",
-		"plant_view.html", "onboarding.html", "cutting_view.html", "sew01.html",
+		"plant_view.html", "onboarding.html", "cutting_view.html", "sew01.html", "sewing_execution.html",
 	} {
 		t.Run(page, func(t *testing.T) {
 			raw, err := staticFS.ReadFile("static/" + page)
@@ -26,7 +26,7 @@ func TestRestrictedPagesLoadSharedNavigation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"'/'", "'/factory-setup'", "'/documents'", "'/order-intake'", "'/material-planning'", "'/planning'", "'/plant'", "'/cutting'", "'/sew01'", "'/onboarding'"} {
+	for _, path := range []string{"'/'", "'/factory-setup'", "'/documents'", "'/order-intake'", "'/material-planning'", "'/planning'", "'/plant'", "'/cutting'", "'/sewing'", "'/onboarding'"} {
 		if !strings.Contains(string(raw), path) {
 			t.Errorf("navigation missing %s", path)
 		}

@@ -14,7 +14,7 @@
     ['/planning', 'Factory planning'],
     ['/plant', 'Plant control'],
     ['/cutting', 'Cutting'],
-    ['/sew01', 'Sewing'],
+    ['/sewing', 'Sewing execution'],
     ['/onboarding', 'Onboarding']
   ];
   const pathname = window.location.pathname;
