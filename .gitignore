@@ -1,17 +1,33 @@
 # OS and editor artifacts
 .DS_Store
 .DS_Store?
-._*
+**/.DS_Store
 __MACOSX/
+**/*~
+*.swp
+*.swo
+.idea/
+.vscode/
+.history/
 .Spotlight-V100/
 .Trashes/
-.history/
-.vscode/
-.idea/
-*.swp
-*~
 
-# Build, test, and local caches
+# Python Virtual Environments
+.science-env/
+.venv/
+venv/
+ENV/
+env/
+**/__pycache__/
+*.pyc
+
+# Archives
+*.zip
+*.tar
+*.tgz
+*.gz
+
+# Go Build, test, and local caches
 bin/
 dist/
 *.test
