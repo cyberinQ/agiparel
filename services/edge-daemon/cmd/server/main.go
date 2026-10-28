@@ -342,6 +342,7 @@ func main() {
 	}
 	if modules.IsEnabled("mod_sewing") {
 		registerSewProdRoutes(mux, server)
+		registerGenProductionRoutes(mux, server)
 		registerQCProdRoutes(mux, server)
 		// Packing staging reads Chapter 06/07 evidence, and never enables legacy carton actions.
 		registerPackProdRoutes(mux, server)
