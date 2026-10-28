@@ -3,6 +3,8 @@
  'use strict';
  const el = id => document.getElementById(id);
  let model = null, selected = null;
+ const skippedQuestions = new Set();
+ let activeQuestion = null;
  const topics = ['Factory','Machines','People & skills','Materials & stores','Costs & rates','Calendar','Quality'];
  const stateText = {CONFIRMED:'You confirmed',PROVISIONAL:'Estimate · check later'};
  function node(tag, className, text) {
@@ -37,16 +39,42 @@
   el('progress-bar').style.width = `${100*known/total}%`;
   el('progress-description').textContent = `${model.confirmed_fields} checked · ${known-model.confirmed_fields} provisional. You can keep adding information anytime.`;
   el('fact-count').textContent = `${model.confirmed_fields} confirmed · ${known-model.confirmed_fields} provisional`;
-  el('next-question').textContent=model.next_question;
-  renderReadiness();renderTopics();renderDocuments();
+  renderQuestion();renderReadiness();renderTopics();renderDocuments();
+ }
+ function renderQuestion() {
+  const questions = model.next_questions || [];
+  activeQuestion = questions.find(q => !skippedQuestions.has(q.field_key)) || null;
+  const answer = el('answer-next'), skip = el('skip-next');
+  if (activeQuestion) {
+   el('next-question').textContent = activeQuestion.question;
+   answer.textContent = model.facts[activeQuestion.field_key] ? 'Check answer' : 'Add answer';
+   answer.disabled = false;
+   skip.textContent = 'Skip for now';
+   skip.disabled = false;
+  } else if (questions.length) {
+   el('next-question').textContent = 'You skipped the outstanding questions for this visit. Your answers were not changed.';
+   answer.disabled = true;
+   skip.textContent = 'Review skipped questions';
+   skip.disabled = false;
+  } else {
+   el('next-question').textContent = model.next_question;
+   answer.disabled = true;
+   skip.textContent = 'All basics checked';
+   skip.disabled = true;
+  }
  }
  function renderReadiness() {
   const parent=el('readiness');clear(parent);
-  for(const r of model.readiness) {
-   const style = r.status==='AVAILABLE'||r.status==='FOUNDATION_PRESENT'?'ok':r.status==='NOT_AUTHORIZED'?'blocked':'review';
+  const areas = new Set(['capacity_baseline','costing_baseline','material_baseline']);
+  for(const r of model.readiness.filter(item=>areas.has(item.key))) {
+   const style = r.status==='FOUNDATION_PRESENT'?'ok':'review';
    const c=node('article',`readiness-card ${style}`);
-   c.append(node('span','status',r.status.replaceAll('_',' ')),node('strong','',r.label),desc(r.explanation));
-   if(r.missing.length){const list=node('ul');for(const missing of r.missing){list.append(node('li','',missing));}c.append(list);}
+   c.append(node('span','status',r.status==='FOUNDATION_PRESENT'?'BASICS CHECKED':'NEEDS EVIDENCE'),node('strong','',r.label));
+   if(r.missing.length){
+    c.append(desc('Check next:'));
+    const list=node('ul');for(const missing of r.missing){list.append(node('li','',missing));}c.append(list);
+   } else {c.append(desc('Inputs checked for an initial estimate. Not an operational approval.'));}
+   c.append(node('p','readiness-explanation',r.explanation));
    parent.append(c);
   }
  }
@@ -59,8 +87,11 @@
    for(const spec of fields){
     const f=model.facts[spec.key];const row=node('div','fact-row');const left=node('div');
     left.append(node('div','label',spec.label),node('span','value',f ? f.value+(spec.unit?` ${spec.unit}`:'') : 'Not added yet'));
-    if(f){left.append(node('span',`state ${f.state==='PROVISIONAL'?'provisional':''}`,stateText[f.state]||f.state));}
-    else{left.append(node('span','hint','You can add this later.'));}
+    if(f){
+     left.append(node('span',`state ${f.state==='PROVISIONAL'?'provisional':''}`,stateText[f.state]||f.state));
+     const source = model.documents.find(d=>d.id===f.source_document_id);
+     left.append(node('small','fact-source',`Revision ${f.revision} · ${source?`Source: ${source.filename}`:(f.source_document_id?'Source attached (outside recent file list)':'No document attached')}`));
+    } else {left.append(node('span','hint','You can add this later.'));}
     row.append(left,button(f?'Update':'Add',()=>openEdit(spec)));panel.append(row);
    }
    host.append(panel);
@@ -95,6 +126,12 @@
   el('fact-state').value=old.state||'PROVISIONAL';
   const sources=el('fact-source');sources.replaceChildren();const none=node('option','', 'No source yet / personal observation');none.value='';sources.append(none);
   for(const d of model.documents){const opt=node('option','',d.filename);opt.value=d.id;sources.append(opt);}
+  // The discovery feed shows only the newest 40 files; never erase a fact's
+  // older source link just because it is not in that recent-file dropdown.
+  if (old.source_document_id && !model.documents.some(d=>d.id===old.source_document_id)) {
+   const retained=node('option','','Previously attached document (outside recent list)');
+   retained.value=old.source_document_id;sources.append(retained);
+  }
   sources.value=old.source_document_id||'';
   el('fact-note').value=old.note||'';
   el('dialog-error').hidden=true;
@@ -116,7 +153,7 @@
   finally{submit.disabled=false;}
  }
  const approvals=el('approval-dialog');
- el('start-review').addEventListener('click',()=>window.location.assign('/documents#review-submit'));
+ // Review & Submit links to /documents#review-submit; not a dialog button.
  // The earlier evidence, conflict and reference tools remain available on demand.
  if(new URLSearchParams(window.location.search).get('advanced-review')==='1'){
   document.addEventListener('DOMContentLoaded',()=>{if(!approvals.open)approvals.showModal();},{once:true});
@@ -136,10 +173,14 @@
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void updateBadge();});
  void updateBadge();
  el('answer-next').addEventListener('click',()=>{
-  if(!model)return;
-  const priorities=['factory.name','machines.sewing_count','workforce.headcount','machines.capabilities','workforce.skills','materials.categories','calendar.shift_hours','costs.currency','costs.labor_rate','costs.overhead_rate'];
-  const key=priorities.find(k=>model.facts[k]?.state!=='CONFIRMED')||'factory.name';
-  openEdit(model.fields.find(f=>f.key===key));
+  if (!activeQuestion || !model) return;
+  const spec = model.fields.find(f=>f.key===activeQuestion.field_key);
+  if (spec) openEdit(spec);
+ });
+ el('skip-next').addEventListener('click',()=>{
+  if (activeQuestion) skippedQuestions.add(activeQuestion.field_key);
+  else skippedQuestions.clear();
+  if (model) renderQuestion();
  });
  el('close-dialog').addEventListener('click',closeDialog);
  el('cancel-dialog').addEventListener('click',closeDialog);

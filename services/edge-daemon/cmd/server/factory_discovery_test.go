@@ -142,3 +142,35 @@ func TestFactoryZeroIsNotUnknownButCannotProvideCapacity(t *testing.T) {
 	}
 	t.Fatal("capacity baseline not evaluated")
 }
+
+// Chapter 01: backend owns a stable next-question sequence; never create
+// phantom work after all fields have been confirmed.
+func TestFactoryGuidedQuestionsCompleteAndProvisional(t *testing.T) {
+	questions := factoryGuidedQuestions(nil)
+	if len(questions) != len(factoryFieldSpecs) || questions[0].FieldKey != "factory.name" {
+		t.Fatalf("unexpected question sequence: %+v", questions)
+	}
+	seen := map[string]bool{}
+	for _, q := range questions {
+		if seen[q.FieldKey] || q.FieldKey == "" || q.Question == "" {
+			t.Fatalf("duplicated or empty question: %+v", q)
+		}
+		seen[q.FieldKey] = true
+	}
+	facts := make(map[string]factoryFact)
+	for _, spec := range factoryFieldSpecs {
+		facts[spec.Key] = factoryFact{Value: "known", State: "CONFIRMED"}
+	}
+	if len(factoryGuidedQuestions(facts)) != 0 {
+		t.Fatal("confirmed factory was assigned another question")
+	}
+	_, completed, _, _ := factorySuggestions(facts)
+	if !strings.Contains(completed, "checked") {
+		t.Fatalf("completed guidance was misleading: %s", completed)
+	}
+	facts["machines.sewing_count"] = factoryFact{Value: "12", State: "PROVISIONAL"}
+	questions = factoryGuidedQuestions(facts)
+	if len(questions) != 1 || questions[0].FieldKey != "machines.sewing_count" {
+		t.Fatalf("provisional fact incorrectly counted as confirmed: %+v", questions)
+	}
+}

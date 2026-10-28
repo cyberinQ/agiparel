@@ -151,6 +151,42 @@ type factoryDocHint struct {
 	Reason        string `json:"reason"`
 }
 
+// factoryGuidedQuestions returns a single canonical question order for the UI.
+// Incomplete/provisional facts remain visible without treating them as approved.
+type factoryGuidedQuestion struct {
+	FieldKey string `json:"field_key"`
+	Question string `json:"question"`
+}
+
+func factoryGuidedQuestions(facts map[string]factoryFact) []factoryGuidedQuestion {
+	priority := []factoryGuidedQuestion{
+		{"factory.name", "What is your factory called?"},
+		{"machines.sewing_count", "About how many working sewing machines do you have? An estimate is okay."},
+		{"workforce.headcount", "Approximately how many people work in production?"},
+		{"machines.capabilities", "Which operations can your machines perform?"},
+		{"workforce.skills", "Which sewing or finishing skills are available?"},
+		{"materials.categories", "What raw materials do you normally keep?"},
+		{"calendar.shift_hours", "How many hours are in a typical shift?"},
+		{"costs.currency", "Which currency do you use for factory costing?"},
+		{"costs.labor_rate", "What is your approximate hourly direct labor rate?"},
+		{"costs.overhead_rate", "Do you know your approximate factory overhead per hour?"},
+	}
+	questions := make([]factoryGuidedQuestion, 0, len(factoryFieldSpecs))
+	seen := make(map[string]bool, len(factoryFieldSpecs))
+	for _, q := range priority {
+		seen[q.FieldKey] = true
+		if facts[q.FieldKey].State != "CONFIRMED" {
+			questions = append(questions, q)
+		}
+	}
+	for _, spec := range factoryFieldSpecs {
+		if !seen[spec.Key] && facts[spec.Key].State != "CONFIRMED" {
+			questions = append(questions, factoryGuidedQuestion{spec.Key, spec.Help})
+		}
+	}
+	return questions
+}
+
 func factorySuggestions(facts map[string]factoryFact) ([]factoryReadiness, string, int, int) {
 	confirmed := func(k string) bool { f, ok := facts[k]; return ok && f.State == "CONFIRMED" }
 	known := 0
@@ -199,25 +235,9 @@ func factorySuggestions(facts map[string]factoryFact) ([]factoryReadiness, strin
 	}
 	out = append(out, factoryReadiness{"production_release", "Production release", "NOT_AUTHORIZED", []string{"RFID commissioning, qualified stations and approved buyer/order facts"}, "Onboarding answers never authorize production release."})
 	out = append(out, factoryReadiness{"material_issue", "Material issuance", "NOT_AUTHORIZED", []string{"Verified ledger, reserved rolls, two independent authenticated witnesses"}, "The issuance gate cannot be bypassed by marking an onboarding field confirmed."})
-	question := "What is your factory called?"
-	for _, q := range []struct{ key, prompt string }{
-		{"factory.name", "What is your factory called?"},
-		{"machines.sewing_count", "About how many working sewing machines do you have? An estimate is okay."},
-		{"workforce.headcount", "Approximately how many people work in production?"},
-		{"machines.capabilities", "Which operations can your machines perform?"},
-		{"workforce.skills", "Which sewing or finishing skills are available?"},
-		{"materials.categories", "What raw materials do you normally keep?"},
-		{"calendar.shift_hours", "How many hours are in a typical shift?"},
-		{"costs.currency", "Which currency do you use for factory costing?"},
-		{"costs.labor_rate", "What is your approximate hourly direct labor rate?"},
-		{"costs.overhead_rate", "Do you know your approximate factory overhead per hour?"},
-	} {
-		if !confirmed(q.key) {
-			question = q.prompt
-			break
-		} else {
-			question = "You have a useful starting picture. Review uncertain facts or add documents whenever ready."
-		}
+	question := "Your factory details are checked. Upload new evidence or revise them anytime."
+	if questions := factoryGuidedQuestions(facts); len(questions) > 0 {
+		question = questions[0].Question
 	}
 	return out, question, known, verified
 }
@@ -478,6 +498,7 @@ func (s *EdgeServer) getFactoryDiscovery(w http.ResponseWriter, r *http.Request)
 		"tenant": tenant, "scope": "development evidence only", "fields": factoryFieldSpecs,
 		"facts": facts, "documents": hints, "readiness": readiness, "next_question": prompt,
 		"known_fields": known, "confirmed_fields": verified, "total_fields": len(factoryFieldSpecs),
+		"next_questions":        factoryGuidedQuestions(facts),
 		"allowed_now":           []string{"upload_documents", "explore_demo", "stage_buyer_documents"},
 		"production_authorized": false,
 	})
