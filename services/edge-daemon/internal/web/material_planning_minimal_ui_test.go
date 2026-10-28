@@ -34,7 +34,9 @@ func TestMaterialPlanningMinimalEvidenceAwareUI(t *testing.T) {
 	}
 	// Home is provided by the shared banner, not duplicated in the page body.
 	sharedNav, err := staticFS.ReadFile("static/workspace_nav.js")
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !strings.Contains(string(sharedNav), "brand.href = '/'") || !strings.Contains(string(sharedNav), "home.href = '/'") {
 		t.Error("the shared chapter banner must link to Home")
 	}

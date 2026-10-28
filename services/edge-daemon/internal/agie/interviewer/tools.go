@@ -39,7 +39,7 @@ var AgieToolDefinitions = []ToolDefinition{
 			Description: "Executes a bounded, read-only SELECT query against the live factory database. " +
 				"Strictly disallows mutations (INSERT, UPDATE, DELETE, DROP, ALTER). Returns rows as JSON.",
 			Parameters: map[string]interface{}{
-				"type": "object",
+				"type":     "object",
 				"required": []string{"query"},
 				"properties": map[string]interface{}{
 					"query": map[string]interface{}{

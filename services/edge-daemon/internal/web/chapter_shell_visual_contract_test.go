@@ -71,7 +71,9 @@ func TestChapterThreeFourShareHomeVisualContract(t *testing.T) {
 	}
 	// The local Chapter 03 stylesheet must not hide the shared chapter banner.
 	materialCSS, err := staticFS.ReadFile("static/material_planning.css")
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	if regexp.MustCompile(`(?i)#agiparel-workspace-navigation\s*\{[^}]*display\s*:\s*none`).Match(materialCSS) {
 		t.Error("Chapter 03 CSS hides shared header")
 	}

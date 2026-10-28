@@ -43,21 +43,27 @@ func TestChapter10QuietUploadWithoutRemovingControls(t *testing.T) {
 
 // A filename is a selectable source-evidence action, never a primary dark badge.
 func TestChapter10FileNamesHaveQuietReadableStyle(t *testing.T) {
- css, err := staticFS.ReadFile("static/documents.css")
- if err != nil { t.Fatal(err) }
- text := string(css)
- for _, needed := range []string{
-  `main .file-table button.file-name`,
-  `background:transparent;`,
-  `color:#215c78;`,
-  `overflow-wrap:anywhere;`,
-  `text-decoration:underline;`,
- } {
-  if !strings.Contains(text, needed) { t.Errorf("missing plain file-name appearance %q", needed) }
- }
- js, err := staticFS.ReadFile("static/documents.js")
- if err != nil { t.Fatal(err) }
- if !strings.Contains(string(js), `create('button','file-name'`) {
-  t.Error("file-name style must target the actual library file buttons")
- }
+	css, err := staticFS.ReadFile("static/documents.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(css)
+	for _, needed := range []string{
+		`main .file-table button.file-name`,
+		`background:transparent;`,
+		`color:#215c78;`,
+		`overflow-wrap:anywhere;`,
+		`text-decoration:underline;`,
+	} {
+		if !strings.Contains(text, needed) {
+			t.Errorf("missing plain file-name appearance %q", needed)
+		}
+	}
+	js, err := staticFS.ReadFile("static/documents.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(js), `create('button','file-name'`) {
+		t.Error("file-name style must target the actual library file buttons")
+	}
 }

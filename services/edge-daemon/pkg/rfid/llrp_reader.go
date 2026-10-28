@@ -34,7 +34,7 @@ func (r *LLRPReader) Listen(ctx context.Context, eventStream chan<- RFIDEvent) e
 		return fmt.Errorf("ERR_LLRP_DIAL: failed to connect to reader %s: %w", r.Address, err)
 	}
 	defer conn.Close()
-	
+
 	header := make([]byte, 10)
 	for {
 		select {
@@ -50,7 +50,7 @@ func (r *LLRPReader) Listen(ctx context.Context, eventStream chan<- RFIDEvent) e
 				return fmt.Errorf("ERR_LLRP_READ: connection broken: %w", err)
 			}
 
-			msgType := (uint16(header[0])&0x03<<8) | uint16(header[1])
+			msgType := (uint16(header[0]) & 0x03 << 8) | uint16(header[1])
 			msgLen := binary.BigEndian.Uint32(header[2:6])
 
 			if msgLen < 10 || msgLen > 1048576 {

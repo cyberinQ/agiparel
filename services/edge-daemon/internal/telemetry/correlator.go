@@ -31,18 +31,24 @@ func NewProcessCorrelator() *ProcessCorrelator {
 	}
 }
 
-func (c *ProcessCorrelator) RecordStationEntry(stationID, bundleID string) {
+func (c *ProcessCorrelator) RecordStationEntry(stationID, bundleID string, scannedAt ...time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	entryTime := time.Now().UTC()
+	if len(scannedAt) > 0 && !scannedAt[0].IsZero() {
+		entryTime = scannedAt[0].UTC()
+	}
 	key := stationID + ":" + bundleID
-	c.cycleStarts[key] = time.Now().UTC()
+	c.cycleStarts[key] = entryTime
 }
 
-func (c *ProcessCorrelator) RecordCycleCompletion(stationID, operatorID, bundleID string, samSeconds float64) (ProcessMeasurement, error) {
+func (c *ProcessCorrelator) RecordCycleCompletion(stationID, operatorID, bundleID string, samSeconds float64, completedAt ...time.Time) (ProcessMeasurement, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
 	now := time.Now().UTC()
+	if len(completedAt) > 0 && !completedAt[0].IsZero() {
+		now = completedAt[0].UTC()
+	}
 	key := stationID + ":" + bundleID
 	start, exists := c.cycleStarts[key]
 	if !exists {

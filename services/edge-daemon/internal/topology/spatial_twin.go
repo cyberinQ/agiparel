@@ -8,12 +8,12 @@ import (
 type DeviceType string
 
 const (
-	DevicePhone       DeviceType = "PHONE_HMI"
-	DeviceTablet      DeviceType = "TABLET_KIOSK"
-	DeviceSled        DeviceType = "RFID_SLED"
-	DeviceScanner     DeviceType = "BT_RING_SCANNER"
-	DeviceScale       DeviceType = "DIGITAL_SCALE"
-	DeviceEdgeServer  DeviceType = "EDGE_SERVER"
+	DevicePhone      DeviceType = "PHONE_HMI"
+	DeviceTablet     DeviceType = "TABLET_KIOSK"
+	DeviceSled       DeviceType = "RFID_SLED"
+	DeviceScanner    DeviceType = "BT_RING_SCANNER"
+	DeviceScale      DeviceType = "DIGITAL_SCALE"
+	DeviceEdgeServer DeviceType = "EDGE_SERVER"
 )
 
 type EdgeDevice struct {

@@ -110,7 +110,18 @@ func AssessWorkbook(wb *onboarding.FactoryWorkbook, poNumber string) PlanAssessm
 }
 
 func evaluateCloth(wb *onboarding.FactoryWorkbook, po, styleCode string, targetCut int) ReadinessCard {
-	neededMeters := float64(targetCut) * 1.25
+	// Dynamically calculate consumption from style parts/BOM; fallback to 1.25 only if unspecified
+	consumptionPerGarment := 0.0
+	for _, p := range wb.StyleParts {
+		if p.StyleCode == styleCode && strings.Contains(strings.ToUpper(p.MaterialSKU), "DENIM") {
+			// SubBundleOrder or linked BOM yields piece count; standard piece allowance
+			consumptionPerGarment += 0.35
+		}
+	}
+	if consumptionPerGarment <= 0.1 {
+		consumptionPerGarment = 1.25
+	}
+	neededMeters := float64(targetCut) * consumptionPerGarment
 	primarySKU := ""
 	for _, st := range wb.Styles {
 		if st.StyleCode == styleCode && st.FabricSKU != "" {

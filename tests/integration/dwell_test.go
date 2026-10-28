@@ -1,9 +1,9 @@
 package integration
 
 import (
+	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/sewing"
 	"testing"
 	"time"
-	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/sewing"
 )
 
 func TestAntiGhostTapDwellGuard(t *testing.T) {

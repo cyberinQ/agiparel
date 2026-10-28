@@ -37,6 +37,7 @@ func CalculateCutTarget(orderID, sizeVariant string, orderQty int) (CutPlanTarge
 		MaxAllowedLays:  210,
 	}, nil
 }
+
 type SequentialBundleSpec struct {
 	SequentialBundleNo int    `json:"sequential_bundle_no"`
 	OrderID            string `json:"order_id"`

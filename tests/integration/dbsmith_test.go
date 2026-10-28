@@ -1,8 +1,8 @@
 package integration
 
 import (
-	"testing"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/dbsmith"
+	"testing"
 )
 
 func TestDBSmithDynamicMigration(t *testing.T) {

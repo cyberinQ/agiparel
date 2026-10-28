@@ -108,22 +108,37 @@ func (s *StoresEngine) DoubleWitnessIssue(rollID, orderID string, cutNo int, iss
 	}
 	return record, nil
 }
-// VerifyIssuanceSignature allows offline downstream stations (e.g., cutting tables) 
+
+// VerifyIssuanceSignature allows offline downstream stations (e.g., cutting tables)
 // to cryptographically verify double-witness signatures without reaching the cloud.
 func VerifyIssuanceSignature(record IssuanceRecord, secretKey string) bool {
-	claim := fmt.Sprintf("%s:%s:%d:%.3f:%s:%s:%d", 
-		record.RollID, 
-		record.OrderID, 
-		record.CutNo, 
-		record.IssuedLengthM, 
-		record.IssuerID, 
-		record.RecipientID, 
+	claim := fmt.Sprintf("%s:%s:%d:%.3f:%s:%s:%d",
+		record.RollID,
+		record.OrderID,
+		record.CutNo,
+		record.IssuedLengthM,
+		record.IssuerID,
+		record.RecipientID,
 		record.IssuedAt,
 	)
-	
+
 	mac := hmac.New(sha256.New, []byte(secretKey))
 	mac.Write([]byte(claim))
 	expectedHash := hex.EncodeToString(mac.Sum(nil))
-	
+
 	return hmac.Equal([]byte(record.DigitalSigHash), []byte(expectedHash))
+}
+
+// CalculateFourPointScore computes the ASTM D5430 fabric defect score per 100 sq. yards.
+// A roll fails if points exceed threshold (standard: 28 to 40 points per 100 sq. yards).
+func CalculateFourPointScore(totalDefectPoints int, rollLengthMeters, fabricWidthCm float64) (float64, bool) {
+	if rollLengthMeters <= 0 || fabricWidthCm <= 0 {
+		return 0.0, false
+	}
+	widthInches := fabricWidthCm / 2.54
+	lengthYards := rollLengthMeters * 1.09361
+	pointsPer100SqYards := (float64(totalDefectPoints) * 3600.0) / (widthInches * lengthYards)
+	// Industry threshold: <= 28 points per 100 sq. yd passes
+	isAcceptable := pointsPer100SqYards <= 28.0
+	return math.Round(pointsPer100SqYards*10) / 10, isAcceptable
 }

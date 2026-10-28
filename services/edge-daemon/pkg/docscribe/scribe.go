@@ -29,13 +29,14 @@ func (s *DocScribeEngine) GeneratePlainEnglishManual(stationID, opName, language
 	}
 
 	steps := []string{
-		"1. Tap your NFC wristband on the station reader to log in.",
-		"2. Scan the incoming bundle NFC tag.",
-		"3. Complete the sewing operation following the 3D visual guide.",
-		"4. Tap the large Green 'CYCLE DONE' button when finished.",
+		"1. Tap your NFC badge on the station reader to verify your shift.",
+		fmt.Sprintf("2. Scan bundle tag and verify part labels for: %s.", opName),
+		fmt.Sprintf("3. Execute operation '%s' matching seam margin and stitch pitch.", opName),
+		"4. Inspect piece for tension/oil defects, then tap the Green button to advance bundle.",
 	}
 
-	audioScript := "Please scan your bundle and press the green button when done."
+	audioScript := fmt.Sprintf("Station %s ready for %s. Scan your bundle to begin.", stationID, opName)
+
 	switch lang {
 	case "HI":
 		audioScript = "\u0915\u0943\u092a\u092f\u093e \u0905\u092a\u0928\u093e \u092c\u0902\u0921\u0932 \u0938\u094d\u0915\u0948\u0928 \u0915\u0930\u0947\u0902 \u0914\u0930 \u0915\u093e\u092e \u092a\u0942\u0930\u093e \u0939\u094b\u0928\u0947 \u092a\u0930 \u0939\u0930\u093e \u092c\u091f\u0928 \u0926\u092c\u093e\u090f\u0902\u0964"

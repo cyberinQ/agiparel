@@ -83,3 +83,26 @@ func (r *ReconciliationReport) CanSeal() bool {
 	}
 	return true
 }
+
+// AQLSampleCheck calculates Normal Inspection Level II sample size and maximum
+// allowable defects under standard garment export AQL 2.5.
+func AQLSampleCheck(lotSize int, majorDefects, minorDefects int) (sampleSize int, maxMajor int, maxMinor int, passed bool) {
+	switch {
+	case lotSize <= 150:
+		sampleSize, maxMajor, maxMinor = 20, 1, 2
+	case lotSize <= 500:
+		sampleSize, maxMajor, maxMinor = 50, 3, 5
+	case lotSize <= 1200:
+		sampleSize, maxMajor, maxMinor = 80, 5, 7
+	case lotSize <= 3200:
+		sampleSize, maxMajor, maxMinor = 125, 7, 10
+	case lotSize <= 10000:
+		sampleSize, maxMajor, maxMinor = 200, 10, 14
+	case lotSize <= 35000:
+		sampleSize, maxMajor, maxMinor = 315, 14, 21
+	default:
+		sampleSize, maxMajor, maxMinor = 500, 21, 21
+	}
+	passed = majorDefects <= maxMajor && minorDefects <= maxMinor
+	return sampleSize, maxMajor, maxMinor, passed
+}

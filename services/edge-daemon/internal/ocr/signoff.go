@@ -11,18 +11,18 @@ import (
 )
 
 type SealCertificate struct {
-	CertificateID string              `json:"certificate_id"`
-	OrderID       string              `json:"order_id"`
-	CutNo         int                 `json:"cut_no"`
-	SealedAt      int64               `json:"sealed_at"`
-	DocumentHash  string              `json:"document_hash"`
-	Signatures    map[string]string   `json:"signatures"`
+	CertificateID string               `json:"certificate_id"`
+	OrderID       string               `json:"order_id"`
+	CutNo         int                  `json:"cut_no"`
+	SealedAt      int64                `json:"sealed_at"`
+	DocumentHash  string               `json:"document_hash"`
+	Signatures    map[string]string    `json:"signatures"`
 	Report        ReconciliationReport `json:"report"`
 }
 
 type SignOffSession struct {
 	sync.Mutex
-	Report    *ReconciliationReport
+	Report     *ReconciliationReport
 	Signatures map[string]string
 	SecretKey  string
 	IsSealed   bool

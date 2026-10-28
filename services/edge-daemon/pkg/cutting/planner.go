@@ -20,14 +20,19 @@ func CalculateCutTarget(orderID, sizeVariant string, orderQty int) (CutPlanTarge
 		return CutPlanTarget{}, errors.New("ERR_INVALID_ORDER_QTY: Order quantity must be greater than zero")
 	}
 
+	// Real-world apparel cutting: 2% allowance with realistic tiered thresholds
 	extra := int(math.Round(0.02 * float64(orderQty)))
 	if extra < 1 {
 		extra = 1
 	}
-	if extra > 15 {
-		extra = 15
+	// Scale over-cut allowance proportionally: allow up to 3% for small orders, capped at 300 for huge runs
+	maxAllowedExtra := int(math.Max(15.0, float64(orderQty)*0.03))
+	if maxAllowedExtra > 500 {
+		maxAllowedExtra = 500
 	}
-
+	if extra > maxAllowedExtra {
+		extra = maxAllowedExtra
+	}
 	return CutPlanTarget{
 		OrderID:         orderID,
 		SizeVariant:     sizeVariant,

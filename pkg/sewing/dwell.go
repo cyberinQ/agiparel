@@ -7,10 +7,10 @@ import (
 )
 
 type CycleSubmission struct {
-	StationID   string    `json:"station_id"`
-	OperatorID  string    `json:"operator_id"`
-	OperationID string    `json:"operation_id"`
-	FactorySAMMin float64 `json:"factory_sam_min"` // Standard Allowed Minutes
+	StationID      string    `json:"station_id"`
+	OperatorID     string    `json:"operator_id"`
+	OperationID    string    `json:"operation_id"`
+	FactorySAMMin  float64   `json:"factory_sam_min"` // Standard Allowed Minutes
 	CycleStartedAt time.Time `json:"cycle_started_at"`
 	SubmittedAt    time.Time `json:"submitted_at"`
 }
@@ -43,9 +43,9 @@ func ValidateCycleDwell(sub CycleSubmission) (DwellValidationResult, error) {
 	}
 
 	return DwellValidationResult{
-			IsValid:     true,
-			ElapsedTime: elapsed,
-			MinRequired: minRequired,
-			Reason:      "PASS",
+		IsValid:     true,
+		ElapsedTime: elapsed,
+		MinRequired: minRequired,
+		Reason:      "PASS",
 	}, nil
 }

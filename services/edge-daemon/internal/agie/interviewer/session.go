@@ -16,22 +16,22 @@ const (
 )
 
 type QAPair struct {
-	Index       int         `json:"index"`
-	Timestamp   int64       `json:"timestamp"`
-	Persona     PersonaType `json:"persona"`
-	Question    string      `json:"question"`
-	Answer      string      `json:"answer"`
-	Extracted   interface{} `json:"extracted,omitempty"`
+	Index     int         `json:"index"`
+	Timestamp int64       `json:"timestamp"`
+	Persona   PersonaType `json:"persona"`
+	Question  string      `json:"question"`
+	Answer    string      `json:"answer"`
+	Extracted interface{} `json:"extracted,omitempty"`
 }
 
 type InterviewSession struct {
 	sync.Mutex
-	SessionID    string              `json:"session_id"`
-	TenantID     string              `json:"tenant_id"`
-	PlantID      string              `json:"plant_id"`
-	StartedAt    int64               `json:"started_at"`
-	IsComplete   bool                `json:"is_complete"`
-	History      []QAPair            `json:"history"`
+	SessionID    string                 `json:"session_id"`
+	TenantID     string                 `json:"tenant_id"`
+	PlantID      string                 `json:"plant_id"`
+	StartedAt    int64                  `json:"started_at"`
+	IsComplete   bool                   `json:"is_complete"`
+	History      []QAPair               `json:"history"`
 	CompiledData map[string]interface{} `json:"compiled_data"`
 }
 
@@ -81,6 +81,6 @@ func (s *InterviewSession) FinalizeAndCompile() (map[string]interface{}, error) 
 	// Aggregate structured parameters for downstream sub-agents (DB-Smith & Logic-Weaver)
 	s.CompiledData["total_exchanges"] = len(s.History)
 	s.CompiledData["finalized_at"] = time.Now().UTC().UnixMilli()
-	
+
 	return s.CompiledData, nil
 }

@@ -64,11 +64,17 @@ func (b *HardwareTokenBank) RedeemVoucher(voucher string) (int64, error) {
 	if tenant != b.tenantID || plant != b.plantID {
 		return b.balance, errors.New("ERR_VOUCHER_TENANT_MISMATCH")
 	}
+
+	// In-memory check backed by persistent check
 	if b.usedNonces[nonce] {
 		return b.balance, errors.New("ERR_NONCE_ALREADY_REDEEMED")
 	}
-
+	// Sanity check nonce formatting
+	if len(nonce) < 8 || len(nonce) > 128 {
+		return b.balance, errors.New("ERR_INVALID_NONCE_FORMAT")
+	}
 	credits, err := strconv.ParseInt(credStr, 10, 64)
+
 	if err != nil || credits <= 0 {
 		return b.balance, errors.New("ERR_INVALID_VOUCHER_CREDITS: Credits must be a positive integer")
 	}

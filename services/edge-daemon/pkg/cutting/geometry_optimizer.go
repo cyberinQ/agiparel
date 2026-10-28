@@ -8,11 +8,11 @@ import (
 
 // DefectSpot represents a 2D flaw coordinate detected by Machine Vision or 4-Point Inspection.
 type DefectSpot struct {
-	ID       string  `json:"id"`
-	XMeter   float64 `json:"x_meter"`   // Distance along roll length (meters)
-	YCm      float64 `json:"y_cm"`      // Distance across roll width (cm)
-	RadiusCm float64 `json:"radius_cm"` // Flaw size radius (cm)
-	DefectType string `json:"defect_type"` // "HOLE", "STAIN", "SLUB", "SHADE_BAR"
+	ID         string  `json:"id"`
+	XMeter     float64 `json:"x_meter"`     // Distance along roll length (meters)
+	YCm        float64 `json:"y_cm"`        // Distance across roll width (cm)
+	RadiusCm   float64 `json:"radius_cm"`   // Flaw size radius (cm)
+	DefectType string  `json:"defect_type"` // "HOLE", "STAIN", "SLUB", "SHADE_BAR"
 }
 
 // PlacedPiece represents a single garment pattern polygon placed at exact 2D coordinates on a marker.
@@ -30,24 +30,24 @@ type PlacedPiece struct {
 
 // MarkerGeometryPlan contains the 2D nested layout and mathematical efficiency metrics.
 type MarkerGeometryPlan struct {
-	OrderID             string        `json:"order_id"`
-	StyleCode           string        `json:"style_code"`
-	FabricWidthCm       float64       `json:"fabric_width_cm"`
-	MarkerLengthM       float64       `json:"marker_length_m"`
-	UtilizationPct      float64       `json:"utilization_pct"`
-	WastagePct          float64       `json:"wastage_pct"`
-	GarmentsPerPly      int           `json:"garments_per_ply"`
-	RecommendedPlies    int           `json:"recommended_plies"`
-	TotalGarmentsCut    int           `json:"total_garments_cut"`
-	EndBitRemnantM      float64       `json:"end_bit_remnant_m"`
-	EndBitReusePlan     string        `json:"end_bit_reuse_plan"`
-	DefectsDetected     []DefectSpot  `json:"defects_detected"`
-	PlacedPieces        []PlacedPiece `json:"placed_pieces"`
+	OrderID          string        `json:"order_id"`
+	StyleCode        string        `json:"style_code"`
+	FabricWidthCm    float64       `json:"fabric_width_cm"`
+	MarkerLengthM    float64       `json:"marker_length_m"`
+	UtilizationPct   float64       `json:"utilization_pct"`
+	WastagePct       float64       `json:"wastage_pct"`
+	GarmentsPerPly   int           `json:"garments_per_ply"`
+	RecommendedPlies int           `json:"recommended_plies"`
+	TotalGarmentsCut int           `json:"total_garments_cut"`
+	EndBitRemnantM   float64       `json:"end_bit_remnant_m"`
+	EndBitReusePlan  string        `json:"end_bit_reuse_plan"`
+	DefectsDetected  []DefectSpot  `json:"defects_detected"`
+	PlacedPieces     []PlacedPiece `json:"placed_pieces"`
 }
 
 type partTemplate struct {
-	Code    string
-	Name    string
+	Code     string
+	Name     string
 	LengthCm float64
 	WidthCm  float64
 }
@@ -173,7 +173,7 @@ func Optimize2DMarkerAndVision(orderID, styleCode string, rollLengthM, usableWid
 
 	reusePlan := "Less than 1.5m: Send to Scrap / Wiper Bin"
 	if remnantM >= 1.5 && remnantM <= 5.0 {
-		extraPockets := int(math.Floor((remnantM * 100.0) / 32.0)) * 4
+		extraPockets := int(math.Floor((remnantM*100.0)/32.0)) * 4
 		reusePlan = fmt.Sprintf("SAVE REMNANT (%.2fm): Cut %d extra Pocket Bags & Waistbands in Recut Zone", remnantM, extraPockets)
 	} else if remnantM > 5.0 {
 		reusePlan = fmt.Sprintf("RETURN TO STORE (%.2fm): Can be used for next small PO", remnantM)

@@ -1,8 +1,8 @@
 package integration
 
 import (
-	"testing"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/docscribe"
+	"testing"
 )
 
 func TestDocScribeGeneration(t *testing.T) {

@@ -19,7 +19,7 @@ func (t *TenantContextManager) WithTenantTx(ctx context.Context, tenantID string
 	if t.db == nil {
 		return fmt.Errorf("ERR_DB_NIL: Database connection not initialized")
 	}
-	
+
 	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("ERR_TX_BEGIN: %w", err)

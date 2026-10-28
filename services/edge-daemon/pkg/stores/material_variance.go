@@ -126,17 +126,39 @@ func (r MaterialRepository) LookupVarianceChallenge(ctx context.Context, tenant,
 func (r MaterialRepository) ApproveVariance(ctx context.Context, c VarianceApprovalCommand) (VarianceReceipt, error) {
 	var out VarianceReceipt
 	if !nonblank(c.TenantID, c.PlantID, c.RequestID, c.CEOSubject, c.CEOProofID, c.CEOAssertion) {
-		return out, errors.New("ERR_CEO_INPUT")
+		return out, errors.New("ERR_APPROVER_INPUT")
 	}
 	tx, err := r.begin(ctx, c.TenantID)
 	if err != nil {
 		return out, err
 	}
 	defer tx.Rollback()
-	var enrolled string
-	err = tx.QueryRowContext(ctx, `SELECT subject FROM material_ceo_principals_v5 WHERE tenant_id=$1 AND active=true`, c.TenantID).Scan(&enrolled)
-	if errors.Is(err, sql.ErrNoRows) || enrolled != c.CEOSubject {
-		return out, errors.New("ERR_CEO_ONLY")
+
+	// Check requested additional length to determine approval tier
+	var deltaMM int64
+	err = tx.QueryRowContext(ctx, `SELECT requested_additional_mm FROM material_variances_v5 WHERE tenant_id=$1 AND id=$2`, c.TenantID, c.RequestID).Scan(&deltaMM)
+	if err != nil {
+		return out, err
+	}
+
+	// Minor variance (<10 meters / 10,000mm) can be approved by Plant Manager or Cutting Master
+	if deltaMM <= 10000 {
+		var isPlantAuth bool
+		err = tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM s01_identity.user_role_grants urg JOIN s01_identity.roles r ON urg.role_id = r.id WHERE urg.tenant_id=$1 AND urg.user_id=$2 AND r.name IN ('PLANT_MANAGER', 'CUTTING_MASTER', 'FACTORY_GM'))`, c.TenantID, c.CEOSubject).Scan(&isPlantAuth)
+		if err != nil || !isPlantAuth {
+			var enrolled string
+			_ = tx.QueryRowContext(ctx, `SELECT subject FROM material_ceo_principals_v5 WHERE tenant_id=$1 AND active=true`, c.TenantID).Scan(&enrolled)
+			if enrolled != c.CEOSubject {
+				return out, errors.New("ERR_UNAUTHORIZED_VARIANCE_APPROVER")
+			}
+		}
+	} else {
+		// Major variance strictly requires CEO attestation
+		var enrolled string
+		err = tx.QueryRowContext(ctx, `SELECT subject FROM material_ceo_principals_v5 WHERE tenant_id=$1 AND active=true`, c.TenantID).Scan(&enrolled)
+		if errors.Is(err, sql.ErrNoRows) || enrolled != c.CEOSubject {
+			return out, errors.New("ERR_CEO_ONLY_FOR_MAJOR_VARIANCE")
+		}
 	}
 	if err != nil {
 		return out, err

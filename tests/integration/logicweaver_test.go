@@ -1,8 +1,8 @@
 package integration
 
 import (
-	"testing"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/logicweaver"
+	"testing"
 )
 
 func TestLogicWeaverCompilation(t *testing.T) {

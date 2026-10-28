@@ -48,7 +48,8 @@ func TestDocumentSafetyPreflight(t *testing.T) {
 	activeDDE := makeOffice(t, map[string]string{"xl/workbook.xml": "<workbook/>", "xl/externalLinks/externalLink1.xml": "<externalLink><ddeLink/></externalLink>"})
 	legacy := make([]byte, 512)
 	copy(legacy, []byte{0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1})
-	legacy[28] = 0xfe; legacy[29] = 0xff
+	legacy[28] = 0xfe
+	legacy[29] = 0xff
 	binary.LittleEndian.PutUint16(legacy[30:32], 9)
 	// Magic-byte valid PNG, not a content classifier: swimsuit and underwear photography are permitted.
 	png := append([]byte{137, 80, 78, 71, 13, 10, 26, 10}, bytes.Repeat([]byte{0}, 24)...)
@@ -96,10 +97,14 @@ func TestDocumentSafetyPreflight(t *testing.T) {
 func TestLegacyXLSStorageOnlyDevelopmentGate(t *testing.T) {
 	legacy := make([]byte, 512)
 	copy(legacy, []byte{0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1})
-	legacy[28] = 0xfe; legacy[29] = 0xff
+	legacy[28] = 0xfe
+	legacy[29] = 0xff
 	binary.LittleEndian.PutUint16(legacy[30:32], 9)
 	t.Setenv("AGIPAREL_CLAMD_ADDR", "")
-	for _, mode := range []struct { env string; allowed bool }{
+	for _, mode := range []struct {
+		env     string
+		allowed bool
+	}{
 		{"development", true}, {"production", false}, {"", false}, {"staging", false},
 	} {
 		t.Setenv("ENV", mode.env)
