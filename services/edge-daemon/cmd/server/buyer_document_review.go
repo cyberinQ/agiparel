@@ -1,4 +1,4 @@
-// Gate 06.5-C1: map extracted buyer evidence into *proposed* PO/BOM records.
+// Author: Sunil Jain, 2026-10-28 — Gate 06.5-C1: map extracted buyer evidence into *proposed* PO/BOM records.
 // Original documents remain immutable and linked. No automatic buyer approval.
 package main
 
@@ -176,6 +176,12 @@ func detectBuyerOptions(segments []buyerEvidence) ([]buyerOrderOption, []buyerMa
 		color := buyerField(row, "color_code", "color", "colorway")
 		size := buyerField(row, "size_code", "size")
 		qtyText := buyerField(row, "ordered_qty", "order_qty", "quantity", "qty")
+		// An incomplete PO line must not silently disappear from the candidate
+		// matrix. It could reduce ordered units and understate material demand.
+		if (color != "" || size != "" || po != "" && qtyText != "") &&
+			(po == "" || style == "" || color == "" || size == "" || qtyText == "") {
+			issues = append(issues, fmt.Sprintf("PO source segment %d has missing order/style/color/size/quantity; inspect the original", seg.Ordinal))
+		}
 		if po != "" && style != "" && color != "" && size != "" && qtyText != "" {
 			qty, err := strconv.ParseInt(strings.ReplaceAll(qtyText, ",", ""), 10, 64)
 			if err != nil || qty <= 0 || qty > 100000000 {
@@ -195,6 +201,9 @@ func detectBuyerOptions(segments []buyerEvidence) ([]buyerOrderOption, []buyerMa
 		cat := strings.ToUpper(buyerField(row, "category", "material_category", "type"))
 		rate := buyerField(row, "qty_per_garment", "consumption", "per_garment")
 		uom := buyerField(row, "uom", "unit", "units")
+		if material != "" && ((cat != "FABRIC" && cat != "TRIM") || rate == "" || uom == "") {
+			issues = append(issues, fmt.Sprintf("BOM source segment %d has missing/invalid category, usage or unit; inspect the original", seg.Ordinal))
+		}
 		if material != "" && (cat == "FABRIC" || cat == "TRIM") && rate != "" && uom != "" {
 			materials = append(materials, buyerMaterial{StyleCode: style, SKU: material, Category: cat, PerGarment: rate, UOM: uom, SourceOrdinal: seg.Ordinal})
 		}

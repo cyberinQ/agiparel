@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Author: Sunil Jain, 2026-10-27 — Minimal Chapter 02 buyer-order workflow. -->
+<!-- Author: Sunil Jain, 2026-10-28 — Source-safe Chapter 02 buyer-order workflow. -->
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -25,7 +25,7 @@
  </section>
  <section class="panel" id="review" aria-labelledby="review-title" hidden>
   <div class="section-heading"><div><h2 id="review-title">Check order details</h2><p class="support">Fix anything that is missing or wrong.</p></div><span class="hold-label">PROPOSED · HOLD</span></div>
-  <div id="coverage" class="coverage" role="status"></div><div id="issues" class="issues" role="alert" hidden></div>
+  <div id="coverage" class="coverage" role="status"></div><div id="order-summary" class="order-summary" role="status" aria-live="polite">No order quantity checked.</div><p id="order-checks" class="support">Drafts are not approvals.</p><div id="issues" class="issues" role="alert" hidden></div>
   <div class="select-grid"><label>PO number<input id="po-number" maxlength="64" placeholder="Buyer PO number"></label><label>Style number<input id="style-code" maxlength="64" placeholder="Style or design code"></label></div>
   <div id="multiple-po" class="multiple-po" hidden><label>We found more than one order. Choose one to check.<select id="po-choice"></select></label></div>
   <div class="table-head"><h3>Colors, sizes &amp; pieces</h3><button class="secondary" type="button" id="add-sku">+ Add size</button></div>
@@ -38,6 +38,7 @@
     <div id="techpack-summary" class="message" role="status"></div><div id="techpack-candidates" class="techpack-candidates"></div>
   </details>
   <details class="source-box"><summary>See source evidence</summary><p>Open the original file to check a number. Source 0 means a value entered manually.</p><div class="source-cols"><div><h4 id="po-evidence-title">PO source</h4><div id="po-evidence"></div></div><div><h4 id="bom-evidence-title">Tech pack source</h4><div id="bom-evidence"></div></div></div></details>
+  <p class="support">Before a commercial commitment, separately verify the latest PO amendment, delivery date, price/currency, payment terms, approved sample, packing instructions and shipping obligations. This screen does not establish profitability or available capacity.</p>
   <label class="note">Review note<textarea id="review-note" maxlength="1000" rows="2" placeholder="What did you check? What still needs checking?"></textarea></label>
   <label class="ack"><input id="acknowledged" type="checkbox"> I checked the order details. This saves a draft, not permission to buy or produce.</label>
   <div class="actions"><button class="primary" type="button" id="stage">Save draft order →</button></div><p class="message" id="stage-message" role="status" aria-live="polite">No stock, purchasing, or production records will change.</p>

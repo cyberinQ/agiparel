@@ -120,3 +120,28 @@ func TestBuyerWalmartPDFPageHint(t *testing.T) {
 		t.Fatal("misreconciled page may not generate size rows")
 	}
 }
+
+// Author: Sunil Jain, 2026-10-28 — Incomplete PO/BOM rows must remain visible
+// as audit warnings; they must never be mistaken for a complete buyer intake.
+func TestBuyerReviewWarnsOnIncompleteSourceRows(t *testing.T) {
+	po := []buyerEvidence{
+		{Ordinal: 1, Kind: "ROW", Content: `["po_number","style_code","color_code","size_code","ordered_qty"]`},
+		{Ordinal: 2, Kind: "ROW", Content: `["REP3","ST01","NAVY","M","10"]`},
+		{Ordinal: 3, Kind: "ROW", Content: `["REP3","ST01","BLUE","L",""]`},
+		{Ordinal: 4, Kind: "ROW", Content: `["","","GREEN","XL","30"]`},
+	}
+	options, _, issues := detectBuyerOptions(po)
+	if len(options) != 1 || len(options[0].SKUs) != 1 || len(issues) != 2 || !strings.Contains(issues[0], "segment 3") || !strings.Contains(issues[1], "segment 4") {
+		t.Fatalf("missing PO quantity was not surfaced: options=%+v issues=%v", options, issues)
+	}
+	bom := []buyerEvidence{
+		{Ordinal: 1, Kind: "ROW", Content: `["style_code","material_sku","category","qty_per_garment","uom"]`},
+		{Ordinal: 2, Kind: "ROW", Content: `["ST01","TWILL","FABRIC","1.850","M"]`},
+		{Ordinal: 3, Kind: "ROW", Content: `["ST01","ZIP","TRIM","","PCS"]`},
+		{Ordinal: 4, Kind: "ROW", Content: `["ST01","LABEL","PACK","1","PCS"]`},
+	}
+	_, mats, issues := detectBuyerOptions(bom)
+	if len(mats) != 1 || len(issues) != 2 || !strings.Contains(issues[0], "segment 3") || !strings.Contains(issues[1], "segment 4") {
+		t.Fatalf("incomplete/invalid BOM rows hidden: materials=%+v issues=%v", mats, issues)
+	}
+}

@@ -82,3 +82,7 @@ body[data-ag-phase="buyer"] #stage-message{overflow-wrap:anywhere}
 /* Confirm inferred codes explicitly; no silent rewriting of buyer material names. */
 .material-code-help{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:#872b32;margin-top:7px;line-height:1.45}
 .material-code-confirm{min-height:44px;max-width:100%;overflow-wrap:anywhere;white-space:normal;text-align:left}
+
+/* Chapter 02: quantity audit within existing blue buyer-order design. */
+body[data-ag-phase="buyer"] .order-summary{background:#f5f8ff;border:1px solid #dbe5f3;border-radius:9px;color:#2b5ab0;font-size:13px;font-weight:750;line-height:1.5;padding:10px 13px;margin:12px 0 5px}
+body[data-ag-phase="buyer"] #order-checks{margin:4px 0 15px;line-height:1.5}
