@@ -334,6 +334,9 @@ func main() {
 		})
 	}
 	if modules.IsEnabled("mod_sewing") {
+		registerSewProdRoutes(mux, server)
+	}
+	if modules.IsEnabled("mod_sewing") {
 		mux.HandleFunc("/api/v1/sewing/sim/catalog", server.handleSewSimCatalog)
 		mux.HandleFunc("/api/v1/sewing/sim/operations", server.handleSewSimOperations)
 		mux.HandleFunc("/api/v1/sewing/sim/scan", server.handleSewSimScan)

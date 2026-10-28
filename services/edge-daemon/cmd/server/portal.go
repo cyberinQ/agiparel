@@ -132,10 +132,21 @@ func registerPublicPortal(mux *http.ServeMux) {
 }
 
 func configuredOperatorGate(next http.Handler) http.Handler {
+	// Dedicated ingress uses enrolled Ed25519 reader keys or strong, scoped IdP
+	// assertions. A Basic Auth challenge would prevent hardware clients while
+	// providing no identity assurance. Never exempt generic /api paths.
+	secureIngress := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/sewing/production/observations", "/api/v1/sewing/production/completions", "/api/v1/sewing/production/completions/challenge":
+			next.ServeHTTP(w, r)
+		default:
+			operatorAccessGate(next, "", "").ServeHTTP(w, r)
+		}
+	})
+	if os.Getenv("ENV") != "development" {
+		return secureIngress
+	}
 	// A shared Basic credential is acceptable only for a disposable DEV HMI.
 	// Production must use a tenant-scoped workforce identity provider instead.
-	if os.Getenv("ENV") != "development" {
-		return operatorAccessGate(next, "", "")
-	}
 	return operatorAccessGate(next, os.Getenv("AGIPAREL_OPERATOR_USER"), os.Getenv("AGIPAREL_OPERATOR_PASSWORD"))
 }

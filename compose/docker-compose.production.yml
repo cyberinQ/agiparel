@@ -1,0 +1,41 @@
+# Author: Sunil Jain, 2026-10-28.
+# Restricted edge ingress for a production pilot. Not a full factory deployment.
+# Requires external TLS/mTLS reverse proxy, IdP, provisioned Postgres and devices.
+services:
+  plant-edge-os:
+    image: ${AGIPAREL_EDGE_IMAGE:?Set an approved, digest-pinned edge image}
+    restart: unless-stopped
+    read_only: true
+    user: "10001:10001"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      ENV: production
+      AGIPAREL_ENVIRONMENT: production
+      ENABLED_MODULES: mod_sewing
+      AGIPAREL_SEWING_PRODUCTION_ENABLED: "true"
+      AGIPAREL_SEWING_MAX_OBSERVATION_AGE: ${AGIPAREL_SEWING_MAX_OBSERVATION_AGE:-48h}
+      AGIPAREL_IDP_ED25519_PUBLIC_KEY_B64: ${AGIPAREL_IDP_ED25519_PUBLIC_KEY_B64:?Required}
+      AGIPAREL_IDP_KID: ${AGIPAREL_IDP_KID:?Required}
+      AGIPAREL_IDP_ISSUER: ${AGIPAREL_IDP_ISSUER:?Required}
+      AGIPAREL_IDP_AUDIENCE: ${AGIPAREL_IDP_AUDIENCE:?Required}
+      DATABASE_URL: ${DATABASE_URL:?Production app-role Postgres URL required}
+      LEDGER_SECRET: ${LEDGER_SECRET:?Production ledger secret required}
+      WAL_PATH: /data/wal/events.wal
+      PORT: "18530"
+    ports:
+      - "127.0.0.1:${EDGE_DAEMON_PORT:-18530}:18530"
+    volumes:
+      - edge_wal_production:/data/wal
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:18530/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+volumes:
+  edge_wal_production:
