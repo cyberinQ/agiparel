@@ -23,6 +23,7 @@ type intelProdAPI struct {
 	server    *EdgeServer
 	sewing    *sewProdAPI
 	workforce *workforceauth.Verifier
+	browser   *workforceBrowser
 	enabled   bool
 	reason    string
 }
@@ -51,6 +52,9 @@ type intelProdReport struct {
 
 func newIntelProdAPI(s *EdgeServer) *intelProdAPI {
 	p := &intelProdAPI{server: s, reason: "ERR_INTEL_PROD_DISABLED"}
+	if s != nil {
+		p.browser = s.browser
+	}
 	if os.Getenv("AGIPAREL_INTELLIGENCE_PRODUCTION_ENABLED") != "true" {
 		return p
 	}
@@ -182,12 +186,27 @@ func (p *intelProdAPI) report(w http.ResponseWriter, r *http.Request) {
 		sewProdReply(w, e)
 		return
 	}
-	token, e := bearer(r)
-	if e != nil {
-		docJSON(w, 401, map[string]string{"error": "ERR_INTEL_PROD_BEARER_REQUIRED"})
-		return
+	var actor attestation.Claims
+	var enterprise bool
+	if r.Header.Get("Authorization") == "" && p.browser != nil && p.browser.enabled && p.workforce != nil {
+		var session sessionIdentity
+		session, e = p.browser.identity(r)
+		if e == nil {
+			tenant, plant := r.URL.Query()["tenant_id"], r.URL.Query()["plant_id"]
+			if len(tenant) != 1 || len(plant) != 1 || !sewFields(tenant[0], plant[0]) {
+				e = sewProdInvalid("ERR_WORKFORCE_SCOPE_REQUIRED")
+			} else {
+				actor = attestation.Claims{Issuer: session.Issuer, Subject: session.Subject, TenantID: tenant[0], PlantID: plant[0]}
+				enterprise = true
+			}
+		}
+	} else {
+		var token string
+		token, e = bearer(r)
+		if e == nil {
+			actor, enterprise, e = p.identifyReporter(token, r)
+		}
 	}
-	actor, enterprise, e := p.identifyReporter(token, r)
 	if e != nil {
 		docJSON(w, 401, map[string]string{"error": "ERR_INTEL_PROD_ASSERTION"})
 		return

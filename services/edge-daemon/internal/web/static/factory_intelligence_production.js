@@ -14,6 +14,8 @@
  };
  const cards = {sewing_completion_groups:'sew',qc_current_reviewed_groups:'qc',qc_current_hold_groups:'held',packing_current_staging_holds:'stage'};
  let version = 0;
+ let csrf = null;
+ let sessionActive = false;
  const status = message => { $('status').textContent=message; };
  const clearView = () => {
    version++;
@@ -78,21 +80,22 @@
    if (!a || !b || !Number.isFinite(a.getTime()) || !Number.isFinite(b.getTime()) || a>=b) {
      return status('Provide valid ordered start and end times.');
    }
-   if (!token) return status('An identity-provider assertion is required.');
    const mode=$('authmode').value;
+   if (mode!=='session' && !token) return status('An identity-provider assertion is required.');
+   if (mode==='session' && !sessionActive) return status('Sign in with SSO before loading evidence.');
    const tenant=$('tenant').value.trim(),plant=$('plant').value.trim();
-   if (mode==='oidc' && (!/^[A-Za-z0-9_-]{2,64}$/.test(tenant) || !/^[A-Za-z0-9_-]{2,64}$/.test(plant))) {
+   if ((mode==='oidc' || mode==='session') && (!/^[A-Za-z0-9_-]{2,64}$/.test(tenant) || !/^[A-Za-z0-9_-]{2,64}$/.test(plant))) {
      return status('Enter an authorized tenant and plant code.');
    }
    const query=new URLSearchParams({since:a.toISOString(),until:b.toISOString()});
-   if (mode==='oidc') {query.set('tenant_id',tenant);query.set('plant_id',plant);}
+   if (mode==='oidc' || mode==='session') {query.set('tenant_id',tenant);query.set('plant_id',plant);}
    status('Reading tenant- and plant-scoped evidence…');
    try {
      const response=await fetch('/api/v1/intelligence/production/report?'+query.toString(),{
-       headers:{Authorization:'Bearer '+token},cache:'no-store',credentials:'omit'
+       headers:mode==='session'?{}:{Authorization:'Bearer '+token},cache:'no-store',credentials:mode==='session'?'same-origin':'omit'
      });
      const result=await response.json();
-     if (thisVersion!==version || $('since').value!==from || $('until').value!==to || $('token').value.trim()!==token || $('authmode').value!==mode || (mode==='oidc' && ($('tenant').value.trim()!==tenant || $('plant').value.trim()!==plant))) return;
+     if (thisVersion!==version || $('since').value!==from || $('until').value!==to || $('token').value.trim()!==token || $('authmode').value!==mode || ((mode==='oidc' || mode==='session') && ($('tenant').value.trim()!==tenant || $('plant').value.trim()!==plant))) return;
      if (!response.ok) throw new Error(result.error||'Read failed');
      show(result);status('Source-backed group report loaded. Individual garment and financial KPIs remain unmeasured.');
    } catch (err) {if (thisVersion===version) {clearView();status('Unable to load: '+err.message);}}
@@ -100,9 +103,32 @@
  $('refresh').addEventListener('click',load);
  $('clear').addEventListener('click',()=>{clearView();$('token').value='';status('View and identity assertion cleared.');});
  $('authmode').addEventListener('change',()=>{
-   $('oidcscope').hidden=$('authmode').value!=='oidc';
-   clearView();status('Authentication mode changed; reload with an IdP-issued token.');
+   $('oidcscope').hidden=!['oidc','session'].includes($('authmode').value);
+   clearView();status('Authentication mode changed; choose an authenticated identity.');
  });
  ['since','until','token','tenant','plant'].forEach(id=>$(id).addEventListener('change',()=>{clearView();status('Inputs changed; reload evidence.');}));
+ async function checkSession() {
+   csrf=null;sessionActive=false;
+   try {
+     const response=await fetch('/api/v1/workforce/session',{credentials:'same-origin',cache:'no-store'});
+     if (!response.ok) throw new Error('Not signed in');
+     const data=await response.json();
+     if (data.authenticated!==true || typeof data.csrf!=='string') throw new Error('Session invalid');
+     csrf=data.csrf;sessionActive=true;
+     $('authmode').value='session';$('oidcscope').hidden=false;
+     $('session-status').textContent='Signed in as '+data.subject+' (plant permissions checked when reporting).';
+   } catch (_) { $('session-status').textContent='No active SSO session. Use Sign in with SSO.'; }
+ }
+ $('signin').addEventListener('click',()=>{window.location.assign('/auth/login');});
+ $('signout').addEventListener('click',async()=>{
+   if (!csrf) return $('session-status').textContent='No active SSO session.';
+   try {
+     const response=await fetch('/auth/logout',{method:'POST',credentials:'same-origin',headers:{'X-Agiparel-CSRF':csrf},cache:'no-store'});
+     if (!response.ok) throw new Error('Sign-out failed');
+     csrf=null;sessionActive=false;clearView();
+     $('session-status').textContent='Signed out. Session revoked.';
+   } catch (_) { $('session-status').textContent='Sign-out failed. Try again.'; }
+ });
  clearView();
+ checkSession();
 })();

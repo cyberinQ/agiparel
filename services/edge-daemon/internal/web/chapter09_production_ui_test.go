@@ -27,7 +27,18 @@ func TestChapter09ProductionUIContracts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{`AUTHENTICATED_GROUP_EVENTS_NOT_GARMENT_RELEASE`, `Authorization:'Bearer '+token`, `NOT_MEASURED`, `textContent`, `replaceChildren`, `credentials:'omit'`} {
+	// F1.2: Browser SSO must send its same-origin session cookie, while explicit
+	// bearer-token requests must omit cookies. Assert the mode split rather than
+	// requiring the pre-SSO unconditional credentials:'omit' literal.
+	for _, required := range []string{
+		`AUTHENTICATED_GROUP_EVENTS_NOT_GARMENT_RELEASE`,
+		`NOT_MEASURED`, `textContent`, `replaceChildren`,
+		`headers:mode==='session'?{}:{Authorization:'Bearer '+token}`,
+		`credentials:mode==='session'?'same-origin':'omit'`,
+		`fetch('/api/v1/workforce/session',{credentials:'same-origin'`,
+		`fetch('/auth/logout',{method:'POST',credentials:'same-origin'`,
+		`'X-Agiparel-CSRF':csrf`,
+	} {
 		if !strings.Contains(string(js), required) {
 			t.Errorf("missing secure rendering: %s", required)
 		}

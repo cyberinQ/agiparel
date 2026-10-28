@@ -45,13 +45,15 @@ type tokenHeader struct {
 	Typ string `json:"typ"`
 }
 type claims struct {
-	Iss string          `json:"iss"`
-	Sub string          `json:"sub"`
-	Aud json.RawMessage `json:"aud"`
-	Exp int64           `json:"exp"`
-	Nbf int64           `json:"nbf"`
-	Iat int64           `json:"iat"`
-	AMR []string        `json:"amr"`
+	Iss   string          `json:"iss"`
+	Sub   string          `json:"sub"`
+	Aud   json.RawMessage `json:"aud"`
+	Exp   int64           `json:"exp"`
+	Nbf   int64           `json:"nbf"`
+	Iat   int64           `json:"iat"`
+	Nonce string          `json:"nonce"`
+	Azp   string          `json:"azp"`
+	AMR   []string        `json:"amr"`
 }
 
 // New loads an approved JWKS snapshot. Rotate by deploying a new file and
@@ -138,6 +140,19 @@ func audienceIncludes(raw json.RawMessage, expected string) bool {
 // Verify returns only the immutable IdP subject. Tenant/plant and permissions
 // MUST be resolved independently against provisioner-controlled database grants.
 func (v *Verifier) Verify(jwt string) (Identity, error) {
+	return v.verify(jwt, "", false)
+}
+
+// VerifyIDToken validates the OIDC callback identity, including the one-time nonce.
+// An ID token is never accepted by the API Bearer-token verifier.
+func (v *Verifier) VerifyIDToken(jwt, expectedNonce string) (Identity, error) {
+	if len(expectedNonce) < 32 || len(expectedNonce) > 128 {
+		return Identity{}, errInvalid
+	}
+	return v.verify(jwt, expectedNonce, true)
+}
+
+func (v *Verifier) verify(jwt, nonce string, idToken bool) (Identity, error) {
 	if v == nil || len(v.keys) == 0 || len(jwt) > 8192 || len(jwt) < 60 {
 		return Identity{}, errInvalid
 	}
@@ -150,7 +165,7 @@ func (v *Verifier) Verify(jwt string) (Identity, error) {
 		return Identity{}, errInvalid
 	}
 	var h tokenHeader
-	if json.Unmarshal(hBytes, &h) != nil || h.Kid == "" || (h.Typ != "JWT" && h.Typ != "at+jwt") {
+	if json.Unmarshal(hBytes, &h) != nil || h.Kid == "" || ((!idToken && h.Typ != "JWT" && h.Typ != "at+jwt") || (idToken && h.Typ != "" && h.Typ != "JWT")) {
 		return Identity{}, errInvalid
 	}
 	key := v.keys[h.Kid]
@@ -180,7 +195,7 @@ func (v *Verifier) Verify(jwt string) (Identity, error) {
 		return Identity{}, errInvalid
 	}
 	var c claims
-	if json.Unmarshal(payload, &c) != nil || c.Iss != v.Issuer || c.Sub == "" || len(c.Sub) > 128 || !audienceIncludes(c.Aud, v.Audience) {
+	if json.Unmarshal(payload, &c) != nil || c.Iss != v.Issuer || c.Sub == "" || len(c.Sub) > 128 || !audienceIncludes(c.Aud, v.Audience) || (idToken && c.Nonce != nonce) {
 		return Identity{}, errInvalid
 	}
 	now := time.Now().UTC()
@@ -196,6 +211,15 @@ func (v *Verifier) Verify(jwt string) (Identity, error) {
 	for _, amr := range c.AMR {
 		if amr == "mfa" || amr == "webauthn" || amr == "fido2" || amr == "hwk" {
 			strong = true
+		}
+	}
+	if idToken {
+		if c.Azp != "" && c.Azp != v.Audience {
+			return Identity{}, errInvalid
+		}
+		var auds []string
+		if json.Unmarshal(c.Aud, &auds) == nil && len(auds) > 1 && c.Azp != v.Audience {
+			return Identity{}, errInvalid
 		}
 	}
 	if !strong {

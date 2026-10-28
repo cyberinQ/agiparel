@@ -18,6 +18,6 @@ assert(!api.includes('sew_sim_credits_v9'));
 assert(migration.includes('FORCE ROW LEVEL SECURITY'));
 assert(migration.includes('GRANT SELECT') && !migration.includes('GRANT INSERT'));
 assert(page.includes('factory_intelligence.css'));
-assert(js.includes('NOT_MEASURED') && js.includes("credentials:'omit'"));
+assert(js.includes('NOT_MEASURED') && js.includes("mode==='session'?'same-origin':'omit'"));
 assert(!js.includes('localStorage') && !js.includes('innerHTML'));
 console.log('PASS Chapter 09: scoped authenticated group evidence; unreleased garments and finance unmeasured');

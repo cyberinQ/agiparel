@@ -1,0 +1,14 @@
+# Author: Sunil Jain, 2026-10-28.
+# Opt-in F1.2 browser SSO; overlay atop production and workforce OIDC Compose.
+# Host paths contain secrets, never commit credential bytes or mount in development.
+services:
+  plant-edge-os:
+    environment:
+      AGIPAREL_WORKFORCE_BROWSER_ENABLED: "true"
+      AGIPAREL_WORKFORCE_OIDC_CLIENT_ID: ${AGIPAREL_WORKFORCE_OIDC_CLIENT_ID:?OIDC confidential client ID}
+      AGIPAREL_WORKFORCE_OIDC_CLIENT_SECRET_FILE: /run/agiparel-oidc-client-secret
+      AGIPAREL_WORKFORCE_OIDC_AUTHORIZATION_ENDPOINT: ${AGIPAREL_WORKFORCE_OIDC_AUTHORIZATION_ENDPOINT:?Issuer authorization endpoint HTTPS}
+      AGIPAREL_WORKFORCE_OIDC_TOKEN_ENDPOINT: ${AGIPAREL_WORKFORCE_OIDC_TOKEN_ENDPOINT:?Issuer token endpoint HTTPS}
+      AGIPAREL_WORKFORCE_OIDC_CALLBACK_URL: ${AGIPAREL_WORKFORCE_OIDC_CALLBACK_URL:?Exact HTTPS callback URL ending /auth/callback}
+    volumes:
+      - ${AGIPAREL_WORKFORCE_OIDC_CLIENT_SECRET_HOST_FILE:?Read-only confidential client secret absolute path}:/run/agiparel-oidc-client-secret:ro
