@@ -48,6 +48,7 @@ func AssessWorkbook(wb *onboarding.FactoryWorkbook, poNumber string) PlanAssessm
 			},
 		}
 	}
+
 	var targetWO onboarding.WorkOrderRow
 	for _, wo := range wb.WorkOrders {
 		if wo.PONumber == poNumber || poNumber == "" {
@@ -55,6 +56,7 @@ func AssessWorkbook(wb *onboarding.FactoryWorkbook, poNumber string) PlanAssessm
 			break
 		}
 	}
+
 	if targetWO.OrderedQty <= 0 {
 		return PlanAssessment{
 			PONumber:      poNumber,
@@ -70,8 +72,13 @@ func AssessWorkbook(wb *onboarding.FactoryWorkbook, poNumber string) PlanAssessm
 	extra := int(math.Round(float64(targetWO.OrderedQty) * 0.02))
 	if extra < 1 {
 		extra = 1
-	} else if extra > 15 {
-		extra = 15
+	}
+	maxAllowedExtra := int(math.Max(15.0, float64(targetWO.OrderedQty)*0.03))
+	if maxAllowedExtra > 500 {
+		maxAllowedExtra = 500
+	}
+	if extra > maxAllowedExtra {
+		extra = maxAllowedExtra
 	}
 	targetCut := targetWO.OrderedQty + extra
 
@@ -90,8 +97,18 @@ func AssessWorkbook(wb *onboarding.FactoryWorkbook, poNumber string) PlanAssessm
 	}
 
 	dailyCap := 600
-	if len(wb.Lines) > 0 && wb.Lines[0].TargetDailyCapacity > 0 {
-		dailyCap = wb.Lines[0].TargetDailyCapacity
+	if len(wb.Lines) > 0 {
+		matchedLine := false
+		for _, ln := range wb.Lines {
+			if strings.EqualFold(ln.LineID, targetWO.LineID) && ln.TargetDailyCapacity > 0 {
+				dailyCap = ln.TargetDailyCapacity
+				matchedLine = true
+				break
+			}
+		}
+		if !matchedLine && wb.Lines[0].TargetDailyCapacity > 0 {
+			dailyCap = wb.Lines[0].TargetDailyCapacity
+		}
 	}
 	days := int(math.Ceil(float64(targetWO.OrderedQty) / float64(dailyCap)))
 	if days < 1 {
@@ -110,11 +127,26 @@ func AssessWorkbook(wb *onboarding.FactoryWorkbook, poNumber string) PlanAssessm
 }
 
 func evaluateCloth(wb *onboarding.FactoryWorkbook, po, styleCode string, targetCut int) ReadinessCard {
+	primarySKU := ""
+	for _, st := range wb.Styles {
+		if st.StyleCode == styleCode && st.FabricSKU != "" {
+			primarySKU = strings.ToUpper(strings.TrimSpace(st.FabricSKU))
+			break
+		}
+	}
+
 	// Dynamically calculate consumption from style parts/BOM; fallback to 1.25 only if unspecified
 	consumptionPerGarment := 0.0
 	for _, p := range wb.StyleParts {
-		if p.StyleCode == styleCode && strings.Contains(strings.ToUpper(p.MaterialSKU), "DENIM") {
-			// SubBundleOrder or linked BOM yields piece count; standard piece allowance
+		if p.StyleCode != styleCode {
+			continue
+		}
+		partSKU := strings.ToUpper(strings.TrimSpace(p.MaterialSKU))
+		if primarySKU != "" {
+			if partSKU == primarySKU {
+				consumptionPerGarment += 0.35
+			}
+		} else if partSKU != "" && !strings.Contains(partSKU, "POCKET") {
 			consumptionPerGarment += 0.35
 		}
 	}
@@ -122,17 +154,10 @@ func evaluateCloth(wb *onboarding.FactoryWorkbook, po, styleCode string, targetC
 		consumptionPerGarment = 1.25
 	}
 	neededMeters := float64(targetCut) * consumptionPerGarment
-	primarySKU := ""
-	for _, st := range wb.Styles {
-		if st.StyleCode == styleCode && st.FabricSKU != "" {
-			primarySKU = strings.ToUpper(st.FabricSKU)
-			break
-		}
-	}
 
 	availMeters := 0.0
 	for _, r := range wb.StoreRolls {
-		skuUpper := strings.ToUpper(r.FactorySKU)
+		skuUpper := strings.ToUpper(strings.TrimSpace(r.FactorySKU))
 		// Exclude secondary trim/pocketing rolls from main body shell fabric calculation
 		if strings.Contains(skuUpper, "POCKET") {
 			continue
@@ -176,13 +201,14 @@ func evaluateMachines(wb *onboarding.FactoryWorkbook, styleCode string) Readines
 			Details:  []string{"Upload both the operation bulletin and machine roster."},
 		}
 	}
+
 	broken := []string{}
 	activeByClass := make(map[string]int)
 	for _, m := range wb.Machines {
 		status := strings.ToUpper(m.Status)
 		if status == "BREAKDOWN" || status == "MAINTENANCE" {
 			broken = append(broken, fmt.Sprintf("%s at %s (%s)", m.Name, m.StationID, status))
-		} else {
+		} else if status == "ACTIVE" || status == "IDLE" {
 			activeByClass[strings.ToUpper(m.CanonicalClass)]++
 		}
 	}
@@ -207,6 +233,7 @@ func evaluateMachines(wb *onboarding.FactoryWorkbook, styleCode string) Readines
 			SuggestedFix: "Move spare machine to line before starting.",
 		}
 	}
+
 	if len(broken) > 0 {
 		return ReadinessCard{
 			Category:     "MACHINES",
@@ -216,6 +243,7 @@ func evaluateMachines(wb *onboarding.FactoryWorkbook, styleCode string) Readines
 			SuggestedFix: "Dispatch line mechanic to repair stations in maintenance/breakdown.",
 		}
 	}
+
 	return ReadinessCard{
 		Category: "MACHINES",
 		Status:   LightGreen,
@@ -238,7 +266,6 @@ func evaluateWorkers(wb *onboarding.FactoryWorkbook) ReadinessCard {
 	stale := []string{}
 	coveredStations := make(map[string]string)
 	presentCount := 0
-
 	for _, worker := range wb.Workers {
 		if worker.AttendanceDate != "" && worker.AttendanceDate != today {
 			stale = append(stale, worker.Name)

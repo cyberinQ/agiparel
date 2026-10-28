@@ -1,3 +1,4 @@
+// Author: Sunil Jain, CyberinQ LLC
 package ocr
 
 import (
@@ -73,8 +74,11 @@ func (r *ReconciliationReport) CanSeal() bool {
 	if !r.IsConserved && r.VarianceComment == "" {
 		return false
 	}
-	for _, signed := range r.Signatures {
-		if !signed {
+	if len(r.Signatures) < len(RequiredDepartments) {
+		return false
+	}
+	for _, dept := range RequiredDepartments {
+		if signed, ok := r.Signatures[dept]; !ok || !signed {
 			return false
 		}
 	}

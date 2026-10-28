@@ -1,3 +1,4 @@
+// Author: Sunil Jain, CyberinQ LLC
 package rfid
 
 import (
@@ -50,9 +51,8 @@ func (r *LLRPReader) Listen(ctx context.Context, eventStream chan<- RFIDEvent) e
 				return fmt.Errorf("ERR_LLRP_READ: connection broken: %w", err)
 			}
 
-			msgType := (uint16(header[0]) & 0x03 << 8) | uint16(header[1])
+			msgType := ((uint16(header[0]) & 0x03) << 8) | uint16(header[1])
 			msgLen := binary.BigEndian.Uint32(header[2:6])
-
 			if msgLen < 10 || msgLen > 1048576 {
 				return fmt.Errorf("ERR_LLRP_FRAME: invalid message length %d", msgLen)
 			}

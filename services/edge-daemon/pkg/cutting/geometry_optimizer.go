@@ -1,3 +1,4 @@
+// Author: Sunil Jain, CyberinQ LLC
 package cutting
 
 import (
@@ -66,7 +67,7 @@ var standardTrouserParts = []partTemplate{
 
 // Optimize2DMarkerAndVision runs a Bottom-Left-Fill (BLF) 2D strip-packing algorithm
 // that nests garment parts tightly across the roll width while shifting pieces around
-// any Machine Vision defect coordinates.
+// any Machine Vision defect coordinates with iterative convergence.
 func Optimize2DMarkerAndVision(orderID, styleCode string, rollLengthM, usableWidthCm float64, garmentsPerPly int, defects []DefectSpot) MarkerGeometryPlan {
 	if usableWidthCm <= 0 {
 		usableWidthCm = 148.0
@@ -100,7 +101,7 @@ func Optimize2DMarkerAndVision(orderID, styleCode string, rollLengthM, usableWid
 		return (queue[i].WidthCm * queue[i].HeightCm) > (queue[j].WidthCm * queue[j].HeightCm)
 	})
 
-	// 2D Shelf / Skyline Strip-Packing with Vision Defect Collision Avoidance
+	// 2D Shelf / Skyline Strip-Packing with Iterative Vision Defect Collision Avoidance
 	var placed []PlacedPiece
 	curXCm := 2.0
 	curYCm := 2.0
@@ -116,18 +117,27 @@ func Optimize2DMarkerAndVision(orderID, styleCode string, rollLengthM, usableWid
 			shelfMaxWidthCm = 0.0
 		}
 
-		// Machine Vision Defect Avoidance Check:
-		// If a camera defect lies inside this piece's bounding box, shift the piece past the flaw.
+		// Iterative Machine Vision Defect Avoidance Check:
+		// Re-verify all defects whenever a coordinate shift occurs.
 		avoided := false
-		for _, d := range defects {
-			defectXCm := d.XMeter * 100.0
-			if rectOverlapsCircle(curXCm, curYCm, piece.WidthCm, piece.HeightCm, defectXCm, d.YCm, d.RadiusCm) {
-				curYCm = d.YCm + d.RadiusCm + 2.0
-				avoided = true
-				if curYCm+piece.HeightCm > usableWidthCm-2.0 {
-					curXCm = defectXCm + d.RadiusCm + 2.0
-					curYCm = 2.0
+		for pass := 0; pass < len(defects)+1; pass++ {
+			collision := false
+			for _, d := range defects {
+				defectXCm := d.XMeter * 100.0
+				if rectOverlapsCircle(curXCm, curYCm, piece.WidthCm, piece.HeightCm, defectXCm, d.YCm, d.RadiusCm) {
+					curYCm = d.YCm + d.RadiusCm + 2.0
+					avoided = true
+					collision = true
+					if curYCm+piece.HeightCm > usableWidthCm-2.0 {
+						curXCm = math.Max(curXCm+shelfMaxWidthCm+1.5, defectXCm+d.RadiusCm+2.0)
+						curYCm = 2.0
+						shelfMaxWidthCm = 0.0
+					}
+					break
 				}
+			}
+			if !collision {
+				break
 			}
 		}
 
@@ -136,7 +146,7 @@ func Optimize2DMarkerAndVision(orderID, styleCode string, rollLengthM, usableWid
 		piece.AvoidedFlaw = avoided
 		placed = append(placed, piece)
 
-		// Account for true non-bounding polygon factor (0.86 for curved trouser patterns)
+		// Account for true non-bounding polygon factor (0.91 for nested trouser patterns)
 		truePartAreaCm2 += (piece.WidthCm * piece.HeightCm) * 0.91
 
 		curYCm += piece.HeightCm + 1.0
@@ -169,8 +179,8 @@ func Optimize2DMarkerAndVision(orderID, styleCode string, rollLengthM, usableWid
 	if plies < 1 {
 		plies = 1
 	}
-	remnantM := math.Round((rollLengthM-(float64(plies)*markerLengthM))*100) / 100
 
+	remnantM := math.Round((rollLengthM-(float64(plies)*markerLengthM))*100) / 100
 	reusePlan := "Less than 1.5m: Send to Scrap / Wiper Bin"
 	if remnantM >= 1.5 && remnantM <= 5.0 {
 		extraPockets := int(math.Floor((remnantM*100.0)/32.0)) * 4

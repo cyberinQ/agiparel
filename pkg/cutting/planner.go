@@ -1,3 +1,4 @@
+// Author: Sunil Jain, CyberinQ LLC
 package cutting
 
 import (
@@ -14,7 +15,7 @@ type CutPlanTarget struct {
 	MaxAllowedLays  int    `json:"max_allowed_lays"`
 }
 
-// CalculateCutTarget computes the over-cut allowance using the clamped 2% formula.
+// CalculateCutTarget computes the over-cut allowance using the realistic tiered 2% formula.
 func CalculateCutTarget(orderID, sizeVariant string, orderQty int) (CutPlanTarget, error) {
 	if orderQty <= 0 {
 		return CutPlanTarget{}, errors.New("ERR_INVALID_ORDER_QTY: Order quantity must be greater than zero")
@@ -24,8 +25,12 @@ func CalculateCutTarget(orderID, sizeVariant string, orderQty int) (CutPlanTarge
 	if extra < 1 {
 		extra = 1
 	}
-	if extra > 15 {
-		extra = 15
+	maxAllowedExtra := int(math.Max(15.0, float64(orderQty)*0.03))
+	if maxAllowedExtra > 500 {
+		maxAllowedExtra = 500
+	}
+	if extra > maxAllowedExtra {
+		extra = maxAllowedExtra
 	}
 
 	return CutPlanTarget{
@@ -58,19 +63,21 @@ func GeneratePOSequentialBundles(orderID string, cutNo, pantPositions int, parts
 	if pantPositions <= 0 || totalPlies <= 0 || bundleSize <= 0 || len(parts) == 0 {
 		return []SequentialBundleSpec{}
 	}
+
 	var bundles []SequentialBundleSpec
 	seq := 1
 	numGroups := (totalPlies + bundleSize - 1) / bundleSize
 
 	for pant := 1; pant <= pantPositions; pant++ {
-		for _, part := range parts {
-			for g := 0; g < numGroups; g++ {
-				pStart := g*bundleSize + 1
-				pEnd := (g + 1) * bundleSize
-				if pEnd > totalPlies {
-					pEnd = totalPlies
-				}
-				count := pEnd - pStart + 1
+		for g := 0; g < numGroups; g++ {
+			pStart := g*bundleSize + 1
+			pEnd := (g + 1) * bundleSize
+			if pEnd > totalPlies {
+				pEnd = totalPlies
+			}
+			count := pEnd - pStart + 1
+
+			for _, part := range parts {
 				bundles = append(bundles, SequentialBundleSpec{
 					SequentialBundleNo: seq,
 					OrderID:            orderID,
@@ -110,16 +117,19 @@ func EvaluateEndBitDisposition(rollID, orderID string, cutNo, layStart, layEnd i
 	if endBitM < 0 {
 		return nil, errors.New("ERR_INVALID_ENDBIT: end_bit_length_m cannot be negative")
 	}
+
 	plies := layEnd - layStart + 1
 	if plies > 210 {
 		return nil, errors.New("ERR_EXCEEDS_MAX_LAYS: plies exceed maximum threshold of 210")
 	}
+
 	action := "STORE_RETURN"
 	if endBitM < 1.5 {
 		action = "SCRAP"
 	} else if endBitM <= 5.0 {
 		action = "RECUT_HOLD"
 	}
+
 	return &LayRollRecord{
 		RollID:        rollID,
 		OrderID:       orderID,

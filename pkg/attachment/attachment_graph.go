@@ -1,3 +1,4 @@
+// Author: Sunil Jain, CyberinQ LLC
 package attachment
 
 import (
@@ -67,12 +68,14 @@ func (e *AttachmentEngine) RegisterRule(styleID, parentPartCode, childPartCode s
 }
 
 func (e *AttachmentEngine) ValidatePair(styleID, sourceNFC, targetNFC string) error {
-	e.Lock()
-	defer e.Unlock()
+	if sourceNFC == targetNFC {
+		return errors.New("ERR_SELF_ATTACHMENT: Cannot attach tag to itself")
+	}
+	e.RLock()
+	defer e.RUnlock()
 
 	src, okSrc := e.bundleLookup[sourceNFC]
 	tgt, okTgt := e.bundleLookup[targetNFC]
-
 	if !okSrc || !okTgt {
 		return errors.New("ERR_UNREGISTERED_TAG: Tag missing from active floor pool")
 	}
@@ -81,19 +84,19 @@ func (e *AttachmentEngine) ValidatePair(styleID, sourceNFC, targetNFC string) er
 		return fmt.Errorf("%w: Cannot attach Cut %d to Cut %d", ErrCutMismatch, src.CutNo, tgt.CutNo)
 	}
 	if src.PantPosition != tgt.PantPosition {
-		return fmt.Errorf("%w: Bundle %d (Pant %d) cannot marry Bundle %d (Pant %d)", ErrShadeMismatch, src.SequentialID, src.PantPosition, tgt.SequentialID, tgt.PantPosition)
+		return fmt.Errorf("%w: Bundle %d (Pant %d) cannot marry Bundle %d (Pant %d)",
+			ErrShadeMismatch, src.SequentialID, src.PantPosition, tgt.SequentialID, tgt.PantPosition)
 	}
 	if src.PlyStart != tgt.PlyStart || src.PlyEnd != tgt.PlyEnd {
-		return fmt.Errorf("ERR_PLY_MISMATCH: Ply group mismatch [%d-%d] vs [%d-%d]", src.PlyStart, src.PlyEnd, tgt.PlyStart, tgt.PlyEnd)
+		return fmt.Errorf("ERR_PLY_MISMATCH: Ply group mismatch [%d-%d] vs [%d-%d]",
+			src.PlyStart, src.PlyEnd, tgt.PlyStart, tgt.PlyEnd)
 	}
 
 	srcKey := partKey(src)
 	tgtKey := partKey(tgt)
-
 	if e.validRules[styleID] == nil || e.validRules[styleID][srcKey] == nil || !e.validRules[styleID][srcKey][tgtKey] {
 		return fmt.Errorf("%w: Part %s cannot attach to %s", ErrInvalidSequence, src.PartName, tgt.PartName)
 	}
-
 	return nil
 }
 
@@ -101,4 +104,8 @@ func (e *AttachmentEngine) RetireSecondaryTag(sourceNFC string) {
 	e.Lock()
 	defer e.Unlock()
 	delete(e.bundleLookup, sourceNFC)
+}
+
+func (e *AttachmentEngine) RegisterValidEdge(styleID string, srcPart, tgtPart int) {
+	e.RegisterRule(styleID, strconv.Itoa(srcPart), strconv.Itoa(tgtPart))
 }

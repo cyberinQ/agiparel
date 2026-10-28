@@ -117,7 +117,7 @@ func GenerateTemplateCSV() string {
 	return `# ==============================================================================
 # AGIPAREL OS - EASY FACTORY SETUP WORKBOOK
 # ==============================================================================
-RECORD_TYPE,COL_1,COL_2,COL_3,COL_4,COL_5,COL_6,COL_7,COL_8,COL_9
+RECORD_TYPE,COL_1,COL_2,COL_3,COL_4,COL_5,COL_6,COL_7,COL_8,COL_9,COL_10,COL_11
 FACTORY_PROFILE,TENANT_DEFAULT,Noble Garments,OKHLA Unit 002/02,8,20
 LINE_ROSTER,Line 14,Line 14 - Denim Trouser Assembly,14,600,0.40
 LINE_ROSTER,Line 02,Line 02 - Knit Polo Line,12,500,0.40
@@ -141,26 +141,22 @@ OPERATION_DAG,KK524867,OP-102,Back Rise & Panel Join,0.60,4-OL_SERGING,103,102
 OPERATION_DAG,KK524867,OP-103,Waistband Attach,0.65,KANSAI_FLATLOCK,104,102
 STORE_ROLLS,ROLL-007,DENIM-STRETCH-12OZ,59.0,148.0,A,BIN-A01,RESERVED,MK6574J9,1
 STORE_ROLLS,ROLL-008,POCKETING-TWILL-WHITE,120.0,150.0,W1,BIN-B02,AVAILABLE,,0
-WORK_ORDERS,WO-MK6574J9-01,MK6574J9,KK524867,Line 14,W-01,600,"{""BLK"":150,""BLU"":250,""GRN"":200}","{""29/30"":600}",IN_PROGRESS
-`
+WORK_ORDERS,WO-MK6574J9-01,MK6574J9,KK524867,Line 14,W-01,600,"{""BLK"":150,""BLU"":250,""GRN"":200}","{""29/30"":600}",IN_PROGRESS`
 }
 
 func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 	reader := csv.NewReader(r)
 	reader.FieldsPerRecord = -1
 	reader.TrimLeadingSpace = true
-
 	wb := &FactoryWorkbook{
 		TenantID:       "",
 		ShiftStartHour: 0,
 		BundleSize:     0,
 	}
-
 	records, err := reader.ReadAll()
 	if err != nil {
 		return nil, fmt.Errorf("ERR_CSV_PARSE: %w", err)
 	}
-
 	positiveInteger := func(raw, field string, line int) (int, error) {
 		n, e := strconv.Atoi(strings.TrimSpace(raw))
 		if e != nil || n <= 0 {
@@ -182,6 +178,7 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 		}
 		return v, nil
 	}
+
 	for lineNum, row := range records {
 		if len(row) == 0 {
 			continue
@@ -279,6 +276,7 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 				AttendanceStatus:  attStatus,
 				AssignedLineID:    getCol(8),
 				AssignedStationID: getCol(9),
+				AttendanceDate:    getCol(10),
 			})
 		case "STYLE_MASTER":
 			sam, err := positiveDecimal(getCol(5), "target_sam_min", lineNum+1)
@@ -364,22 +362,31 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 			if status == "" {
 				status = "PROPOSED"
 			}
+			pkgJSON := getCol(10)
+			if pkgJSON != "" && !json.Valid([]byte(pkgJSON)) {
+				return nil, fmt.Errorf("ERR_INVALID_FIELD row %d invalid packaging_json", lineNum+1)
+			}
+			shipJSON := getCol(11)
+			if shipJSON != "" && !json.Valid([]byte(shipJSON)) {
+				return nil, fmt.Errorf("ERR_INVALID_FIELD row %d invalid shipping_json", lineNum+1)
+			}
 			wb.WorkOrders = append(wb.WorkOrders, WorkOrderRow{
-				WorkOrderID:  getCol(1),
-				PONumber:     getCol(2),
-				StyleCode:    getCol(3),
-				LineID:       getCol(4),
-				SupervisorID: getCol(5),
-				OrderedQty:   qty,
-				ColorJSON:    colorJSON,
-				SizeJSON:     sizeJSON,
-				Status:       status,
+				WorkOrderID:   getCol(1),
+				PONumber:      getCol(2),
+				StyleCode:     getCol(3),
+				LineID:        getCol(4),
+				SupervisorID:  getCol(5),
+				OrderedQty:    qty,
+				ColorJSON:     colorJSON,
+				SizeJSON:      sizeJSON,
+				Status:        status,
+				PackagingJSON: pkgJSON,
+				ShippingJSON:  shipJSON,
 			})
 		default:
 			return nil, fmt.Errorf("ERR_UNKNOWN_RECORD_TYPE: unknown record type '%s' at row %d", recType, lineNum+1)
 		}
 	}
-
 	if wb.FactoryName == "" {
 		return nil, errors.New("ERR_MISSING_FACTORY_PROFILE: Workbook must include a FACTORY_PROFILE row")
 	}

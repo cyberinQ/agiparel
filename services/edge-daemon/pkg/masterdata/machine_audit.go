@@ -65,8 +65,8 @@ func AuditMachineRoster(machines []Machine) Report {
 				byNameLocation[loc+"|"+canonical(m.Name)] = append(byNameLocation[loc+"|"+canonical(m.Name)], i)
 			}
 		}
-		if m.CapacityUPH <= 0 {
-			out.Findings = append(out.Findings, Finding{"INVALID_RATED_CAPACITY", "BLOCK", []string{m.ID}, "Rated machine UPH is missing or invalid.", "Confirm capacity and its unit; do not substitute a default."})
+		if m.CapacityUPH <= 0 || m.CapacityUPH > 600 {
+			out.Findings = append(out.Findings, Finding{"INVALID_RATED_CAPACITY", "BLOCK", []string{m.ID}, fmt.Sprintf("Rated machine UPH (%d) is outside realistic floor bounds [1-600].", m.CapacityUPH), "Confirm capacity and its unit; do not substitute a default."})
 		}
 		if canonical(m.Class) == "" {
 			out.Findings = append(out.Findings, Finding{"MISSING_MACHINE_CLASS", "REVIEW", []string{m.ID}, "Machine class is missing.", "Confirm machine type before matching operations."})

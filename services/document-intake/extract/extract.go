@@ -1,3 +1,4 @@
+// Author: Sunil Jain, CyberinQ LLC
 // Package extract performs source-preserving, bounded document text segmentation.
 // It does not assert that extracted text is an approved order, BOM, or factory fact.
 package extract
@@ -33,6 +34,7 @@ type Segment struct {
 	Locator json.RawMessage `json:"locator"`
 	Content string          `json:"content"`
 }
+
 type Result struct {
 	Format      string    `json:"format"`
 	Status      string    `json:"status"`
@@ -131,6 +133,7 @@ func Process(ctx context.Context, filename string, raw []byte) Result {
 		rd := csv.NewReader(bytes.NewReader(bytes.TrimPrefix(raw, []byte{0xef, 0xbb, 0xbf})))
 		rd.Comma = comma
 		rd.FieldsPerRecord = -1
+		rd.LazyQuotes = true
 		for row := 1; row <= MaxSegments; row++ {
 			cols, e := rd.Read()
 			if e == io.EOF {
@@ -257,6 +260,7 @@ func extractOffice(out *Result, raw []byte) error {
 	}
 	return parseXlsx(out, z)
 }
+
 func parseDocx(out *Result, z *zip.Reader) error {
 	raw, e := readZipEntry(z, "word/document.xml")
 	if e != nil {
@@ -281,12 +285,16 @@ func parseDocx(out *Result, z *zip.Reader) error {
 					return err
 				}
 				paragraph.WriteString(text)
+			} else if t.Name.Local == "tab" {
+				paragraph.WriteString("\t")
+			} else if t.Name.Local == "br" {
+				paragraph.WriteString("\n")
 			}
 		case xml.EndElement:
 			if t.Name.Local == "p" {
+				p++
 				out.add("PARAGRAPH", map[string]any{"paragraph": p}, paragraph.String())
 				paragraph.Reset()
-				p++
 			}
 		}
 	}
@@ -296,6 +304,7 @@ func parseDocx(out *Result, z *zip.Reader) error {
 	}
 	return nil
 }
+
 func parseXlsx(out *Result, z *zip.Reader) error {
 	shared := []string{}
 	if raw, e := readZipEntry(z, "xl/sharedStrings.xml"); e == nil {
@@ -376,19 +385,30 @@ func parseXlsx(out *Result, z *zip.Reader) error {
 				return
 			}
 			v := cellValue
-			if cellType == "s" {
-				idx, err := strconv.Atoi(v)
+			switch cellType {
+			case "s":
+				idx, err := strconv.Atoi(strings.TrimSpace(v))
 				if err == nil && idx >= 0 && idx < len(shared) {
 					v = shared[idx]
 				} else {
 					v = "[unresolved shared string: " + v + "]"
+				}
+			case "b":
+				if strings.TrimSpace(v) == "1" || strings.EqualFold(strings.TrimSpace(v), "true") {
+					v = "TRUE"
+				} else if strings.TrimSpace(v) == "0" || strings.EqualFold(strings.TrimSpace(v), "false") {
+					v = "FALSE"
 				}
 			}
 			if cellFormula != "" {
 				v = "=" + cellFormula + " [cached: " + v + "]"
 			}
 			if v != "" {
-				cells = append(cells, cellRef+": "+v)
+				if cellRef != "" {
+					cells = append(cells, cellRef+": "+v)
+				} else {
+					cells = append(cells, v)
+				}
 			}
 			inCell = false
 			cellValue = ""

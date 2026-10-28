@@ -1,3 +1,4 @@
+// Author: Sunil Jain, CyberinQ LLC
 package packing
 
 import (
@@ -65,20 +66,28 @@ func (s *CartonPackingSession) VerifyAndSeal(scaleWeightKg float64) error {
 	s.Lock()
 	defer s.Unlock()
 
+	if s.IsSealed {
+		return errors.New("ERR_CARTON_SEALED: Carton session already completed")
+	}
+	if scaleWeightKg <= 0 {
+		return errors.New("ERR_INVALID_SCALE_WEIGHT: Scale reading must be greater than zero")
+	}
+
 	for _, slot := range s.Slots {
 		if slot.PackedQty != slot.TargetQty {
 			if !s.HasBuyerException {
-				return fmt.Errorf("ERR_UNFINISHED_SLOT: UPC %s has %d of %d pieces packed. Requires PackagingExceptionAwaitingBuyer authorization", slot.UPC, slot.PackedQty, slot.TargetQty)
+				return fmt.Errorf("ERR_UNFINISHED_SLOT: UPC %s has %d of %d pieces packed. Requires PackagingExceptionAwaitingBuyer authorization",
+					slot.UPC, slot.PackedQty, slot.TargetQty)
 			}
 		}
 	}
 
 	minWeight := s.ExpectedWeightKg - s.ToleranceKg
 	maxWeight := s.ExpectedWeightKg + s.ToleranceKg
-
 	if scaleWeightKg < minWeight || scaleWeightKg > maxWeight {
 		if !s.HasBuyerException {
-			return fmt.Errorf("ERR_WEIGHT_MISMATCH: Measured %.3f kg outside valid bounds [%.3f - %.3f] kg", scaleWeightKg, minWeight, maxWeight)
+			return fmt.Errorf("ERR_WEIGHT_MISMATCH: Measured %.3f kg outside valid bounds [%.3f - %.3f] kg",
+				scaleWeightKg, minWeight, maxWeight)
 		}
 	}
 

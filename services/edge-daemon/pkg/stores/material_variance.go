@@ -40,9 +40,35 @@ func varianceChallenge(c VarianceRequestCommand, id string) string {
 	return hex.EncodeToString(d[:])
 }
 
+func isAuthorizedVarianceApprover(ctx context.Context, tx *sql.Tx, tenantID, subject string, deltaMM int64) error {
+	var enrolledCEO string
+	ceoErr := tx.QueryRowContext(ctx, `SELECT subject FROM material_ceo_principals_v5 WHERE tenant_id=$1 AND active=true`, tenantID).Scan(&enrolledCEO)
+	if ceoErr == nil && enrolledCEO == subject {
+		return nil
+	}
+	if deltaMM <= 10000 {
+		var isPlantAuth bool
+		err := tx.QueryRowContext(ctx, `SELECT EXISTS (
+			SELECT 1 FROM s01_identity.user_role_grants urg
+			JOIN s01_identity.roles r ON urg.role_id = r.id
+			WHERE urg.tenant_id=$1 AND urg.user_id=$2
+			  AND r.name IN ('PLANT_MANAGER', 'CUTTING_MASTER', 'FACTORY_GM')
+		)`, tenantID, subject).Scan(&isPlantAuth)
+		if err == nil && isPlantAuth {
+			return nil
+		}
+		return errors.New("ERR_UNAUTHORIZED_VARIANCE_APPROVER")
+	}
+	if errors.Is(ceoErr, sql.ErrNoRows) || enrolledCEO != subject {
+		return errors.New("ERR_CEO_ONLY_FOR_MAJOR_VARIANCE")
+	}
+	return ceoErr
+}
+
 func (r MaterialRepository) RequestVariance(ctx context.Context, c VarianceRequestCommand) (VarianceReceipt, error) {
 	var out VarianceReceipt
-	if !nonblank(c.TenantID, c.PlantID, c.ReservationID, c.RollID, c.OrderID, c.ReasonCode, c.RequestedBy, c.IdempotencyKey) || len(strings.TrimSpace(c.ActualStory)) < 20 || c.CutNo <= 0 || c.AdditionalMM <= 0 {
+	if !nonblank(c.TenantID, c.PlantID, c.ReservationID, c.RollID, c.OrderID, c.ReasonCode, c.RequestedBy, c.IdempotencyKey) ||
+		len(strings.TrimSpace(c.ActualStory)) < 20 || c.CutNo <= 0 || c.AdditionalMM <= 0 {
 		return out, errors.New("ERR_VARIANCE_INPUT")
 	}
 	tx, err := r.begin(ctx, c.TenantID)
@@ -55,10 +81,12 @@ func (r MaterialRepository) RequestVariance(ctx context.Context, c VarianceReque
 	}
 	var prior VarianceRequestCommand
 	err = tx.QueryRowContext(ctx, `SELECT id::text,status,challenge_hash,plant_id,reservation_id::text,roll_id,order_id,cut_no,requested_additional_mm,actual_story,reason_code,requested_by
- FROM material_variances_v5 WHERE tenant_id=$1 AND request_key=$2`, c.TenantID, c.IdempotencyKey).Scan(
+  FROM material_variances_v5 WHERE tenant_id=$1 AND request_key=$2`, c.TenantID, c.IdempotencyKey).Scan(
 		&out.ID, &out.Status, &out.Challenge, &prior.PlantID, &prior.ReservationID, &prior.RollID, &prior.OrderID, &prior.CutNo, &prior.AdditionalMM, &prior.ActualStory, &prior.ReasonCode, &prior.RequestedBy)
 	if err == nil {
-		if prior.PlantID != c.PlantID || prior.ReservationID != c.ReservationID || prior.RollID != c.RollID || prior.OrderID != c.OrderID || prior.CutNo != c.CutNo || prior.AdditionalMM != c.AdditionalMM || prior.ActualStory != c.ActualStory || prior.ReasonCode != c.ReasonCode || prior.RequestedBy != c.RequestedBy {
+		if prior.PlantID != c.PlantID || prior.ReservationID != c.ReservationID || prior.RollID != c.RollID || prior.OrderID != c.OrderID ||
+			prior.CutNo != c.CutNo || prior.AdditionalMM != c.AdditionalMM || prior.ActualStory != c.ActualStory ||
+			prior.ReasonCode != c.ReasonCode || prior.RequestedBy != c.RequestedBy {
 			return VarianceReceipt{}, errors.New("ERR_IDEMPOTENCY_KEY_REUSE")
 		}
 		out.OrderID, out.RollID, out.AdditionalMM = c.OrderID, c.RollID, c.AdditionalMM
@@ -80,7 +108,8 @@ func (r MaterialRepository) RequestVariance(ctx context.Context, c VarianceReque
 		return out, errors.New("ERR_VARIANCE_RESERVATION_MISMATCH")
 	}
 	err = tx.QueryRowContext(ctx, `INSERT INTO material_variances_v5(tenant_id,plant_id,reservation_id,roll_id,order_id,cut_no,requested_additional_mm,actual_story,reason_code,requested_by,request_key)
-  VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id::text`, c.TenantID, c.PlantID, c.ReservationID, c.RollID, c.OrderID, c.CutNo, c.AdditionalMM, c.ActualStory, c.ReasonCode, c.RequestedBy, c.IdempotencyKey).Scan(&out.ID)
+   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id::text`,
+		c.TenantID, c.PlantID, c.ReservationID, c.RollID, c.OrderID, c.CutNo, c.AdditionalMM, c.ActualStory, c.ReasonCode, c.RequestedBy, c.IdempotencyKey).Scan(&out.ID)
 	if err != nil {
 		return out, err
 	}
@@ -97,9 +126,9 @@ func (r MaterialRepository) RequestVariance(ctx context.Context, c VarianceReque
 	return out, tx.Commit()
 }
 
-// LookupVarianceChallenge returns a server-held immutable digest after authenticated CEO review.
-func (r MaterialRepository) LookupVarianceChallenge(ctx context.Context, tenant, plant, id, ceoSubject string) (string, error) {
-	if !nonblank(tenant, plant, id, ceoSubject) {
+// LookupVarianceChallenge returns a server-held immutable digest after authenticated approver review.
+func (r MaterialRepository) LookupVarianceChallenge(ctx context.Context, tenant, plant, id, approverSubject string) (string, error) {
+	if !nonblank(tenant, plant, id, approverSubject) {
 		return "", errors.New("ERR_VARIANCE_INPUT")
 	}
 	tx, err := r.begin(ctx, tenant)
@@ -107,21 +136,20 @@ func (r MaterialRepository) LookupVarianceChallenge(ctx context.Context, tenant,
 		return "", err
 	}
 	defer tx.Rollback()
-	var actualCEO string
-	err = tx.QueryRowContext(ctx, `SELECT subject FROM material_ceo_principals_v5 WHERE tenant_id=$1 AND active=true`, tenant).Scan(&actualCEO)
-	if err != nil || actualCEO != ceoSubject {
-		return "", errors.New("ERR_CEO_ONLY")
-	}
 	var challenge string
-	err = tx.QueryRowContext(ctx, `SELECT challenge_hash FROM material_variances_v5 WHERE tenant_id=$1 AND plant_id=$2 AND id=$3 AND status='PENDING_CEO'`, tenant, plant, id).Scan(&challenge)
+	var deltaMM int64
+	err = tx.QueryRowContext(ctx, `SELECT challenge_hash, requested_additional_mm FROM material_variances_v5 WHERE tenant_id=$1 AND plant_id=$2 AND id=$3 AND status='PENDING_CEO'`, tenant, plant, id).Scan(&challenge, &deltaMM)
 	if err != nil {
+		return "", err
+	}
+	if err := isAuthorizedVarianceApprover(ctx, tx, tenant, approverSubject, deltaMM); err != nil {
 		return "", err
 	}
 	return challenge, tx.Commit()
 }
 
-// ApproveVariance is called ONLY after trusted IdP verifies the CEO's challenge-
-// bound WebAuthn/FIDO2 signed assertion, and the exact CEO subject is checked in DB.
+// ApproveVariance is called ONLY after trusted IdP verifies the approver's challenge-
+// bound WebAuthn/FIDO2 signed assertion, and the exact subject is checked in DB.
 // No authorization grants more fabric than physically available.
 func (r MaterialRepository) ApproveVariance(ctx context.Context, c VarianceApprovalCommand) (VarianceReceipt, error) {
 	var out VarianceReceipt
@@ -134,44 +162,19 @@ func (r MaterialRepository) ApproveVariance(ctx context.Context, c VarianceAppro
 	}
 	defer tx.Rollback()
 
-	// Check requested additional length to determine approval tier
-	var deltaMM int64
-	err = tx.QueryRowContext(ctx, `SELECT requested_additional_mm FROM material_variances_v5 WHERE tenant_id=$1 AND id=$2`, c.TenantID, c.RequestID).Scan(&deltaMM)
-	if err != nil {
-		return out, err
-	}
-
-	// Minor variance (<10 meters / 10,000mm) can be approved by Plant Manager or Cutting Master
-	if deltaMM <= 10000 {
-		var isPlantAuth bool
-		err = tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM s01_identity.user_role_grants urg JOIN s01_identity.roles r ON urg.role_id = r.id WHERE urg.tenant_id=$1 AND urg.user_id=$2 AND r.name IN ('PLANT_MANAGER', 'CUTTING_MASTER', 'FACTORY_GM'))`, c.TenantID, c.CEOSubject).Scan(&isPlantAuth)
-		if err != nil || !isPlantAuth {
-			var enrolled string
-			_ = tx.QueryRowContext(ctx, `SELECT subject FROM material_ceo_principals_v5 WHERE tenant_id=$1 AND active=true`, c.TenantID).Scan(&enrolled)
-			if enrolled != c.CEOSubject {
-				return out, errors.New("ERR_UNAUTHORIZED_VARIANCE_APPROVER")
-			}
-		}
-	} else {
-		// Major variance strictly requires CEO attestation
-		var enrolled string
-		err = tx.QueryRowContext(ctx, `SELECT subject FROM material_ceo_principals_v5 WHERE tenant_id=$1 AND active=true`, c.TenantID).Scan(&enrolled)
-		if errors.Is(err, sql.ErrNoRows) || enrolled != c.CEOSubject {
-			return out, errors.New("ERR_CEO_ONLY_FOR_MAJOR_VARIANCE")
-		}
-	}
-	if err != nil {
-		return out, err
-	}
 	var reservation, order, roll, challenge, status string
 	var delta int64
 	var cut int
 	var existingProof sql.NullString
 	err = tx.QueryRowContext(ctx, `SELECT reservation_id::text,order_id,roll_id,cut_no,requested_additional_mm,challenge_hash,status,ceo_proof_id FROM material_variances_v5
-  WHERE tenant_id=$1 AND plant_id=$2 AND id=$3 FOR UPDATE`, c.TenantID, c.PlantID, c.RequestID).Scan(&reservation, &order, &roll, &cut, &delta, &challenge, &status, &existingProof)
+   WHERE tenant_id=$1 AND plant_id=$2 AND id=$3 FOR UPDATE`, c.TenantID, c.PlantID, c.RequestID).Scan(&reservation, &order, &roll, &cut, &delta, &challenge, &status, &existingProof)
 	if err != nil {
 		return out, err
 	}
+	if err := isAuthorizedVarianceApprover(ctx, tx, c.TenantID, c.CEOSubject, delta); err != nil {
+		return out, err
+	}
+
 	out = VarianceReceipt{ID: c.RequestID, Status: status, Challenge: challenge, RollID: roll, OrderID: order, AdditionalMM: delta}
 	if r.CEOApprovalVerifier == nil {
 		return out, errors.New("ERR_CEO_VERIFIER_REQUIRED")
@@ -195,7 +198,7 @@ func (r MaterialRepository) ApproveVariance(ctx context.Context, c VarianceAppro
 	var state, inspection, rollPlant string
 	var owner sql.NullString
 	err = tx.QueryRowContext(ctx, `SELECT ROUND(remaining_length_m*1000)::BIGINT,status,inspection_status,reserved_order_id,plant_id FROM store_rolls
-  WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, c.TenantID, roll).Scan(&remaining, &state, &inspection, &owner, &rollPlant)
+   WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, c.TenantID, roll).Scan(&remaining, &state, &inspection, &owner, &rollPlant)
 	if err != nil {
 		return out, err
 	}
@@ -209,7 +212,7 @@ func (r MaterialRepository) ApproveVariance(ctx context.Context, c VarianceAppro
 	var rowRoll, rowOrder string
 	var rowCut int
 	err = tx.QueryRowContext(ctx, `SELECT roll_id,order_id,cut_no,reserved_mm,issued_mm,released_mm FROM material_reservations_v5
-  WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, c.TenantID, reservation).Scan(&rowRoll, &rowOrder, &rowCut, &reserved, &issued, &released)
+   WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, c.TenantID, reservation).Scan(&rowRoll, &rowOrder, &rowCut, &reserved, &issued, &released)
 	if err != nil {
 		return out, err
 	}
@@ -218,7 +221,7 @@ func (r MaterialRepository) ApproveVariance(ctx context.Context, c VarianceAppro
 	}
 	var committed int64
 	err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(reserved_mm-issued_mm-released_mm),0)::BIGINT FROM material_reservations_v5
-  WHERE tenant_id=$1 AND roll_id=$2`, c.TenantID, roll).Scan(&committed)
+   WHERE tenant_id=$1 AND roll_id=$2`, c.TenantID, roll).Scan(&committed)
 	if err != nil {
 		return out, err
 	}
@@ -232,7 +235,7 @@ func (r MaterialRepository) ApproveVariance(ctx context.Context, c VarianceAppro
 	}
 	sum := sha256.Sum256([]byte(c.CEOAssertion))
 	_, err = tx.ExecContext(ctx, `UPDATE material_variances_v5 SET status='APPROVED',ceo_subject=$1,ceo_proof_id=$2,ceo_assertion_hash=$3,approved_at=now()
-  WHERE tenant_id=$4 AND id=$5 AND status='PENDING_CEO'`, c.CEOSubject, c.CEOProofID, hex.EncodeToString(sum[:]), c.TenantID, c.RequestID)
+   WHERE tenant_id=$4 AND id=$5 AND status='PENDING_CEO'`, c.CEOSubject, c.CEOProofID, hex.EncodeToString(sum[:]), c.TenantID, c.RequestID)
 	if err != nil {
 		return out, err
 	}
