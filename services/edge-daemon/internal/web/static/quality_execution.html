@@ -11,11 +11,11 @@
 <body data-ag-workflow="simple" data-ag-phase="quality"><main>
 <p class="ag-work-kicker">07 · QUALITY</p><h1>Check each piece.</h1>
 <p class="muted">Find a problem? Hold the piece so it can be fixed and checked again. Need finished sewing? <a href="/sewing">See sewing work</a>.</p>
-<p class="ag-note"><strong>Demo mode:</strong> Button taps stand in for scans and checks. A passed test piece is not approved finished stock.</p>
+<p class="ag-note"><strong>Demo mode:</strong> Button taps stand in for scans and checks. This page is development-only; production group inspections use separately authenticated APIs and never authorize stock or shipment.</p>
 <ol class="ag-steps" aria-label="Quality steps"><li><b>1</b>Choose a piece</li><li><b>2</b>Check it</li><li><b>3</b>Finish and tag it</li></ol>
 <div class="grid">
 <section class="card"><h2>Step 1 — Choose a piece</h2>
-<div class="two"><div><label for="lay">Sewing order</label><select id="lay"><option value="">Loading…</option></select></div><div><label for="plant">Plant</label><input id="plant" value="SIM-PLANT-01"></div></div>
+<div class="two"><div><label for="lay">Sewing order</label><select id="lay"><option value="">Loading…</option></select></div><div><label for="plant">Plant</label><input id="plant" placeholder="Enter the source plant ID"></div></div>
 <div class="actions"><button id="reload" class="secondary">Refresh pieces</button></div>
 <p class="muted" id="sourceStatus">No simulated sewing output selected.</p>
 <label for="serial">Piece number</label><select id="serial"><option value="">Choose garment</option></select>
@@ -26,9 +26,9 @@
 <div class="actions"><button id="setRoute" class="secondary">Save demo finishing steps</button></div><p class="muted">Check the tech pack before setting up real finishing.</p>
 <div id="routeSteps"></div><p id="routeInfo" class="muted"></p></section>
 <section class="card"><h2>Step 2 — Check the piece</h2>
-<details class="ag-work-extra"><summary>Checker and station details</summary><div class="two"><div><label for="actor">Checker or repair worker</label><input id="actor" value="QC-INSPECTOR-01"></div><div><label for="station">Station</label><input id="station" value="QC-STATION-01"></div></div>
+<details class="ag-work-extra"><summary>Checker and station details</summary><div class="two"><div><label for="actor">Checker or repair worker</label><input id="actor" placeholder="Use a distinct checker identity"></div><div><label for="station">Station</label><input id="station" placeholder="Enter the current QC station"></div></div>
 </details>
-<label for="defect">Problem found (if any)</label><input id="defect" value="STITCH_DEFECT" maxlength="64">
+<label for="defect">Problem found (if any)</label><input id="defect" placeholder="Enter an observed defect code" maxlength="64">
 <div class="actions"><button id="pass" class="green">Pass check</button><button id="fail" class="red">Hold this piece</button></div>
 <details class="ag-work-extra"><summary>Repair or check a held piece again</summary><p class="muted">The repair worker and rechecker must be different people.</p><div class="actions"><button id="repair" class="secondary">Mark repair done</button><button id="repass" class="green">Pass recheck</button><button id="refail" class="red">Hold after recheck</button></div></details>
 <p class="muted">A different person must repair the piece. Another checker must check it again.</p></section>
