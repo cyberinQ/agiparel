@@ -1,4 +1,4 @@
-// Author: Sunil Jain, 2026-10-27.
+// Author: Sunil Jain, 2026-10-28.
 // E09 09A-C. Transactional sewing workflow for UI-emulated RFID scans.
 // IMPORTANT: All records are SIMULATED; none are RF observations, signed worker
 // assertions, operational credit, payroll, cutting release or shipping evidence.
@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -17,6 +18,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -155,15 +157,95 @@ func validSewOp(v sewOpRequest) error {
 	return nil
 }
 
-// GET catalog pulls actual 08A bundle drafts. UI labels are never created in JS.
+// Pagination is bounded per response, not by the size of a factory.
+// An opaque keyset cursor is stable when newer cutting lays arrive.
+const sewCatalogPageSize = 80
+const sewGroupPageSize = 100
+const sewStatusPageSize = 250
+
+type sewLayCursor struct {
+	Created time.Time `json:"created"`
+	ID      string    `json:"id"`
+}
+
+func sewEncodeLayCursor(created time.Time, id string) string {
+	b, _ := json.Marshal(sewLayCursor{Created: created, ID: id})
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+func sewDecodeLayCursor(raw string) (sewLayCursor, error) {
+	if raw == "" {
+		return sewLayCursor{}, nil
+	}
+	if len(raw) > 512 {
+		return sewLayCursor{}, sewFail(400, "ERR_SEW_LAY_CURSOR")
+	}
+	var c sewLayCursor
+	b, e := base64.RawURLEncoding.DecodeString(raw)
+	if e != nil || len(b) > 256 || json.Unmarshal(b, &c) != nil || c.Created.IsZero() || !sewUUID(c.ID) {
+		return sewLayCursor{}, sewFail(400, "ERR_SEW_LAY_CURSOR")
+	}
+	return c, nil
+}
+func sewDecodeGroupCursor(raw string) (int, int, error) {
+	if raw == "" {
+		return 0, 0, nil
+	}
+	p := strings.Split(raw, "/")
+	if len(p) != 2 {
+		return 0, 0, sewFail(400, "ERR_SEW_GROUP_CURSOR")
+	}
+	a, ea := strconv.Atoi(p[0])
+	b, eb := strconv.Atoi(p[1])
+	if ea != nil || eb != nil || a <= 0 || b <= 0 {
+		return 0, 0, sewFail(400, "ERR_SEW_GROUP_CURSOR")
+	}
+	return a, b, nil
+}
+
+// GET catalog: keyset-paginated cutting lays and bundle groups, with bundle
+// details loaded only for the selected group. Never silently truncate a group.
 func (s *EdgeServer) handleSewSimCatalog(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		http.Error(w, "GET required", 405)
 		return
 	}
 	tenant, ok := s.sewTenant(w)
 	if !ok {
 		return
+	}
+	layID := r.URL.Query().Get("lay_id")
+	if layID != "" && !sewUUID(layID) {
+		sewReplyError(w, sewFail(400, "ERR_SEW_LAY_ID"))
+		return
+	}
+	lc, e := sewDecodeLayCursor(r.URL.Query().Get("lay_cursor"))
+	if e != nil {
+		sewReplyError(w, e)
+		return
+	}
+	gp, gg, e := sewDecodeGroupCursor(r.URL.Query().Get("group_cursor"))
+	if e != nil {
+		sewReplyError(w, e)
+		return
+	}
+	bposRaw := r.URL.Query().Get("bundle_position")
+	bgroupRaw := r.URL.Query().Get("bundle_group")
+	if (bposRaw == "") != (bgroupRaw == "") || (bposRaw != "" && layID == "") {
+		sewReplyError(w, sewFail(400, "ERR_SEW_GROUP_SELECTION"))
+		return
+	}
+	bpos, bgroup := 0, 0
+	if bposRaw != "" {
+		bpos, e = strconv.Atoi(bposRaw)
+		if e != nil || bpos <= 0 {
+			sewReplyError(w, sewFail(400, "ERR_SEW_GROUP_SELECTION"))
+			return
+		}
+		bgroup, e = strconv.Atoi(bgroupRaw)
+		if e != nil || bgroup <= 0 {
+			sewReplyError(w, sewFail(400, "ERR_SEW_GROUP_SELECTION"))
+			return
+		}
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
@@ -173,57 +255,155 @@ func (s *EdgeServer) handleSewSimCatalog(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	defer tx.Rollback()
-	rows, e := tx.QueryContext(ctx, `SELECT d.id::text,d.intake_id,d.cut_no,d.marker_code,d.shade_band,
- EXISTS(SELECT 1 FROM cut_sewing_releases_v8 rel WHERE rel.tenant_id=d.tenant_id AND rel.lay_draft_id=d.id)
- FROM cut_lay_drafts_v8 d WHERE d.tenant_id=$1 ORDER BY d.created_at DESC LIMIT 80`, tenant)
-	if e != nil {
-		sewReplyError(w, e)
-		return
-	}
 	lays := []map[string]any{}
-	for rows.Next() {
-		var id, order, marker, shade string
-		var cut int
-		var rel bool
-		if e = rows.Scan(&id, &order, &cut, &marker, &shade, &rel); e != nil {
-			break
-		}
-		lays = append(lays, map[string]any{"lay_id": id, "order": order, "cut": cut, "marker": marker, "shade": shade, "signed_cut_release": rel})
-	}
-	if e == nil {
-		e = rows.Err()
-	}
-	rows.Close()
-	if e != nil {
-		sewReplyError(w, e)
-		return
-	}
-	lay := r.URL.Query().Get("lay_id")
 	groups := []map[string]any{}
-	if lay != "" {
-		if !sewUUID(lay) {
-			docJSON(w, 400, map[string]string{"error": "ERR_SEW_LAY_ID"})
-			return
+	bundles := []map[string]any{}
+	nextLay, nextGroup, nextBundle := "", "", ""
+	// Fetch lays only for the initial unscoped catalog request or its cursor pages.
+	if layID == "" {
+		var afterTime, afterID any
+		if !lc.Created.IsZero() {
+			afterTime, afterID = lc.Created, lc.ID
 		}
-		rs, err := tx.QueryContext(ctx, `SELECT b.marker_position,b.ply_group,b.part_code,b.label_code,b.color_code,b.size_code,b.ply_start,b.ply_end,b.pieces_per_garment,
- (SELECT count(*) FROM sew_sim_scans_v9 ss WHERE ss.tenant_id=b.tenant_id AND ss.lay_draft_id=b.lay_draft_id AND ss.label_code=b.label_code)
- FROM cut_bundle_drafts_v8 b WHERE b.tenant_id=$1 AND b.lay_draft_id=$2::uuid ORDER BY b.marker_position,b.ply_group,b.part_code LIMIT 800`, tenant, lay)
+		rows, err := tx.QueryContext(ctx, `SELECT d.id::text,d.intake_id,d.cut_no,d.marker_code,d.shade_band,d.created_at,
+ EXISTS(SELECT 1 FROM cut_sewing_releases_v8 rel WHERE rel.tenant_id=d.tenant_id AND rel.lay_draft_id=d.id)
+ FROM cut_lay_drafts_v8 d WHERE d.tenant_id=$1
+ AND ($2::timestamptz IS NULL OR (d.created_at,d.id)<($2::timestamptz,$3::uuid))
+ ORDER BY d.created_at DESC,d.id DESC LIMIT $4`, tenant, afterTime, afterID, sewCatalogPageSize+1)
 		if err != nil {
 			sewReplyError(w, err)
 			return
 		}
-		for rs.Next() {
-			var pos, group, start, end, mult, scanCount int
-			var part, label, color, size string
-			if err = rs.Scan(&pos, &group, &part, &label, &color, &size, &start, &end, &mult, &scanCount); err != nil {
+		var last sewLayCursor
+		for rows.Next() {
+			var id, order, marker, shade string
+			var cut int
+			var rel bool
+			var created time.Time
+			if err = rows.Scan(&id, &order, &cut, &marker, &shade, &created, &rel); err != nil {
 				break
 			}
-			groups = append(groups, map[string]any{"marker_position": pos, "ply_group": group, "part_code": part, "label_code": label, "color": color, "size": size, "ply_start": start, "ply_end": end, "pieces_per_garment": mult, "simulated_scan_count": scanCount})
+			if len(lays) == sewCatalogPageSize {
+				nextLay = sewEncodeLayCursor(last.Created, last.ID)
+				break
+			}
+			lays = append(lays, map[string]any{"lay_id": id, "order": order, "cut": cut, "marker": marker, "shade": shade, "signed_cut_release": rel})
+			last = sewLayCursor{created, id}
 		}
 		if err == nil {
-			err = rs.Err()
+			err = rows.Err()
 		}
-		rs.Close()
+		rows.Close()
+		if err != nil {
+			sewReplyError(w, err)
+			return
+		}
+	} else if bposRaw == "" {
+		rows, err := tx.QueryContext(ctx, `SELECT marker_position,ply_group,count(*)::int FROM cut_bundle_drafts_v8
+ WHERE tenant_id=$1 AND lay_draft_id=$2::uuid AND (marker_position,ply_group)>($3,$4)
+ GROUP BY marker_position,ply_group ORDER BY marker_position,ply_group LIMIT $5`, tenant, layID, gp, gg, sewGroupPageSize+1)
+		if err != nil {
+			sewReplyError(w, err)
+			return
+		}
+		var lastPos, lastGroup int
+		for rows.Next() {
+			var pos, group, count int
+			if err = rows.Scan(&pos, &group, &count); err != nil {
+				break
+			}
+			if len(groups) == sewGroupPageSize {
+				nextGroup = fmt.Sprintf("%d/%d", lastPos, lastGroup)
+				break
+			}
+			groups = append(groups, map[string]any{"marker_position": pos, "ply_group": group, "part_count": count})
+			lastPos, lastGroup = pos, group
+		}
+		if err == nil {
+			err = rows.Err()
+		}
+		rows.Close()
+		if err != nil {
+			sewReplyError(w, err)
+			return
+		}
+		// Compatibility: original GET ?lay_id returned a bundle list. Old clients
+		// retain that contract with an explicit next cursor; new UI requests
+		// groups_only=1 to avoid materializing the whole lay in the browser.
+		if r.URL.Query().Get("groups_only") != "1" {
+			afterPos, afterGroup, afterPart := 0, 0, ""
+			if raw := r.URL.Query().Get("bundle_cursor"); raw != "" {
+				pieces := strings.Split(raw, "/")
+				if len(pieces) != 3 || !sewFields(pieces[2]) {
+					sewReplyError(w, sewFail(400, "ERR_SEW_BUNDLE_CURSOR"))
+					return
+				}
+				afterPos, err = strconv.Atoi(pieces[0])
+				if err != nil || afterPos < 1 {
+					sewReplyError(w, sewFail(400, "ERR_SEW_BUNDLE_CURSOR"))
+					return
+				}
+				afterGroup, err = strconv.Atoi(pieces[1])
+				if err != nil || afterGroup < 1 {
+					sewReplyError(w, sewFail(400, "ERR_SEW_BUNDLE_CURSOR"))
+					return
+				}
+				afterPart = pieces[2]
+			}
+			rs, err := tx.QueryContext(ctx, `SELECT b.marker_position,b.ply_group,b.part_code,b.label_code,b.color_code,b.size_code,b.ply_start,b.ply_end,b.pieces_per_garment,
+              (SELECT count(*) FROM sew_sim_scans_v9 ss WHERE ss.tenant_id=b.tenant_id AND ss.lay_draft_id=b.lay_draft_id AND ss.label_code=b.label_code)
+              FROM cut_bundle_drafts_v8 b WHERE b.tenant_id=$1 AND b.lay_draft_id=$2::uuid
+              AND (b.marker_position,b.ply_group,b.part_code)>($3,$4,$5)
+              ORDER BY b.marker_position,b.ply_group,b.part_code LIMIT 801`, tenant, layID, afterPos, afterGroup, afterPart)
+			if err != nil {
+				sewReplyError(w, err)
+				return
+			}
+			lastPos, lastGroup, lastPart := 0, 0, ""
+			for rs.Next() {
+				var pos, group, start, end, mult, scans int
+				var part, label, color, size string
+				if err = rs.Scan(&pos, &group, &part, &label, &color, &size, &start, &end, &mult, &scans); err != nil {
+					break
+				}
+				if len(bundles) == 800 {
+					nextBundle = fmt.Sprintf("%d/%d/%s", lastPos, lastGroup, lastPart)
+					break
+				}
+				bundles = append(bundles, map[string]any{"marker_position": pos, "ply_group": group, "part_code": part, "label_code": label, "color": color, "size": size, "ply_start": start, "ply_end": end, "pieces_per_garment": mult, "simulated_scan_count": scans})
+				lastPos, lastGroup, lastPart = pos, group, part
+			}
+			if err == nil {
+				err = rs.Err()
+			}
+			rs.Close()
+			if err != nil {
+				sewReplyError(w, err)
+				return
+			}
+		}
+	} else {
+		// No per-lay row cap: only the selected group is fetched.
+		rows, err := tx.QueryContext(ctx, `SELECT b.marker_position,b.ply_group,b.part_code,b.label_code,b.color_code,b.size_code,b.ply_start,b.ply_end,b.pieces_per_garment,
+ (SELECT count(*) FROM sew_sim_scans_v9 ss WHERE ss.tenant_id=b.tenant_id AND ss.lay_draft_id=b.lay_draft_id AND ss.label_code=b.label_code)
+ FROM cut_bundle_drafts_v8 b WHERE b.tenant_id=$1 AND b.lay_draft_id=$2::uuid AND b.marker_position=$3 AND b.ply_group=$4
+ ORDER BY b.part_code,b.label_code`, tenant, layID, bpos, bgroup)
+		if err != nil {
+			sewReplyError(w, err)
+			return
+		}
+		for rows.Next() {
+			var pos, group, start, end, mult, scans int
+			var part, label, color, size string
+			if err = rows.Scan(&pos, &group, &part, &label, &color, &size, &start, &end, &mult, &scans); err != nil {
+				break
+			}
+			bundles = append(bundles, map[string]any{"marker_position": pos, "ply_group": group, "part_code": part, "label_code": label, "color": color, "size": size, "ply_start": start, "ply_end": end, "pieces_per_garment": mult, "simulated_scan_count": scans})
+		}
+		if err == nil {
+			err = rows.Err()
+		}
+		rows.Close()
 		if err != nil {
 			sewReplyError(w, err)
 			return
@@ -233,7 +413,7 @@ func (s *EdgeServer) handleSewSimCatalog(w http.ResponseWriter, r *http.Request)
 		sewReplyError(w, e)
 		return
 	}
-	docJSON(w, 200, map[string]any{"lays": lays, "bundles": groups, "evidence_source": sewProvenance, "production_credit": false})
+	docJSON(w, 200, map[string]any{"lays": lays, "lays_next_cursor": nextLay, "groups": groups, "groups_next_cursor": nextGroup, "bundles": bundles, "bundles_next_cursor": nextBundle, "evidence_source": sewProvenance, "production_credit": false})
 }
 func (s *EdgeServer) handleSewSimOperations(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" && r.Method != "POST" {
@@ -261,7 +441,7 @@ func (s *EdgeServer) handleSewSimOperations(w http.ResponseWriter, r *http.Reque
 			sewReplyError(w, e)
 			return
 		}
-		if e = sewTxLock(ctx, tx, tenant, "OPERATIONS"); e != nil {
+		if e = sewTxLock(ctx, tx, tenant, "OPERATIONS:"+req.LayID); e != nil {
 			sewReplyError(w, e)
 			return
 		}
@@ -406,7 +586,7 @@ func (s *EdgeServer) handleSewSimScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	if e = sewTxLock(ctx, tx, tenant, "COMMANDS"); e != nil {
+	if e = sewTxLock(ctx, tx, tenant, "SCAN:"+req.EventID); e != nil {
 		sewReplyError(w, e)
 		return
 	}
@@ -552,7 +732,7 @@ func (s *EdgeServer) handleSewSimCommand(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	defer tx.Rollback()
-	if e = sewTxLock(ctx, tx, tenant, "COMMANDS"); e != nil {
+	if e = sewTxLock(ctx, tx, tenant, "COMMAND:"+v.CommandID); e != nil {
 		sewReplyError(w, e)
 		return
 	}
@@ -822,7 +1002,7 @@ func (s *EdgeServer) handleSewSimStatus(w http.ResponseWriter, r *http.Request) 
  COALESCE(cr.garment_count,0),c.claimed_at
  FROM sew_sim_cycles_v9 c JOIN sew_sim_operations_v9 o ON o.tenant_id=c.tenant_id AND o.id=c.operation_id
  LEFT JOIN sew_sim_credits_v9 cr ON cr.tenant_id=c.tenant_id AND cr.cycle_id=c.id
- WHERE c.tenant_id=$1 AND c.lay_draft_id=$2::uuid AND c.plant_id=$3 ORDER BY c.claimed_at DESC LIMIT 250`, tenant, lay, plant)
+ WHERE c.tenant_id=$1 AND c.lay_draft_id=$2::uuid AND c.plant_id=$3 ORDER BY c.claimed_at DESC,c.id DESC LIMIT $4`, tenant, lay, plant, sewStatusPageSize+1)
 	if e != nil {
 		sewReplyError(w, e)
 		return
@@ -846,8 +1026,52 @@ func (s *EdgeServer) handleSewSimStatus(w http.ResponseWriter, r *http.Request) 
 		sewReplyError(w, e)
 		return
 	}
-	var total int
-	e = tx.QueryRowContext(ctx, `SELECT COALESCE(sum(cr.garment_count),0)::int FROM sew_sim_credits_v9 cr JOIN sew_sim_cycles_v9 c ON c.tenant_id=cr.tenant_id AND c.id=cr.cycle_id WHERE cr.tenant_id=$1 AND cr.lay_draft_id=$2::uuid AND c.plant_id=$3`, tenant, lay, plant).Scan(&total)
+	hasMore := len(items) > sewStatusPageSize
+	if hasMore {
+		items = items[:sewStatusPageSize]
+	}
+	// Find this operator's active cycle independently of the recent-history page.
+	// Ambiguity is fail-closed; do not arbitrarily pick someone else's open job.
+	var active any
+	activeConflict := false
+	station, worker := r.URL.Query().Get("station_id"), r.URL.Query().Get("worker_id")
+	if station != "" || worker != "" {
+		if !sewFields(station, worker) {
+			sewReplyError(w, sewFail(400, "ERR_SEW_STATION_WORKER"))
+			return
+		}
+		rs, err := tx.QueryContext(ctx, `SELECT id::text,state,marker_position,ply_group FROM sew_sim_cycles_v9
+         WHERE tenant_id=$1 AND lay_draft_id=$2::uuid AND plant_id=$3 AND station_id=$4 AND worker_id=$5
+         AND state IN ('CLAIMED','PAUSED') ORDER BY claimed_at DESC LIMIT 2`, tenant, lay, plant, station, worker)
+		if err != nil {
+			sewReplyError(w, err)
+			return
+		}
+		found := []map[string]any{}
+		for rs.Next() {
+			var id, state string
+			var pos, group int
+			if err = rs.Scan(&id, &state, &pos, &group); err != nil {
+				break
+			}
+			found = append(found, map[string]any{"cycle_id": id, "state": state, "marker_position": pos, "ply_group": group})
+		}
+		if err == nil {
+			err = rs.Err()
+		}
+		rs.Close()
+		if err != nil {
+			sewReplyError(w, err)
+			return
+		}
+		if len(found) == 1 {
+			active = found[0]
+		} else if len(found) > 1 {
+			activeConflict = true
+		}
+	}
+	var total int64
+	e = tx.QueryRowContext(ctx, `SELECT COALESCE(sum(cr.garment_count),0)::bigint FROM sew_sim_credits_v9 cr JOIN sew_sim_cycles_v9 c ON c.tenant_id=cr.tenant_id AND c.id=cr.cycle_id WHERE cr.tenant_id=$1 AND cr.lay_draft_id=$2::uuid AND c.plant_id=$3`, tenant, lay, plant).Scan(&total)
 	if e != nil {
 		sewReplyError(w, e)
 		return
@@ -856,7 +1080,7 @@ func (s *EdgeServer) handleSewSimStatus(w http.ResponseWriter, r *http.Request) 
 		sewReplyError(w, e)
 		return
 	}
-	docJSON(w, 200, map[string]any{"cycles": items, "total_simulated_operation_units": total, "production_credit": 0, "evidence_state": sewCreditState})
+	docJSON(w, 200, map[string]any{"cycles": items, "cycles_has_more": hasMore, "active_cycle": active, "active_conflict": activeConflict, "total_simulated_operation_units": total, "production_credit": 0, "evidence_state": sewCreditState})
 }
 func serveSewSimulation(w http.ResponseWriter, r *http.Request) {
 	if os.Getenv("ENV") != "development" {

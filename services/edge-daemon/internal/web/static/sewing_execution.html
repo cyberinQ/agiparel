@@ -18,17 +18,19 @@
 <label for="lay">Cutting lay</label><select id="lay"><option value="">Loading available cutting lays…</option></select>
 <label for="group">Bundle group</label><select id="group"></select>
 <div id="bundlePreview" class="status">Select a cutting lay.</div>
+<div class="actions"><button id="moreLays" class="secondary hidden">Load more cutting lays</button><button id="moreGroups" class="secondary hidden">Load more bundle groups</button></div>
 <p class="small">A draft can be used for practice. Check release status before real sewing.</p>
 <button id="reload" class="secondary">Refresh bundles</button></section>
 <section class="card"><h2>Step 2 — Choose a sewing job</h2>
-<p class="ag-work-help">We remember the station details below. Open them only if something changes.</p>
-<details class="ag-work-extra"><summary>Station and worker details</summary><div class="tri"><div><label for="plant">Plant</label><input id="plant" value="SIM-PLANT-01"></div><div><label for="station">Station</label><input id="station" value="SEW-ST04"></div><div><label for="worker">Worker (demo code)</label><input id="worker" value="SIM-OP01"></div><div><label for="machine">Machine class</label><input id="machine" value="LOCKSTITCH"></div></div>
+<p class="ag-work-help">Enter your plant and station identity. No machine class is assumed.</p>
+<details class="ag-work-extra" open><summary>Station and worker details</summary><div class="tri"><div><label for="plant">Plant</label><input id="plant" required autocomplete="off" placeholder="Plant code"></div><div><label for="station">Station</label><input id="station" required autocomplete="off" placeholder="Station code"></div><div><label for="worker">Worker (demo code)</label><input id="worker" required autocomplete="off" placeholder="Demo worker code"></div><div><label for="machine">Machine class</label><input id="machine" required autocomplete="off" placeholder="Machine class"></div></div>
 </details>
+<p class="small" id="identityHelp">Enter your plant, station, worker and machine class. No factory or machine is assumed.</p>
 <label for="op">Sewing job</label><select id="op"></select>
 <details class="ag-work-extra"><summary>Add a sewing job for this practice run</summary>
 <div class="inline"><div><label for="newCode">Operation code</label><input id="newCode" placeholder="JOIN_PANEL"></div><div><label for="newMode">Type of sewing job</label><select id="newMode"><option value="BUNDLE_TO_BUNDLE">Bundle → bundle</option><option value="BUNDLE_TO_SINGLE">Multiple part bundles → garment serials</option><option value="SINGLE_TO_SINGLE">Single piece → single piece</option></select></div></div>
 <label for="newParts">Required part codes (comma-separated; match cutting exactly)</label><input id="newParts" placeholder="FRONT_PANEL,BACK_PANEL">
-<div class="inline"><div><label for="newPred">Jobs to finish first (codes)</label><input id="newPred" placeholder="PREP_PANEL"></div><div><label for="newSam">Reference SAM (seconds)</label><input id="newSam" type="number" min="1" step="0.1" value="36"></div></div>
+<div class="inline"><div><label for="newPred">Jobs to finish first (codes)</label><input id="newPred" placeholder="PREP_PANEL"></div><div><label for="newSam">Reference SAM (seconds)</label><input id="newSam" type="number" min="1" step="0.1" placeholder="Seconds per garment"></div></div>
 <div class="actions"><button id="create">Save demo job</button></div></details>
 <div id="opInfo" class="small" style="padding-top:12px"></div></section>
 <section class="card sticky"><h2>Step 3 — Record the bundle parts</h2>
@@ -43,8 +45,9 @@
 <details class="ag-details"><summary>How is the time counted?</summary><p>Time is measured from saved practice taps, not a machine clock. Pauses are excluded. No real production credit is awarded.</p></details></section>
 <section class="card"><h2>Saved sewing work</h2>
 <div class="tri"><div><div class="small">Jobs done in demo</div><div class="value" id="total">0</div></div><div><div class="small">Real production credit</div><div class="value">0</div></div><div><div class="small">Waiting to send</div><div class="value" id="pending">0</div></div></div>
-<div class="actions"><button class="secondary" id="sync">Try sending again</button><button class="secondary" id="refresh">Refresh saved work</button></div>
+<div class="actions"><button class="secondary" id="sync">Try sending again</button><button class="secondary" id="refresh">Refresh saved work</button><button class="secondary" id="dropPending">Discard oldest local retry</button></div>
 <div class="small" id="netState">Connected status not yet checked</div>
+<p class="small" id="historyScope">Recent sewing records; aggregate totals include all saved practice work.</p>
 <div style="max-height:430px;overflow:auto;margin-top:14px"><table><thead><tr><th>Operation</th><th>Group</th><th>Status</th><th>Sim. units</th><th>Active</th></tr></thead><tbody id="cycles"></tbody></table></div>
 <p class="small">If the network stops, your tap is saved for retry. The screen only shows work as done after the server saves it.</p></section>
 <details class="ag-work-extra wide"><summary>Messages and recent activity</summary><section class="card"><h2>Messages</h2><div id="feedback" class="status" role="status" aria-live="polite">Ready. Select an existing cutting lay.</div><ol class="small" id="log" style="max-height:180px;overflow:auto"></ol></section></details>
