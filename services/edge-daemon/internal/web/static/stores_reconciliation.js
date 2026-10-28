@@ -1,3 +1,4 @@
+/* Author: Sunil Jain, 2026-10-28 — Reconciliation idempotency and stale-form protection. */
 /* Batch 07B. Display-only ledger comparison, append-only review requests. */
 (()=>{'use strict';
  const $=id=>document.getElementById(id);let assessments=[];let requestKey='';
@@ -26,11 +27,16 @@
  async function refresh(){try{const [a,c,r]=await Promise.all([get('/api/v1/stores/reconciliation'),get('/api/v1/stores/reconciliation-requests'),get('/api/v1/stores/reservations')]);assessments=a.items||[];showComparisons();showRequests(c.items||[]);showReservations(r.items||[])}catch(e){$('reconcile-feedback').textContent=`Cannot load ledger review: ${e.message}. Check migration 0016.`}}
  $('reconcile-refresh').addEventListener('click',()=>void refresh());
  $('reconcile-roll').addEventListener('change',()=>{requestKey=''});
+ $('reconcile-note').addEventListener('input',()=>{requestKey=''});
  $('reconciliation-form').addEventListener('submit',async event=>{event.preventDefault();const roll=$('reconcile-roll').value;const item=assessments.find(x=>x.roll_id===roll);const note=$('reconcile-note').value.trim();const btn=$('reconcile-submit');if(!item||note.length<12){$('reconcile-feedback').textContent='Choose a roll and enter at least 12 characters explaining what needs checking.';return}
-  if(!requestKey)requestKey=crypto.randomUUID();btn.disabled=true;$('reconcile-feedback').textContent='Recording a source-linked review request…';
-  try{const r=await fetch('/api/v1/stores/reconciliation',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({roll_id:roll,expected_passport_revision:item.passport_revision,request_key:requestKey,note})});const data=await r.json();if(!r.ok)throw Error(data.error||`HTTP ${r.status}`);
-   $('reconcile-feedback').textContent=`${data.replayed?'Existing':'New'} review request ${data.request.id} saved. This does not authorize stock or issuance.`;requestKey='';$('reconcile-note').value='';await refresh();
-  }catch(e){$('reconcile-feedback').textContent=`Could not submit review: ${e.message}. Retry safely with the same request key.`}finally{btn.disabled=false}
+  if(!requestKey)requestKey=crypto.randomUUID();const submittedKey=requestKey;btn.disabled=true;$('reconcile-feedback').textContent='Recording a source-linked review request…';
+  try{const r=await fetch('/api/v1/stores/reconciliation',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({roll_id:roll,expected_passport_revision:item.passport_revision,request_key:submittedKey,note})});const data=await r.json();if(!r.ok)throw Error(data.error||`HTTP ${r.status}`);
+   if(requestKey===submittedKey && $('reconcile-roll').value===roll){
+     requestKey='';$('reconcile-note').value='';
+     $('reconcile-feedback').textContent=`${data.replayed?'Existing':'New'} review request ${data.request.id} saved. This does not authorize stock or issuance.`;
+   }
+   await refresh();
+  }catch(e){if(requestKey===submittedKey) $('reconcile-feedback').textContent=`Could not submit review: ${e.message}. Refresh if its revision changed; otherwise retry the unchanged request with the same key.`}finally{btn.disabled=false}
  });
  void refresh();
 })();

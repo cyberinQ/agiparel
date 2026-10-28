@@ -1,3 +1,4 @@
+// Author: Sunil Jain, 2026-10-28 — Mark unconvertible fabric demand as unknown, not zero.
 // Batch 07D: deterministic, non-authoritative roll pick suggestions.
 // No material moves, reservations or inspection approvals happen here.
 package main
@@ -50,6 +51,7 @@ type pickMaterial struct {
 	SKU         string          `json:"material_sku"`
 	UOM         string          `json:"uom"`
 	DemandMM    int64           `json:"demand_mm"`
+	DemandKnown bool            `json:"demand_known,omitempty"`
 	TentativeMM int64           `json:"tentative_mm"`
 	UncoveredMM int64           `json:"uncovered_mm"`
 	ChosenShade string          `json:"chosen_shade,omitempty"`
@@ -114,6 +116,7 @@ func buildPickReport(order pickOrder, demands []pickDemand, rolls []pickRoll) (p
 			out.Materials = append(out.Materials, m)
 			continue
 		}
+		m.DemandKnown = true
 		m.DemandMM = order.Quantity * d.PerGarmentMilli
 		m.UncoveredMM = m.DemandMM
 		byShade := make(map[string][]pickRoll)

@@ -1,3 +1,4 @@
+// Author: Sunil Jain, 2026-10-28 — Surface incompatible order state as a validation conflict.
 // Batch 07D. Stage a source-linked, ledger-based order-to-roll pick plan.
 // This code NEVER changes authoritative stock, reservations, or issuances.
 package main
@@ -91,7 +92,7 @@ func (s *EdgeServer) handleStoresPickProposals(w http.ResponseWriter, r *http.Re
 			switch err.Error() {
 			case "INTAKE_NOT_FOUND":
 				docJSON(w, 404, map[string]string{"error": err.Error()})
-			case "REQUEST_KEY_REUSE", "INTAKE_BOM_INVALID", "LEDGER_SNAPSHOT_TOO_LARGE":
+			case "REQUEST_KEY_REUSE", "INTAKE_BOM_INVALID", "LEDGER_SNAPSHOT_TOO_LARGE", "INTAKE_NOT_STAGED":
 				docJSON(w, 409, map[string]string{"error": err.Error()})
 			default:
 				http.Error(w, "Unable to create pick proposal", 503)
@@ -182,6 +183,9 @@ func readPickOrderAndRolls(ctx context.Context, tx *sql.Tx, tenant, id string) (
 		Scan(&o.IntakeID, &o.PONumber, &o.StyleCode, &o.Quantity, &o.SourceSHA256, &o.Status)
 	if err != nil {
 		return pickReport{}, err
+	}
+	if o.Status != "PROPOSED" {
+		return pickReport{}, errors.New("INTAKE_NOT_STAGED")
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT material_sku,qty_per_garment::text,uom FROM order_intake_bom_v5
       WHERE tenant_id=$1 AND intake_id=$2 AND category='FABRIC' ORDER BY material_sku`, tenant, id)

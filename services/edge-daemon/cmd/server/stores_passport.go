@@ -1,3 +1,4 @@
+// Author: Sunil Jain, 2026-10-28 — Keep Chapter 04 roll display counts honest under bounded queries.
 // Batch 07A: source-linked, append-only roll receipt/inspection observations.
 // Operator Basic login is not material authority. Nothing here mutates stock,
 // reservations, issued lengths, CEO exceptions or physical RFID readers.
@@ -175,7 +176,11 @@ func (s *EdgeServer) handleStoresPassports(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "Stores passport query failed", 503)
 			return
 		}
-		docJSON(w, 200, map[string]any{"items": list, "authority": "OBSERVATIONS_ONLY", "issuance_gate": "SECURE_IDP_REQUIRED"})
+		hasMore := len(list) > 500
+		if hasMore {
+			list = list[:500]
+		}
+		docJSON(w, 200, map[string]any{"items": list, "has_more": hasMore, "authority": "OBSERVATIONS_ONLY", "issuance_gate": "SECURE_IDP_REQUIRED"})
 	case http.MethodPost:
 		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 			http.Error(w, "Expected JSON", 415)
@@ -309,7 +314,7 @@ func (s *EdgeServer) loadRollPassports(ctx context.Context, tenant string) ([]ro
  FROM store_roll_passport_events_v7 p
  JOIN (SELECT tenant_id,roll_id,MAX(revision) AS revision FROM store_roll_passport_events_v7 WHERE tenant_id=$1 GROUP BY tenant_id,roll_id) last USING(tenant_id,roll_id,revision)
  LEFT JOIN store_rolls sr ON sr.tenant_id=p.tenant_id AND sr.id=p.roll_id
- WHERE p.tenant_id=$1 ORDER BY p.recorded_at DESC,p.roll_id LIMIT 500`, tenant)
+ WHERE p.tenant_id=$1 ORDER BY p.recorded_at DESC,p.roll_id LIMIT 501`, tenant)
 	if e != nil {
 		return nil, e
 	}

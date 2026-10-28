@@ -20,14 +20,15 @@
 <main>
 <section class="intro"><span class="chapter-label">04 · FABRIC STORE</span><h1>Know your fabric rolls.</h1><p>Check each roll. See which fabric is ready, and which needs attention.</p><button type="button" id="aggie-open" class="aggie-invite" aria-controls="aggie-chat" aria-expanded="false"><span class="aggie-face" aria-hidden="true">😄</span><span>Ask Aggie</span></button></section>
 <section class="store-snapshot" aria-label="Fabric summary">
- <div><span>Rolls checked</span><strong id="observed">—</strong></div>
- <div><span>Reported pass</span><strong id="passed">—</strong></div>
- <div><span>Needs attention</span><strong id="held">—</strong></div>
+ <div><span>Rolls shown</span><strong id="observed">—</strong></div>
+ <div><span>Reported pass (shown)</span><strong id="passed">—</strong></div>
+ <div><span>Needs attention (shown)</span><strong id="held">—</strong></div>
 </section>
+<p class="store-count-note" id="roll-count-note" role="status">Loading observed roll coverage…</p>
 <p class="safety-note"><strong>Checks are not stock approval.</strong> A reported PASS does not create available stock. Stock entry requires two separate external-IdP signatures before a new roll enters the stock ledger.</p>
 <div class="work-grid">
 <section class="panel" aria-labelledby="roll-form-title"><div class="section-head"><div><span class="eyebrow">STEP 1</span><h2 id="roll-form-title">Check a fabric roll</h2></div><a href="/documents">Upload roll papers ↗</a></div>
-<p class="sub">Measure the roll and record its details. For a second check, select an existing roll.</p>
+<p class="sub">Measure the roll and record its details. For a second check, select an existing roll. Changes preserve the earlier observation.</p>
 <form id="passport-form">
 <div class="form-grid"><label>Roll ID<input maxlength="64" name="roll_id" placeholder="ROLL-1001" required=""/></label><label>RFID EPC (optional)<input maxlength="64" name="epc_hex" placeholder="24–64 hex characters" spellcheck="false"/><small>Leave blank until a physical tag is assigned. Never reuse another roll's EPC.</small></label>
 <label>Fabric code<input maxlength="128" name="material_sku" placeholder="FAB-COTTON-01" required=""/></label><label>Supplier lot number<input maxlength="128" name="supplier_lot" placeholder="LOT-2026-10" required=""/></label>
@@ -37,7 +38,7 @@
 <label>Faults or marks<textarea maxlength="2000" name="defects" placeholder="Describe weaving defects, stains, shade variation or none observed" rows="2"></textarea></label>
 <label>Supporting document<select id="source-document" name="source_document_id"><option value="">No source attachment</option></select><small>Original GRN, supplier roll card, inspection sheet or stock document from the central inbox.</small></label>
 <label>How was the roll checked?<textarea maxlength="1000" minlength="8" name="source_note" placeholder="Example: Opened roll and measured it at the fabric table" required="" rows="3"></textarea></label>
-<input name="expected_revision" type="hidden" value="0"/><div class="form-foot"><div><strong id="revision-label">New receipt · revision 1</strong><small id="form-hint">This records evidence only. It cannot change authoritative stock.</small></div><button id="save" type="submit">Save roll check</button></div>
+<input name="expected_revision" type="hidden" value="0"/><div class="form-foot"><div><strong id="revision-label">New receipt · revision 1</strong><small id="form-hint">This records evidence only. It cannot change authoritative stock.</small></div><div class="roll-actions"><button type="button" class="refresh" id="new-roll">New roll</button><button id="save" type="submit">Save roll check</button></div></div>
 </form>
 <div id="message" class="message" role="status" aria-live="polite">Choose a roll to recheck it, or enter a new roll above.</div>
 </section>
@@ -55,7 +56,7 @@
 <div class="review-pane"><div class="eyebrow">SAVED PICK LISTS</div><h3>Earlier fabric suggestions</h3><p class="sub">See when the plan was saved and which rolls were left out.</p><div aria-live="polite" class="review-history" id="pick-history">Loading saved proposals…</div></div>
 </div>
 <div aria-live="polite" class="pick-results" id="pick-results"><p class="empty">Choose a buyer order to see possible fabric rolls.</p></div>
-<p class="reservation-warning">No physical movement occurs here. Picks are only candidates, never borrowed from a different order; any change to reservation or issuance must go through the strongly authenticated material API. Marker width, shade/colorway compatibility, lot and ownership require independent sign-off.</p>
+<p class="reservation-warning">No physical movement occurs here. Order-pick suggestions are historical snapshots, not live availability. Picks are only candidates, never borrowed from a different order; any change to reservation or issuance must go through the strongly authenticated material API. Marker width, shade/colorway compatibility, lot and ownership require independent sign-off.</p>
 </section>
 </section>
 <section class="additional-checks" aria-label="Further stock checks">

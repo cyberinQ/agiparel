@@ -90,3 +90,9 @@ body[data-ag-phase="stores"]{background:#f6f8fa}
 .store-top nav{gap:18px}
 .store-top nav>a{color:#506273}
 @media(max-width:610px){.store-top{min-height:64px}.store-top nav{display:flex;gap:10px}.store-top nav>a{font-size:13px}}
+
+/* Author: Sunil Jain, 2026-10-28 — In-theme compact Chapter 04 control/coverage details. */
+.store-count-note{margin:-12px 0 18px;color:var(--muted);font-size:12px;line-height:1.5}
+.roll-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px}.roll-actions button{min-height:46px}
+.roll-variance-note{display:block;margin:9px 0 0;color:#886017;font-size:12px;line-height:1.4}
+#passport-form input[readonly]{background:#f6f5f0;color:#4b554e}
