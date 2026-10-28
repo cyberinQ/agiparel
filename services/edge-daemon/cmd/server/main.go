@@ -344,6 +344,7 @@ func main() {
 		registerSewProdRoutes(mux, server)
 		registerGenProductionRoutes(mux, server)
 		registerF32Routes(mux, server)
+		registerWIPRoutes(mux, server)
 		registerQCProdRoutes(mux, server)
 		// Packing staging reads Chapter 06/07 evidence, and never enables legacy carton actions.
 		registerPackProdRoutes(mux, server)
