@@ -18,7 +18,7 @@ data/
 *.tar
 *.tgz
 *.log
-# The Dockerfile copies only go.mod, go.sum, pkg/, services/, scripts/.
+# Docker builders use go.mod, go.sum, services/, and (for edge-daemon) scripts/.
 # Exclude other root-level directories from the build context.
 bff/
 central-cloud/

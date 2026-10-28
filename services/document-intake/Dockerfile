@@ -1,7 +1,6 @@
 FROM golang:1.24-alpine AS builder
 WORKDIR /build
 COPY go.mod go.sum ./
-COPY pkg/ pkg/
 COPY services/ services/
 RUN go mod download && CGO_ENABLED=0 GOOS=linux go build -trimpath -o /bin/document-intake ./services/document-intake/cmd/worker
 FROM alpine:3.19

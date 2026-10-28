@@ -17,8 +17,6 @@ import (
 
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/agie/interviewer"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/crypto"
-	"github.com/cyberinq/agiparel/services/edge-daemon/internal/ocr"
-	"github.com/cyberinq/agiparel/services/edge-daemon/internal/packing"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/topology"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/wal"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/web"
@@ -27,7 +25,9 @@ import (
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/dbsmith"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/docscribe"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/logicweaver"
+	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/ocr"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/onboarding"
+	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/packing"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/sewing"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/stores"
 	_ "github.com/jackc/pgx/v5/stdlib"

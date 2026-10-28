@@ -150,7 +150,7 @@ All v5.1 stories and tasks are retained verbatim for cross-version traceability.
 | E04 — Interactive feasibility copilot | **PARTIAL** | planning analyzer, readiness questions, upload jobs and endpoints; durable full snapshot/approval incomplete |
 | E05 — Material roll passport and stock truth | **PARTIAL** | stores issuance/roll feasibility; no persistent production-grade roll segment ledger established |
 | E06 — High-level cutting campaign optimization | **PARTIAL** | cutting planner, roll feasibility, geometry optimizer; CAD vendor bridge and live cut-table integration unverified |
-| E07 — Tag hardware and lifecycle | **PARTIAL** | `pkg/rfid/sgtin.go`, `llrp_reader.go`; reader/tag lifecycle hardware commissioning unverified |
+| E07 — Tag hardware and lifecycle | **PARTIAL** | `services/edge-daemon/pkg/rfid/sgtin.go`, `llrp_reader.go`; reader/tag lifecycle hardware commissioning unverified |
 | E08 — Sub-bundle and individual-part traceability | **PARTIAL** | attachment engines and tests present; full physical bundle/garment genealogy not established |
 | E09 — Sewing station execution | **PARTIAL** | dwell logic, sewing endpoints, `sew01.html`; typed production credit/full offline workflow unverified |
 | E10 — Quality, finishing and buyer identity | **NOT-FOUND-IN-INSPECTED-SOURCE** | No corresponding code in empty s17/s18; some adjacent shared evidence/UI but comprehensive finishing absent |
@@ -1662,7 +1662,7 @@ The second V5's “Epic 01–07” repeats and deepens specific requirements her
 
 - **Tasks**:
 
-  - TASK-012-1: Implement CheckSacrosanctReservation guard in pkg/stores/issuance.go.
+  - TASK-012-1: Implement CheckSacrosanctReservation guard in services/edge-daemon/pkg/stores/issuance.go.
 
   - TASK-012-2: Build POST /v1/governance/overrides/consumption-variance endpoint with cryptographic signature validation.
 
@@ -1763,7 +1763,7 @@ The second V5's “Epic 01–07” repeats and deepens specific requirements her
 
   - TASK-013-2: Implement dual-badge scan validation workflow in STR-04 tablet terminal.
 
-  - TASK-013-3: Add offline signature verification test in pkg/stores/issuance_test.go.
+  - TASK-013-3: Add offline signature verification test in services/edge-daemon/pkg/stores/issuance_test.go.
 
 
 **Explicit closure tests for E19-S04:** Use the business contract above to construct one successful signed fixture, one policy/identity rejection fixture and one network/restart replay fixture; prove that the actual measured state equals the ledger, not a UI counter.
@@ -1811,7 +1811,7 @@ The second V5's “Epic 01–07” repeats and deepens specific requirements her
 
   - TASK-011-1: Create database migration for surplus_compatibility_rules and indent_overrides.
 
-  - TASK-011-2: Implement EvaluatePrePOGate(bomLine, inventoryPool) in pkg/stores/indent.go.
+  - TASK-011-2: Implement EvaluatePrePOGate(bomLine, inventoryPool) in services/edge-daemon/pkg/stores/indent.go.
 
   - TASK-011-3: Wire gate validation into STR-01 desktop UI.
 
@@ -2211,7 +2211,7 @@ The second V5's “Epic 01–07” repeats and deepens specific requirements her
 
 - **Tasks**:
 
-  - TASK-042-1: Implement CalculateBalancedBundles in pkg/cutting/planner.go.
+  - TASK-042-1: Implement CalculateBalancedBundles in services/edge-daemon/pkg/cutting/planner.go.
 
   - TASK-042-2: Write parameterized unit tests covering odd remainders, single-ply cuts, and extreme ratios.
 
@@ -2242,7 +2242,7 @@ The second V5's “Epic 01–07” repeats and deepens specific requirements her
 
   - TASK-043-1: Update bundle_registry database schema to enforce dual-layer identifiers.
 
-  - TASK-043-2: Update bundle card generation logic in pkg/cutting/planner.go.
+  - TASK-043-2: Update bundle card generation logic in services/edge-daemon/pkg/cutting/planner.go.
 
   - TASK-043-3: Update CUT-03 post-cut numbering screen.
 
@@ -2408,7 +2408,7 @@ The second V5's “Epic 01–07” repeats and deepens specific requirements her
 
 - **Tasks**:
 
-  - TASK-045-1: Implement cut reconciliation verification gate in pkg/cutting/.
+  - TASK-045-1: Implement cut reconciliation verification gate in services/edge-daemon/pkg/cutting/.
 
   - TASK-045-2: Build bundle release lock mechanism in services/core-api.
 
@@ -2596,7 +2596,7 @@ The second V5's “Epic 01–07” repeats and deepens specific requirements her
 
 - **Tasks**:
 
-  - TASK-052-1: Implement OperationExecutionContract validator in pkg/sewing/credit.go.
+  - TASK-052-1: Implement OperationExecutionContract validator in services/edge-daemon/pkg/sewing/credit.go.
 
   - TASK-052-2: Connect attachment.ValidatePair to the transaction credit outbox.
 
@@ -2774,7 +2774,7 @@ The second V5's “Epic 01–07” repeats and deepens specific requirements her
 
 - **Tasks**:
 
-  - TASK-063-1: Implement split-horizon local validation in pkg/packing/carton_packer.go.
+  - TASK-063-1: Implement split-horizon local validation in services/edge-daemon/pkg/packing/carton_packer.go.
 
   - TASK-063-2: Add REPACK_MODE lifecycle transition to packing engine.
 
@@ -3155,7 +3155,7 @@ All 16 first-audit TD entries are preserved verbatim below, including evidence a
 | TD03 | P0 | **Demo roll and pilot config in runtime.** ROLL-007 and Noble Garments pilot details are registered as runtime defaults | Use tenant-scoped onboarding fixtures only; production startup must not synthesize stock or orders. | `services/edge-daemon/cmd/server/main.go` |
 | TD04 | P0 | **Weak authority lease.** Pure CanCommit checks scopes/writer but itself documents that it is not a distributed lock/lease | Enforce lease epoch, expiry and single-writer uniqueness in transactional database; fail closed offline. | `services/edge-daemon/pkg/brownfield/authority.go` |
 | TD05 | P0 | **Witness attestation insufficient.** Two string IDs and HMAC shared secret are insufficient proof that two persons authenticated separately | Bind separate authentication sessions/challenges, approved device and proof timestamps; sign ledger receipt. | `services/edge-daemon/pkg/stores/issuance.go` |
-| TD06 | P0 | **OCR mutable signoff contents.** Signoffs are role strings; doc hash covers only five scalar values; no complete immutable source snapshot | Hash canonical report, dispositions, underlying event revision and signer identity; re-sign on alteration. | `services/edge-daemon/internal/ocr/signoff.go` |
+| TD06 | P0 | **OCR mutable signoff contents.** Signoffs are role strings; doc hash covers only five scalar values; no complete immutable source snapshot | Hash canonical report, dispositions, underlying event revision and signer identity; re-sign on alteration. | `services/edge-daemon/pkg/ocr/signoff.go` |
 | TD07 | P0 | **In-memory ingestion job registry.** Jobs map process-local; GET explicitly reports expiration on restart | Persist queue/status/result and job ownership; recover interrupted jobs on restart. | `services/edge-daemon/cmd/server/planning_upload_jobs.go` |
 | TD08 | P0 | **CI build-only release.** GitHub release workflow builds edge binary but does not run test/vet/coverage/migration/tenant isolation checks | Introduce required PR CI and release attestation, test matrix, migration, secret scanning and SBOM. | `.github/workflows/release.yml` |
 | TD09 | P0 | **Unverified build in this audit.** Go test could not execute: local toolchain attempted external go1.24 download, network unavailable | Run pinned Go 1.24 offline-ready CI, record go test/race/vet/staticcheck/build results and reproducible image digest. | `go.mod; audit environment` |
@@ -3203,7 +3203,7 @@ All 16 first-audit TD entries are preserved verbatim below, including evidence a
 **Exit:** Independent reviewer can reproduce baseline problem, prove fixed invariant, and observe recovery without data corruption.
 
 ### TD06 — OCR mutable signoff contents
-**Evidence:** Signoffs are role strings; doc hash covers only five scalar values; no complete immutable source snapshot. **Files:** `services/edge-daemon/internal/ocr/signoff.go`.
+**Evidence:** Signoffs are role strings; doc hash covers only five scalar values; no complete immutable source snapshot. **Files:** `services/edge-daemon/pkg/ocr/signoff.go`.
 - **TD06-T01:** Reproduce issue and add failing test at identified boundary, with negative and crash/retry cases.
 - **TD06-T02:** Hash canonical report, dispositions, underlying event revision and signer identity; re-sign on alteration.
 - **TD06-T03:** Add integration and security/tenant regressions, document migration/rollback and collect CI/pilot logs.
