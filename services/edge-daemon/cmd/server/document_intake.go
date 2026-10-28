@@ -1,3 +1,4 @@
+// Author: Sunil Jain, 2026-10-27 — Preflight uploads before immutable source storage.
 // Gate 06.5-A: tenant-pinned, review-only universal source intake gateway.
 // A separate document-intake worker consumes durable queued jobs.
 package main
@@ -154,7 +155,12 @@ func (s *EdgeServer) handleDocumentUpload(w http.ResponseWriter, r *http.Request
 			response.Errors = append(response.Errors, fmt.Sprintf("%q: upload too large or unreadable", name))
 			continue
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+		if scanErr := checkDocumentSafety(ctx, name, data); scanErr != nil {
+			cancel()
+			response.Errors = append(response.Errors, fmt.Sprintf("%q: %s", name, scanErr.Error()))
+			continue
+		}
 		item, er := s.saveDocument(ctx, tenant, name, data)
 		cancel()
 		if er != nil {

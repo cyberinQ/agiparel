@@ -3,8 +3,8 @@
   --ag-action:#1f5262; --ag-good:#23754d; --ag-hold:#ad6c11; --ag-bad:#ac403d; }
 body[data-ag-phase] { --ag-accent:#167e88; background:var(--ag-page)!important; color:var(--ag-ink)!important;
   font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif; line-height:1.5; border-top:6px solid var(--ag-accent); }
-body[data-ag-phase="factory"] {--ag-accent:#218aaa}
-body[data-ag-phase="documents"] {--ag-accent:#5966cf}
+body[data-ag-phase="factory"] {--ag-accent:#16869A}
+body[data-ag-phase="documents"] {--ag-accent:#28323B}
 body[data-ag-phase="buyer"] {--ag-accent:#306ccb}
 body[data-ag-phase="material"] {--ag-accent:#8557bd}
 body[data-ag-phase="stores"] {--ag-accent:#b47712}

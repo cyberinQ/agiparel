@@ -1,43 +1,54 @@
 <!doctype html>
+<!-- Author: Sunil Jain, 2026-10-27 — Minimal Chapter 02 buyer-order workflow. -->
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>Agiparel · Check buyer order</title>
-<link rel="stylesheet" href="/static/buyer_review.css">
-<script src="/static/buyer_review.js" defer></script>
-<script src="/static/workspace_nav.js" defer></script>
+<title>Agiparel · Buyer order</title>
 <link rel="stylesheet" href="/static/ux_unified.css">
+<link rel="stylesheet" href="/static/buyer_review.css">
+<script src="/static/workspace_nav.js" defer></script>
+<script src="/static/portal.js" defer></script>
+<script src="/static/buyer_review.js" defer></script>
 </head>
-<body data-ag-phase="buyer">
-<header class="top"><a href="/" class="brand">agiparel <small>FACTORY OS</small></a><nav><a href="/factory-setup">Factory setup</a><a href="/documents">Documents</a><a class="active" href="/buyer-review">Buyer review</a><a href="/order-intake">Order intake</a><a href="/material-planning">Material planning</a></nav><span class="env">DEVELOPMENT · RESTRICTED</span></header>
+<body data-ag-phase="buyer" data-ag-simple-header="true">
+<div class="buyer-app">
+<header class="buyer-top"><a href="/" class="buyer-brand"><span aria-hidden="true">▮</span> agiparel</a><nav aria-label="Buyer order navigation"><a href="/">← Home</a><button type="button" id="aggie-open" class="aggie-invite" aria-controls="aggie-chat" aria-expanded="false"><span class="aggie-face" aria-hidden="true">😄</span><span>Ask Aggie</span></button></nav></header>
 <main>
-<div class="eyebrow">REVIEW REAL BUYER MATERIALS</div>
-<section class="hero"><div><h1>Check the buyer order.<br><em>Save a clear draft.</em></h1><p>Choose the buyer PO and tech pack. Check styles, colors, sizes and cloth needs before saving.</p></div><div class="hero-art">SOURCE<br><strong>→</strong> REVIEW<br><strong>→</strong> PROPOSED</div></section>
-<div class="notice"><strong>PROPOSED · HOLD</strong><span>Please check any details found in a file. This draft does not approve buying or production.</span></div>
-<ol class="ag-steps" aria-label="Steps on this page"><li><b>1</b>Choose buyer files</li><li><b>2</b>Check order details</li><li><b>3</b>Save draft order</li></ol><section class="panel step" id="choose"><div class="step-header"><span class="step-num">01</span><div><h2>Step 1 — Choose buyer files</h2><p>Pick the PO and the tech pack. You may choose the same file twice.</p></div></div>
-<div class="select-grid"><label>Buyer PO source<select id="po-source"><option value="">Choose document…</option></select></label><label>BOM / tech pack source<select id="bom-source"><option value="">Choose document…</option></select></label></div>
-<div class="actions"><button class="primary" id="analyze">Read order details</button><a class="quiet" href="/documents">Upload other documents ↗</a></div><p class="message" id="load-message" role="status">The inbox is loading…</p>
-</section>
-<section class="panel step" id="review" hidden><div class="step-header"><span class="step-num">02</span><div><h2>Step 2 — Check the details</h2><p>Check style, color, size, quantity and materials. Fix any missing or wrong numbers.</p></div></div>
-<div id="coverage" class="notice secondary"></div>
-<div id="issues" class="issues" hidden></div>
-<div class="select-grid"><label>Buyer PO number<input id="po-number" placeholder="e.g. REP3" maxlength="64"></label><label>Buyer style<input id="style-code" placeholder="e.g. GM09Y094" maxlength="64"></label></div>
-<div id="multiple-po" class="multiple-po" hidden><label>More than one PO was recognized. Review one at a time.<select id="po-choice"></select></label></div>
-<div class="table-head"><h3>Color / size order lines</h3><button class="secondary" id="add-sku">+ Add size line</button></div><div class="scroll"><table><thead><tr><th>Color</th><th>Size</th><th>Pieces</th><th>UPC</th><th>Evidence</th><th></th></tr></thead><tbody id="sku-rows"></tbody></table></div>
-<div class="table-head"><h3>Cloth and trims</h3><button class="secondary" id="add-material">+ Add material</button></div><div class="scroll"><table><thead><tr><th>Material ID</th><th>Type</th><th>Per garment</th><th>Unit</th><th>Evidence</th><th></th></tr></thead><tbody id="bom-rows"></tbody></table></div>
-<section id="techpack-workbench" class="techpack-panel" hidden aria-label="Tech-pack material evidence">
-  <div class="table-head"><h3>Materials found in the tech pack</h3><span class="tech-tag">Source evidence · human review</span></div>
-  <p class="tech-help">Complex buyer PDFs may list components without authoritative per-garment consumption. A printed <strong>0.000</strong> is <strong>not</strong> a zero material requirement. Review each source, choose the applicable colorway, and supply a verified rate and unit before adding it to the BOM. Alternative fabrics and packaging rules are not automatically combined.</p>
-  <div id="techpack-summary" class="message" role="status"></div>
-  <div id="techpack-candidates" class="techpack-candidates"></div>
-</section>
-<div class="source-box"><h3>Where this detail came from</h3><p>Each record's evidence number can be opened in Document Intelligence. Use 0 when you manually transcribe a value without an identified segment.</p><div class="source-cols"><div><h4 id="po-evidence-title">PO source</h4><div id="po-evidence"></div></div><div><h4 id="bom-evidence-title">BOM source</h4><div id="bom-evidence"></div></div></div></div>
-<label class="note">How did you review these facts? <textarea id="review-note" maxlength="1000" rows="3" placeholder="E.g. Compared buyer PDF page 1 against size breakdown; consumption confirmed against tech pack page 8."></textarea></label>
-<label class="ack"><input id="acknowledged" type="checkbox"> I reviewed the numbers and understand that this stages a proposal only. Unverified assumptions remain on HOLD.</label>
-<div class="actions"><button id="stage" class="primary">Save draft order →</button><a href="/factory-setup" class="quiet">Check factory details</a></div><p class="message" id="stage-message" role="status">No production or inventory records are modified.</p>
-</section>
-<section id="result" class="panel result" hidden><div class="eyebrow">DRAFT SAVED</div><h2 id="result-title">Order staged</h2><p id="result-message"></p><div class="actions"><a href="/material-planning" class="primary linkbtn">Plan material →</a><a href="/order-intake" class="secondary linkbtn">Review staged orders</a></div></section>
-<footer>Agiparel · Factory → Buyer order → Material plan → Production. Buyer approval is still required.</footer>
+ <section class="intro" aria-labelledby="buyer-title"><span class="chapter-label">02 · BUYER ORDER</span><h1 id="buyer-title">Check the buyer order.</h1><p>Choose the buyer's files. Check the details. Save a draft.</p></section>
+ <section class="panel" id="choose" aria-labelledby="choose-title">
+  <div class="section-heading"><h2 id="choose-title">Choose buyer files</h2><a href="/documents">Upload records ↗</a></div>
+  <p class="support">Choose the purchase order and tech pack. One file can contain both.</p>
+  <div class="select-grid"><label>Purchase order (PO)<select id="po-source"><option value="">Choose file…</option></select></label><label>Tech pack / materials list<select id="bom-source"><option value="">Choose file…</option></select></label></div>
+  <div class="actions"><button class="primary" type="button" id="analyze">Read order details →</button></div>
+  <p class="message" id="load-message" role="status" aria-live="polite">Looking for uploaded files…</p>
+ </section>
+ <section class="panel" id="review" aria-labelledby="review-title" hidden>
+  <div class="section-heading"><div><h2 id="review-title">Check order details</h2><p class="support">Fix anything that is missing or wrong.</p></div><span class="hold-label">PROPOSED · HOLD</span></div>
+  <div id="coverage" class="coverage" role="status"></div><div id="issues" class="issues" role="alert" hidden></div>
+  <div class="select-grid"><label>PO number<input id="po-number" maxlength="64" placeholder="Buyer PO number"></label><label>Style number<input id="style-code" maxlength="64" placeholder="Style or design code"></label></div>
+  <div id="multiple-po" class="multiple-po" hidden><label>We found more than one order. Choose one to check.<select id="po-choice"></select></label></div>
+  <div class="table-head"><h3>Colors, sizes &amp; pieces</h3><button class="secondary" type="button" id="add-sku">+ Add size</button></div>
+  <div class="scroll"><table><thead><tr><th>Color</th><th>Size</th><th>Pieces</th><th>UPC</th><th>Source</th><th>Remove</th></tr></thead><tbody id="sku-rows"></tbody></table></div>
+  <div class="table-head"><h3>Cloth &amp; trims</h3><button class="secondary" type="button" id="add-material">+ Add material</button></div>
+  <p class="support">Use the material code in the file. If it only has a name, we’ll suggest a code for you to confirm. Check the amount and unit.</p>
+  <div class="scroll"><table><thead><tr><th>Material code</th><th>Type</th><th>Per garment</th><th>Unit</th><th>Source</th><th>Remove</th></tr></thead><tbody id="bom-rows"></tbody></table></div>
+  <details id="techpack-workbench" class="techpack-panel" hidden aria-label="Tech-pack material evidence"><summary>More material details found in the tech pack</summary>
+    <p class="tech-help">Some files show <strong>0.000</strong> even when fabric is needed. This is <strong>not</strong> a zero requirement. Check the original and enter a verified rate and unit before adding material. Keep alternative cloth and packing instructions separate.</p>
+    <div id="techpack-summary" class="message" role="status"></div><div id="techpack-candidates" class="techpack-candidates"></div>
+  </details>
+  <details class="source-box"><summary>See source evidence</summary><p>Open the original file to check a number. Source 0 means a value entered manually.</p><div class="source-cols"><div><h4 id="po-evidence-title">PO source</h4><div id="po-evidence"></div></div><div><h4 id="bom-evidence-title">Tech pack source</h4><div id="bom-evidence"></div></div></div></details>
+  <label class="note">Review note<textarea id="review-note" maxlength="1000" rows="2" placeholder="What did you check? What still needs checking?"></textarea></label>
+  <label class="ack"><input id="acknowledged" type="checkbox"> I checked the order details. This saves a draft, not permission to buy or produce.</label>
+  <div class="actions"><button class="primary" type="button" id="stage">Save draft order →</button></div><p class="message" id="stage-message" role="status" aria-live="polite">No stock, purchasing, or production records will change.</p>
+ </section>
+ <section id="result" class="panel result" aria-labelledby="result-title" hidden><span class="chapter-label">DRAFT SAVED</span><h2 id="result-title">Order saved</h2><p id="result-message"></p><div class="actions"><a class="primary linkbtn" href="/material-planning">Plan material →</a><a class="secondary linkbtn" href="/order-intake">See draft orders</a></div></section>
 </main>
-</body></html>
+</div>
+<section id="aggie-chat" class="aggie-chat" role="dialog" aria-label="Chat with Aggie" aria-modal="false" hidden>
+ <div class="aggie-top"><div class="aggie-identity"><span class="aggie-chat-face" aria-hidden="true">😄</span><strong>Aggie</strong><span class="aggie-bot-note">Factory helper</span></div><button id="aggie-close" class="aggie-close" type="button" aria-label="Close Aggie chat">×</button></div>
+ <div id="aggie-messages" class="aggie-messages" role="log" aria-live="polite" aria-relevant="additions text"><p class="aggie-msg aggie-msg-bot">Hi! What would you like to know about the order?</p></div>
+ <div class="aggie-compose"><label class="aggie-label" for="aggie-input">Ask Aggie</label><div class="aggie-compose-row"><textarea id="aggie-input" rows="2" maxlength="1000" placeholder="Type your question…"></textarea><button id="aggie-send" class="aggie-send" type="button">Send</button></div><p id="aggie-status" class="aggie-status" role="status">Aggie checks the records you're allowed to see.</p></div>
+</section>
+</body>
+</html>

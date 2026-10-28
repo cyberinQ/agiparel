@@ -55,10 +55,13 @@ services:
       # DEV-only Basic barrier for legacy HMI/API routes; never use for production identity.
       AGIPAREL_OPERATOR_USER: ${AGIPAREL_OPERATOR_USER:-dev}
       AGIPAREL_OPERATOR_PASSWORD: ${AGIPAREL_OPERATOR_PASSWORD:-1212}
+      # DEV-ONLY: explicitly enabled reviewer; never a production workforce role.
+      AGIPAREL_REVIEW_MANAGER_USER: ${AGIPAREL_REVIEW_MANAGER_USER:-}
       # DEVELOPMENT ONLY: server-pinned tenant for operator intake; never accept client-supplied tenant.
       AGIPAREL_OPERATOR_TENANT: ${AGIPAREL_OPERATOR_TENANT:-dev}
       # Safety bridge: the older Planning uploader must capture, not auto-merge.
       AGIPAREL_CAPTURE_FIRST: "true"
+      AGIPAREL_CLAMD_ADDR: ${AGIPAREL_CLAMD_ADDR:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

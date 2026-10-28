@@ -55,7 +55,7 @@
   for(const name of topics){
    const fields=model.fields.filter(f=>f.group===name);
    const done=fields.filter(f=>model.facts[f.key]?.state==='CONFIRMED').length;
-   const panel=node('section','topic');const header=node('div','topic-header');header.append(node('h3','',name),node('span','',`${done}/${fields.length} confirmed`));panel.append(header);
+   const panel=node('details','topic');const header=node('summary','topic-header');header.append(node('strong','',name),node('span','',`${done}/${fields.length} checked`));panel.append(header);
    for(const spec of fields){
     const f=model.facts[spec.key];const row=node('div','fact-row');const left=node('div');
     left.append(node('div','label',spec.label),node('span','value',f ? f.value+(spec.unit?` ${spec.unit}`:'') : 'Not added yet'));
@@ -115,6 +115,26 @@
   }catch(err){el('dialog-error').textContent=`We couldn't save that yet: ${err.message}. Check the value or refresh if someone else updated it.`;el('dialog-error').hidden=false;}
   finally{submit.disabled=false;}
  }
+ const approvals=el('approval-dialog');
+ el('start-review').addEventListener('click',()=>window.location.assign('/documents#review-submit'));
+ // The earlier evidence, conflict and reference tools remain available on demand.
+ if(new URLSearchParams(window.location.search).get('advanced-review')==='1'){
+  document.addEventListener('DOMContentLoaded',()=>{if(!approvals.open)approvals.showModal();},{once:true});
+ }
+ el('approval-close').addEventListener('click',()=>approvals.close());
+ // Show the real outstanding count, including saved reviews and submitted files.
+ const badge=el('approval-count');
+ async function updateBadge(){
+  try {
+   const response=await apiJSON('/api/v1/factory-onboarding/approvals/pending');
+   const count=response.pending_records;
+   badge.textContent=String(count);
+   badge.hidden=count===0;
+   badge.setAttribute('aria-label',`${count} records awaiting review`);
+  } catch {badge.hidden=true;}
+ }
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)void updateBadge();});
+ void updateBadge();
  el('answer-next').addEventListener('click',()=>{
   if(!model)return;
   const priorities=['factory.name','machines.sewing_count','workforce.headcount','machines.capabilities','workforce.skills','materials.categories','calendar.shift_hours','costs.currency','costs.labor_rate','costs.overhead_rate'];

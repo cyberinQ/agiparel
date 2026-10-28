@@ -100,13 +100,23 @@ func (s *EdgeServer) handleFactoryCandidateScan(w http.ResponseWriter, r *http.R
 	var name, status string
 	err = tx.QueryRowContext(ctx, `SELECT d.filename,j.status FROM document_sources_v65 d
  JOIN document_jobs_v65 j ON j.tenant_id=d.tenant_id AND j.document_id=d.id
- WHERE d.tenant_id=$1 AND d.id=$2`, tenant, req.DocumentID).Scan(&name, &status)
+ WHERE d.tenant_id=$1 AND d.id=$2 FOR UPDATE OF d`, tenant, req.DocumentID).Scan(&name, &status)
 	if errors.Is(err, sql.ErrNoRows) {
 		http.Error(w, "Document not found in this tenant", 404)
 		return
 	}
 	if err != nil {
 		http.Error(w, "Unable to load source", 503)
+		return
+	}
+	// Do not introduce new proposals after manager has submitted the source.
+	var approved bool
+	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM factory_document_submissions_v65b5 WHERE tenant_id=$1 AND document_id=$2)`, tenant, req.DocumentID).Scan(&approved); err != nil {
+		http.Error(w, "Submission check unavailable; apply migration 0026", 503)
+		return
+	}
+	if approved {
+		docJSON(w, 409, map[string]any{"error": "This document was already submitted. Upload a new version to review changes."})
 		return
 	}
 	if status != "EXTRACTED" && status != "PARTIAL" {

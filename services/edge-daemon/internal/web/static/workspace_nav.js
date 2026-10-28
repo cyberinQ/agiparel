@@ -2,6 +2,8 @@
 // Shadow DOM isolates navigation styles from legacy operator screens.
 (() => {
   'use strict';
+  // Chapter 01 supplies its own minimal Home + Aggie header. Keep the shared navigation contract without rendering a second header.
+  if (document.body?.dataset.agSimpleHeader === 'true') return;
   if (document.getElementById('agiparel-workspace-navigation')) return;
 
   const journey = [
@@ -29,7 +31,7 @@
   const currentIndex = journey.findIndex(item => item.path === path);
   const current = journey[currentIndex] || tools.find(item => item.path === path) || journey[0];
   const palette = {
-    home: '#167e88', factory: '#218aaa', documents: '#5966cf', buyer: '#306ccb',
+    home: '#167e88', factory: '#16869A', documents: '#28323B', buyer: '#306ccb',
     material: '#8557bd', stores: '#b47712', cutting: '#df6b23', sewing: '#087f79',
     quality: '#2b844b', packing: '#bb3975', reports: '#486484'
   };

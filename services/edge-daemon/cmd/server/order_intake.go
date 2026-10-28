@@ -181,8 +181,11 @@ func parseIntake(poRaw, bomRaw []byte, poName, bomName string) (sourceSubmission
 		if cat == "FABRIC" {
 			fabric = true
 		}
-		if err = checkCode("UOM", row[4], 16); err != nil {
-			return sourceSubmission{}, fmt.Errorf("BOM row %d: %w", i+2, err)
+		// Normalize heterogeneous labels once for every CSV, document, and LLM path.
+		// Preserve the original CSV as immutable evidence; do not invent conversions.
+		unit, unitErr := canonicalBuyerUOM(row[4])
+		if unitErr != nil {
+			return sourceSubmission{}, fmt.Errorf("BOM row %d: %w", i+2, unitErr)
 		}
 		qty, e := strconv.ParseFloat(row[3], 64)
 		if e != nil || math.IsNaN(qty) || math.IsInf(qty, 0) || qty <= 0 || qty > 1000000 {
@@ -193,13 +196,13 @@ func parseIntake(poRaw, bomRaw []byte, poName, bomName string) (sourceSubmission
 		if math.Abs(qty*1000-milli) > 0.000001 || milli < 1 {
 			return sourceSubmission{}, fmt.Errorf("BOM row %d: maximum 3 decimal places, minimum 0.001", i+2)
 		}
-		key := row[1] + "\x00" + cat + "\x00" + row[4]
+		key := row[1] + "\x00" + cat + "\x00" + unit
 		if seenBOM[key] {
 			return sourceSubmission{}, fmt.Errorf("BOM row %d: duplicate material/category/UOM", i+2)
 		}
 		seenBOM[key] = true
 		requiredMilli := int64(milli) * r.OrderedQty
-		r.Materials = append(r.Materials, intakeMaterial{row[1], cat, fmt.Sprintf("%.3f", float64(milli)/1000), row[4], fmt.Sprintf("%d.%03d", requiredMilli/1000, requiredMilli%1000)})
+		r.Materials = append(r.Materials, intakeMaterial{row[1], cat, fmt.Sprintf("%.3f", float64(milli)/1000), unit, fmt.Sprintf("%d.%03d", requiredMilli/1000, requiredMilli%1000)})
 	}
 	if !fabric {
 		return sourceSubmission{}, errors.New("BOM must contain at least one FABRIC requirement")

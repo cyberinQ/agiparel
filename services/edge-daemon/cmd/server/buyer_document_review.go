@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -19,6 +20,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type buyerEvidence struct {
@@ -502,7 +505,7 @@ func (s *EdgeServer) handleBuyerReview(w http.ResponseWriter, r *http.Request) {
 	}
 	rep, reused, err := persistIntakeInTx(ctx, tx, tenant, sub)
 	if err != nil {
-		http.Error(w, "Unable to stage reviewed order", 503)
+		writeBuyerSaveFailure(w, err, "order draft")
 		return
 	}
 	mapping, err := json.Marshal(req)
@@ -523,13 +526,63 @@ func (s *EdgeServer) handleBuyerReview(w http.ResponseWriter, r *http.Request) {
 		err = tx.QueryRowContext(ctx, `SELECT id::text FROM buyer_order_handoffs_v65c1 WHERE tenant_id=$1 AND source_digest=$2`, tenant, sub.Report.SourceSHA256).Scan(&handoffID)
 	}
 	if err != nil {
-		http.Error(w, "Cannot save source review", 503)
+		writeBuyerSaveFailure(w, err, "document handoff")
 		return
 	}
 	if err = tx.Commit(); err != nil {
-		http.Error(w, "Cannot commit reviewed order", 503)
+		writeBuyerSaveFailure(w, err, "transaction commit")
 		return
 	}
 	rep.Origin = "REVIEWED_DOCUMENT_MAPPING"
 	docJSON(w, map[bool]int{true: 200, false: 201}[reused], map[string]any{"intake": rep, "handoff_id": handoffID, "reused": reused, "status": "PROPOSED", "release": "HOLD", "next": "/material-planning", "source_note": "The existing order and BOM quantities are proposals. Original sources remain in Document Intelligence."})
+}
+
+// Author: Sunil Jain, 2026-10-27 — Classify draft persistence failures without
+// leaking database details, buyer files, or customer data to the browser.
+// A failed transaction is rolled back by the caller; never claim a draft was saved.
+func buyerSaveError(err error) (int, string, string) {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "42P01", "42703":
+			return http.StatusServiceUnavailable, "Order database setup is incomplete. Ask an administrator to check migrations 0007 and 0014. No draft was saved.", pgErr.Code
+		case "42501":
+			return http.StatusServiceUnavailable, "The application cannot write to the order database. Ask an administrator to check the database role permissions. No draft was saved.", pgErr.Code
+		case "23505":
+			return http.StatusConflict, "This order conflicts with an existing saved record. Ask an administrator to inspect the conflicting entry. No new draft was saved.", pgErr.Code
+		case "23503":
+			// The document source tables historically had no foreign key to
+			// tenants, whereas structured buyer orders do. Do not assume every
+			// foreign-key failure means an uploaded document has vanished.
+			switch pgErr.ConstraintName {
+			case "order_intakes_v5_tenant_id_fkey", "buyer_order_handoffs_v65c1_tenant_id_fkey":
+				return http.StatusServiceUnavailable, "Factory account setup is incomplete. Ask an administrator to verify the configured factory identity. No draft was saved.", pgErr.Code
+			case "buyer_order_handoffs_v65c1_tenant_id_po_document_id_fkey", "buyer_order_handoffs_v65c1_tenant_id_bom_document_id_fkey":
+				return http.StatusConflict, "A selected source document is not linked to this factory. Refresh the file list. No draft was saved.", pgErr.Code
+			default:
+				return http.StatusServiceUnavailable, "A required database link could not be verified. Ask an administrator to check the server log. No draft was saved.", pgErr.Code
+			}
+		case "23514", "22001", "22003", "22P02":
+			return http.StatusConflict, "An order value does not fit the stored-data rules. Check the draft fields and try again. No draft was saved.", pgErr.Code
+		case "57014":
+			return http.StatusServiceUnavailable, "Saving timed out. Please try again. No draft was saved.", pgErr.Code
+		}
+		return http.StatusServiceUnavailable, "The order database rejected this draft. Ask an administrator to check the server log. No draft was saved.", pgErr.Code
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return http.StatusServiceUnavailable, "Saving timed out. Please try again. No draft was saved.", "deadline"
+	}
+	return http.StatusServiceUnavailable, "The order database could not save this draft. Ask an administrator to check the server log. No draft was saved.", "unknown"
+}
+
+func writeBuyerSaveFailure(w http.ResponseWriter, err error, stage string) {
+	status, message, code := buyerSaveError(err)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		// SQLSTATE and schema identifiers only. Never log extracted order contents.
+		log.Printf("buyer-review: failed at %s (sqlstate=%s table=%s constraint=%s)", stage, code, pgErr.TableName, pgErr.ConstraintName)
+	} else {
+		log.Printf("buyer-review: failed at %s (class=%s type=%T)", stage, code, err)
+	}
+	http.Error(w, message, status)
 }

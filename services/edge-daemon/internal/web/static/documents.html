@@ -1,43 +1,54 @@
 <!doctype html>
+<!-- Author: Sunil Jain, 2026-10-27 — minimal upload utility; source evidence remains accessible on demand. -->
 <html lang="en">
 <head>
  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
- <meta name="color-scheme" content="light"><title>Agiparel · Upload files</title>
- <link rel="stylesheet" href="/static/documents.css"><script src="/static/documents.js" defer></script><script src="/static/document_triage.js" defer></script>
-  <script src="/static/workspace_nav.js" defer></script>
-<link rel="stylesheet" href="/static/ux_unified.css">
+ <meta name="color-scheme" content="light"><title>Agiparel · Upload records</title>
+ <link rel="stylesheet" href="/static/ux_unified.css"><link rel="stylesheet" href="/static/documents.css">
+ <script src="/static/workspace_nav.js" defer></script><script src="/static/portal.js" defer></script>
+ <script src="/static/documents.js" defer></script><script src="/static/document_triage.js" defer></script><script src="/static/review_submit.js" defer></script>
 </head>
-<body data-ag-phase="documents">
-<header class="nav"><a href="/" class="logo"><b>agiparel</b><small>FACTORY OS</small></a><nav><a href="/factory-setup">Factory setup</a><a href="/documents" aria-current="page">Documents</a><a href="/order-intake">Order intake</a><a href="/material-planning">Material planning</a><a href="/planning">Factory planning</a></nav><span class="env">DEVELOPMENT · RESTRICTED</span></header>
-<main>
- <div class="intro"><div><p class="eyebrow">YOUR FILES</p><h1>Upload your files.<br><span>Keep them together.</span></h1><p class="subtitle">Put buyer and factory files here. You can use PDF, Excel, Word or CSV. We keep the original for checking.</p></div><div class="roundel">ONE<br>PLACE<span>FILES</span></div></div>
- <section class="guard" aria-label="Factory-first onboarding"><strong>NEW FACTORY? START WITH WHAT YOU KNOW.</strong><span>Add machines, workers and stock details a little at a time. <a href="/factory-setup">Open guided factory setup →</a> Upload files here at any time; no need to organize them first.</span></section>
- <section class="guard" aria-label="Evidence limitations"><strong>CHECK BEFORE USE</strong><span>Please check the details we read from each file. A file upload does not approve a buyer order or production.</span></section>
- <section class="use-cases" aria-label="Examples of files you can upload"><div><strong>Buyer and orders</strong><span>Purchase orders · Tech packs · BOMs · Size specs</span></div><div><strong>Factory and stores</strong><span>Inventory · Fabric roll sheets · Machine lists · GRNs</span></div><div><strong>Operations</strong><span>Sewing bulletins · Cutting sheets · Packing instructions</span></div><div><strong>People and administration</strong><span>Worker rosters · Training records · Other evidence</span></div></section>
- <ol class="ag-steps" aria-label="Steps on this page"><li><b>1</b>Upload files</li><li><b>2</b>Check what was read</li><li><b>3</b>Fix missing details</li><li><b>4</b>Use the checked details</li></ol>
- <div class="layout">
- <section class="panel upload"><div class="kicker">A / SOURCE INGESTION</div><h2>Step 1 — Choose files to upload</h2><p>Choose the files you have. Each file can be up to 20 MB. If a file cannot be read, we will tell you.</p>
-  <div class="drop" id="drop" role="button" tabindex="0" aria-label="Select documents for upload"><span class="drop-icon">⇧</span><b>Drag files here</b><span>or select the originals on your computer</span><input id="files" type="file" multiple aria-label="Choose original customer files"><small>Google Docs / Sheets: download or export an original copy for now. Direct cloud connection is not yet enabled.</small></div>
-  <div class="selection" id="selection" aria-live="polite">No files selected</div>
-  <button class="primary" id="upload" disabled>Upload files to Agiparel <span>↗</span></button>
-  <p class="privacy-note">Development environment: use authorized, non-sensitive documents. Do not upload employee identity, payroll or private personal data until production access controls are in place.</p>
-  <div id="feedback" class="feedback" role="status" aria-live="polite">Select your documents to begin.</div>
-  <div class="format-list"><h3>Extraction coverage in this release</h3><div><span>PDF with embedded text</span><b>Text / page</b></div><div><span>Excel .xlsx / Word .docx</span><b>Cells / paragraphs</b></div><div><span>CSV / TSV / TXT</span><b>Rows / lines</b></div><div><span>Scanned PDF / photos</span><em>OCR pending</em></div><div><span>Legacy Excel .xls / Google links</span><em>Converter / connector pending</em></div></div>
- </section>
- <section class="panel library"><div class="panel-head"><div><div class="kicker">B / PER-TENANT LIBRARY</div><h2>Everything you uploaded</h2><p>Durable across service restarts · duplicates reuse the source hash</p></div><button class="secondary" id="refresh">Refresh</button></div>
-  <div class="metric-row"><div><span>Source files</span><strong id="total">—</strong></div><div><span>With extracted text</span><strong id="processed">—</strong></div><div><span>Require more work</span><strong id="attention">—</strong></div></div>
-  <div id="doc-list" class="doc-list" aria-live="polite">Loading document library…</div>
- </section>
- </div>
- <section class="panel inspector"><div class="panel-head"><div><div class="kicker">C / SOURCE-ANCHORED INSPECTION</div><h2 id="inspect-title">See what Agiparel read</h2><p id="inspect-desc">Every evidence snippet has an extracted page, sheet/row or paragraph locator. Review is still required before mapping facts into order tables.</p></div><a id="download-source" class="secondary" hidden>Download original ↓</a></div>
-  <div class="provenance"><div>File check code<strong id="inspect-sha">—</strong></div><div>File check<strong id="inspect-readiness">CHECK FIRST</strong></div></div>
-  <div id="document-triage" class="doc-triage" aria-live="polite"><strong>Possible document purpose</strong><p>Select a file to see source-supported suggestions.</p></div>
-  <label class="search-label">Search within extracted evidence<input type="search" id="search" placeholder="Search PO, style, size, fabric, UPC, packing…" disabled></label>
-  <p id="evidence-message" class="evidence-message">Choose a document to see its extracted segments.</p>
-  <div id="segments" class="segments" aria-live="polite"></div>
- </section>
- <footer>Agiparel Factory OS · CyberinQ · One document inbox across all modules. Automatic business-document classification and approved handoff to production modules require explicit operator review before operational use. Source-captured is not source-verified.</footer>
-<div style="max-width:1100px;margin:20px auto;padding:18px 25px;border-radius:12px;border:1px solid #d7e5fa;background:#f1f6ff"><strong>Uploaded buyer PO and tech pack?</strong> <a style="margin-left:12px;font-weight:750" href="/buyer-review">Review and stage a proposed buyer order ↗</a><p style="font-size:12px;color:#546a84">Your files are used as evidence. Review mapped rows before they reach Order Intake and Material Planning.</p></div>
-</main>
+<body data-ag-phase="documents" data-ag-simple-header="true">
+ <main class="upload-page">
+  <header class="file-top"><a class="file-brand" href="/"><span class="file-mark" aria-hidden="true"></span>agiparel</a><nav aria-label="File navigation"><a href="/">← Home</a><button type="button" id="aggie-open" class="aggie-invite" aria-controls="aggie-chat" aria-expanded="false"><span class="aggie-face" aria-hidden="true">😄</span><span>Ask Aggie</span></button></nav></header>
+  <section class="upload-intro"><span class="file-kicker">UPLOAD RECORDS</span><h1>Upload records.</h1><p>Choose any files you have. We'll keep the originals.</p></section>
+  <section class="panel upload" aria-labelledby="upload-heading"><h2 id="upload-heading">Choose files</h2>
+   <div class="drop" id="drop" role="button" tabindex="0" aria-label="Select records for upload"><span class="drop-icon" aria-hidden="true">⇧</span><b>Drop files here or choose files</b><input id="files" type="file" multiple aria-label="Choose files to upload"><small>PDF, photos, spreadsheets or documents · up to 20 MB each</small></div>
+   <div class="selection" id="selection" aria-live="polite">No files selected</div>
+   <button class="primary" id="upload" type="button" disabled>Upload files</button>
+   <div id="feedback" class="feedback" role="status" aria-live="polite">Your files will appear below.</div>
+   <p class="privacy-note">Development system: don't upload private payroll or employee ID records until production access controls are enabled.</p>
+  </section>
+  <section class="panel library" aria-labelledby="library-title"><div class="panel-head"><div><h2 id="library-title">Uploaded files <span id="total" class="file-total">—</span></h2></div><button class="secondary" id="refresh" type="button">Refresh</button></div>
+   <div class="sort-controls"><label for="sort-by">Sort by</label><select id="sort-by"><option value="captured_at">Upload date</option><option value="filename">File name</option><option value="uploaded_by">Uploaded by</option><option value="format">File type</option></select><button type="button" id="sort-direction" class="secondary" aria-label="Reverse sort order">Newest first ↓</button></div>
+   <div class="file-table-wrap"><table class="file-table"><thead><tr><th scope="col">File name</th><th scope="col">Uploaded by</th><th scope="col">Date &amp; time</th><th scope="col">Type</th><th scope="col">Download</th></tr></thead><tbody id="doc-list" aria-live="polite"><tr><td colspan="5">Loading files…</td></tr></tbody></table></div>
+   <p class="file-library-note">Uploaded by is not yet recorded by this development server. Existing files are kept without changing their history.</p>
+  </section>
+  <details id="review-submit" class="review-section" aria-labelledby="review-title">
+   <summary class="review-summary"><span><strong id="review-title">Review &amp; Submit</strong><small>Check one record at a time</small></span><span id="review-pending" class="review-badge" hidden aria-label="Pending records">0</span><span class="review-chevron" aria-hidden="true">⌄</span></summary>
+   <div class="review-inner">
+    <p class="review-intro">Check the details found in each file. Save only what looks right.</p>
+    <label class="review-file-label" for="review-file">Choose a file</label>
+    <div class="review-file-row"><select id="review-file" aria-label="Choose a document to review"><option value="">Loading files…</option></select><button id="review-scan" class="secondary" type="button" disabled>Find records</button></div>
+    <p id="review-feedback" class="review-feedback" role="status" aria-live="polite">Checking records…</p>
+    <div class="review-steps" id="review-steps" hidden>
+     <p class="review-counter" id="review-counter">Record 1 of 1</p>
+     <article class="review-card" id="review-card" aria-live="polite"></article>
+    </div>
+    <div class="review-empty" id="review-empty">Choose an uploaded file to see what needs review.</div>
+    <div id="review-final" role="region" aria-label="Final review and submission"></div>
+    <p class="review-note">Manager approval saves factory reference records. Stock, payroll and production still require separate approval.</p>
+   </div>
+  </details>
+  <details id="source-details" class="source-details"><summary>View source details</summary>
+   <section class="panel inspector" aria-labelledby="inspect-title"><div class="panel-head"><div><h2 id="inspect-title">Choose a file above</h2><p id="inspect-desc">See where extracted text came from.</p></div><a id="download-source" class="secondary" hidden>Download original ↓</a></div>
+    <div class="provenance"><div>File check code<strong id="inspect-sha">—</strong></div><div>Review status<strong id="inspect-readiness">Not checked</strong></div></div>
+    <div id="document-triage" class="doc-triage" aria-live="polite"><strong>Possible document purpose</strong><p>Select a file to see source-supported suggestions.</p></div>
+    <label class="search-label">Search extracted text<input type="search" id="search" placeholder="Find a word…" disabled></label>
+    <p id="evidence-message" class="evidence-message">Choose a file to see extracted text.</p><div id="segments" class="segments" aria-live="polite"></div>
+   </section>
+  </details>
+ </main>
+ <section id="aggie-chat" class="aggie-chat" role="dialog" aria-label="Chat with Aggie" aria-modal="false" hidden><div class="aggie-top"><div class="aggie-identity"><span class="aggie-chat-face" aria-hidden="true">😄</span><strong>Aggie</strong></div><button id="aggie-close" class="aggie-close" type="button" aria-label="Close Aggie chat">×</button></div><div id="aggie-messages" class="aggie-messages" role="log" aria-live="polite" aria-relevant="additions text"><p class="aggie-msg aggie-msg-bot">Hi! What would you like to know?</p></div><div class="aggie-compose"><label class="aggie-label" for="aggie-input">Ask Aggie</label><div class="aggie-compose-row"><textarea id="aggie-input" rows="2" maxlength="1000" placeholder="Type your question…"></textarea><button id="aggie-send" class="aggie-send" type="button">Send</button></div><p id="aggie-status" class="aggie-status" role="status">Sign in when asked to check records.</p></div></section>
 </body>
 </html>

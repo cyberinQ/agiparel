@@ -141,6 +141,19 @@ func main() {
 		} else {
 			db.SetMaxOpenConns(25)
 			db.SetMaxIdleConns(5)
+			// Development-only: the document store can accept uploads before the
+			// operator's factory tenant has been registered. Resolve this at startup,
+			// not after the first order encounters a foreign-key failure.
+			if os.Getenv("ENV") == "development" {
+				bootstrapCtx, bootstrapCancel := context.WithTimeout(context.Background(), 10*time.Second)
+				bootstrapErr := ensureDevelopmentOperatorTenant(bootstrapCtx, db)
+				bootstrapCancel()
+				if bootstrapErr != nil {
+					// Other offline-capable modules must remain usable; draft writes
+					// continue to fail closed until the factory account is configured.
+					log.Printf("Warning: development factory identity unavailable; buyer-order staging is blocked: %v", bootstrapErr)
+				}
+			}
 		}
 	}
 
@@ -198,6 +211,11 @@ func main() {
 	mux.HandleFunc("/api/v1/factory-onboarding/candidates", server.handleFactoryCandidates)
 	mux.HandleFunc("/api/v1/factory-onboarding/candidates/scan", server.handleFactoryCandidateScan)
 	mux.HandleFunc("/api/v1/factory-onboarding/candidates/review", server.handleFactoryCandidateReview)
+	// Gate 06.5-B5: field-by-field reviews and atomic document-level reference snapshots.
+	mux.HandleFunc("/api/v1/factory-onboarding/approvals", server.handleFactoryApprovalList)
+	mux.HandleFunc("/api/v1/factory-onboarding/approvals/pending", server.handleFactoryApprovalPending)
+	mux.HandleFunc("/api/v1/factory-onboarding/approvals/review", server.handleFactoryApprovalReview)
+	mux.HandleFunc("/api/v1/factory-onboarding/approvals/submit", server.handleFactoryApprovalSubmit)
 	mux.HandleFunc("/api/v1/factory-onboarding/proposed-register", server.handleFactoryRegisterProposals)
 	mux.HandleFunc("/api/v1/factory-onboarding/draft-masters", server.handleFactoryDraftMasters)
 	mux.HandleFunc("/api/v1/factory-onboarding/draft-masters/review", server.handleFactoryDraftReview)
