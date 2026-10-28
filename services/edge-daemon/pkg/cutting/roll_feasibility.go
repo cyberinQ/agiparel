@@ -97,7 +97,7 @@ func EvaluateRollAllocation(orderID, materialSKU, shadeBand string, pieces int, 
 			if plies > m.MaxPlies {
 				plies = m.MaxPlies
 			}
-			need := remaining / m.PiecesPerPly
+			need := (remaining + m.PiecesPerPly - 1) / m.PiecesPerPly
 			if plies > need {
 				plies = need
 			}

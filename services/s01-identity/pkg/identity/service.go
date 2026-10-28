@@ -83,15 +83,16 @@ func (s *IdentityService) EnforcePermission(ctx context.Context, tenantID, userI
 	var hasPerm bool
 	err := s.ExecuteWithTenant(ctx, tenantID, func(tx *sql.Tx) error {
 		query := `
-			SELECT EXISTS (
-				SELECT 1
-				FROM s01_identity.user_role_grants urg
-				JOIN s01_identity.role_permissions rp ON urg.role_id = rp.role_id
-				WHERE urg.user_id::text = $1
-				  AND urg.tenant_id::text = $2
-				  AND (urg.plant_id::text = NULLIF($3, '') OR urg.plant_id IS NULL)
-				  AND rp.permission = $4
-			)`
+SELECT EXISTS (
+	SELECT 1 FROM s01_identity.user_role_grants urg
+	JOIN s01_identity.users u ON u.id = urg.user_id AND u.tenant_id = urg.tenant_id
+	JOIN s01_identity.role_permissions rp ON urg.role_id = rp.role_id
+	WHERE urg.user_id::text = $1
+		AND urg.tenant_id::text = $2
+		AND u.is_active = true
+		AND (urg.plant_id::text = NULLIF($3, '') OR urg.plant_id IS NULL)
+		AND rp.permission = $4
+	);`
 		return tx.QueryRowContext(ctx, query, userID, tenantID, plantID, requiredPermission).Scan(&hasPerm)
 	})
 	if err != nil {

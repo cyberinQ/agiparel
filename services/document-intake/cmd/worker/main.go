@@ -74,8 +74,9 @@ func main() {
 		log.Fatal(e)
 	}
 	defer db.Close()
-	db.SetMaxOpenConns(3)
-	db.SetMaxIdleConns(2)
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(5 * time.Minute)
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 	log.Print("document-intake worker: ready (no external HTTP listener)")

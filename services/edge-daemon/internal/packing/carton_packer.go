@@ -64,6 +64,12 @@ func (s *CartonPackingSession) ScanItemUPC(upc string) error {
 func (s *CartonPackingSession) VerifyAndSeal(scaleWeightKg float64) error {
 	s.Lock()
 	defer s.Unlock()
+	if s.IsSealed {
+		return errors.New("ERR_CARTON_SEALED: Carton session already completed")
+	}
+	if scaleWeightKg <= 0 {
+		return errors.New("ERR_INVALID_SCALE_WEIGHT: Scale reading must be greater than zero")
+	}
 
 	for _, slot := range s.Slots {
 		if slot.PackedQty != slot.TargetQty {

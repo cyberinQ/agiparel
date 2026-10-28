@@ -125,7 +125,7 @@ func (c *CatalogInspector) ExecuteSafeSQL(ctx context.Context, query string) (st
 		return "", fmt.Errorf("RLS_CONTEXT_ERROR: %w", err)
 	}
 
-	boundedQuery := fmt.Sprintf("SELECT * FROM (%s) AS q LIMIT 100", cleanQuery)
+	boundedQuery := fmt.Sprintf("SELECT * FROM (\n%s\n) AS q LIMIT 100", cleanQuery)
 	rows, err := tx.QueryContext(queryCtx, boundedQuery)
 	if err != nil {
 		return "", fmt.Errorf("SQL_ERROR: %w", err)

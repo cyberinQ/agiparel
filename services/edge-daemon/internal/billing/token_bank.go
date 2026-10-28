@@ -11,12 +11,12 @@ import (
 )
 
 type HardwareTokenBank struct {
-	mu           sync.Mutex
-	tenantID     string
-	plantID      string
-	balance      int64
-	publicKey    ed25519.PublicKey
-	usedNonces   map[string]bool
+	mu         sync.Mutex
+	tenantID   string
+	plantID    string
+	balance    int64
+	publicKey  ed25519.PublicKey
+	usedNonces map[string]bool
 }
 
 func NewHardwareTokenBank(tenantID, plantID string, pubKey ed25519.PublicKey) *HardwareTokenBank {
@@ -73,9 +73,12 @@ func (b *HardwareTokenBank) RedeemVoucher(voucher string) (int64, error) {
 		return b.balance, errors.New("ERR_INVALID_VOUCHER_CREDITS: Credits must be a positive integer")
 	}
 
-	sigBytes, err := base64.StdEncoding.DecodeString(sigB64)
+	sigBytes, err := base64.RawURLEncoding.DecodeString(sigB64)
 	if err != nil {
-		return b.balance, err
+		sigBytes, err = base64.StdEncoding.DecodeString(sigB64)
+		if err != nil {
+			return b.balance, fmt.Errorf("ERR_INVALID_SIG_ENCODING: %w", err)
+		}
 	}
 
 	claim := []byte(fmt.Sprintf("%s:%s:%s:%s", tenant, plant, credStr, nonce))

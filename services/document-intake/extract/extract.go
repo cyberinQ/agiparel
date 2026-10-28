@@ -284,9 +284,9 @@ func parseDocx(out *Result, z *zip.Reader) error {
 			}
 		case xml.EndElement:
 			if t.Name.Local == "p" {
-				p++
 				out.add("PARAGRAPH", map[string]any{"paragraph": p}, paragraph.String())
 				paragraph.Reset()
+				p++
 			}
 		}
 	}

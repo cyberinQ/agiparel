@@ -37,6 +37,17 @@ type PlanAssessment struct {
 }
 
 func AssessWorkbook(wb *onboarding.FactoryWorkbook, poNumber string) PlanAssessment {
+	if wb == nil {
+		return PlanAssessment{
+			PONumber:      poNumber,
+			OverallStatus: LightRed,
+			Cards: []ReadinessCard{
+				{Category: "CLOTH", Status: LightRed, Headline: "Upload factory data first", Details: []string{"Workbook pointer is nil."}},
+				{Category: "MACHINES", Status: LightRed, Headline: "Machine plan not verified", Details: []string{"Workbook pointer is nil."}},
+				{Category: "WORKERS", Status: LightRed, Headline: "Worker plan not verified", Details: []string{"Workbook pointer is nil."}},
+			},
+		}
+	}
 	var targetWO onboarding.WorkOrderRow
 	for _, wo := range wb.WorkOrders {
 		if wo.PONumber == poNumber || poNumber == "" {
@@ -118,7 +129,7 @@ func evaluateCloth(wb *onboarding.FactoryWorkbook, po, styleCode string, targetC
 		if primarySKU != "" && skuUpper != primarySKU {
 			continue
 		}
-		if r.Status == "AVAILABLE" || r.ReservedOrder == po {
+		if (r.Status == "AVAILABLE" || r.Status == "RESERVED") && (r.ReservedOrder == "" || r.ReservedOrder == po) {
 			availMeters += r.LengthM
 		}
 	}

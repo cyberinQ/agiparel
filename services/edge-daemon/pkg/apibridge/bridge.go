@@ -3,6 +3,7 @@ package apibridge
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -66,11 +67,16 @@ func findVal(m map[string]string, keys ...string) string {
 			}
 		}
 	}
-	// Pass 2: Substring match in priority order of `keys`
+	// Pass 2: Substring match with deterministic key ordering
+	sortedKeys := make([]string, 0, len(m))
+	for k := range m {
+		sortedKeys = append(sortedKeys, k)
+	}
+	sort.Strings(sortedKeys)
 	for _, target := range keys {
-		for k, v := range m {
+		for _, k := range sortedKeys {
 			if strings.Contains(strings.ToLower(k), target) {
-				return strings.TrimSpace(v)
+				return strings.TrimSpace(m[k])
 			}
 		}
 	}

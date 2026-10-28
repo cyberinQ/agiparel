@@ -37,6 +37,7 @@ func CalculateCutTarget(orderID, sizeVariant string, orderQty int) (CutPlanTarge
 		MaxAllowedLays:  210,
 	}, nil
 }
+
 type SequentialBundleSpec struct {
 	SequentialBundleNo int    `json:"sequential_bundle_no"`
 	OrderID            string `json:"order_id"`
@@ -62,14 +63,14 @@ func GeneratePOSequentialBundles(orderID string, cutNo, pantPositions int, parts
 	numGroups := (totalPlies + bundleSize - 1) / bundleSize
 
 	for pant := 1; pant <= pantPositions; pant++ {
-		for _, part := range parts {
-			for g := 0; g < numGroups; g++ {
-				pStart := g*bundleSize + 1
-				pEnd := (g + 1) * bundleSize
-				if pEnd > totalPlies {
-					pEnd = totalPlies
-				}
-				count := pEnd - pStart + 1
+		for g := 0; g < numGroups; g++ {
+			pStart := g*bundleSize + 1
+			pEnd := (g + 1) * bundleSize
+			if pEnd > totalPlies {
+				pEnd = totalPlies
+			}
+			count := pEnd - pStart + 1
+			for _, part := range parts {
 				bundles = append(bundles, SequentialBundleSpec{
 					SequentialBundleNo: seq,
 					OrderID:            orderID,

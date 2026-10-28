@@ -67,12 +67,13 @@ func (e *AttachmentEngine) RegisterRule(styleID, parentPartCode, childPartCode s
 }
 
 func (e *AttachmentEngine) ValidatePair(styleID, sourceNFC, targetNFC string) error {
-	e.Lock()
-	defer e.Unlock()
-
+	if sourceNFC == targetNFC {
+		return errors.New("ERR_SELF_ATTACHMENT: Cannot attach tag to itself")
+	}
+	e.RLock()
+	defer e.RUnlock()
 	src, okSrc := e.bundleLookup[sourceNFC]
 	tgt, okTgt := e.bundleLookup[targetNFC]
-
 	if !okSrc || !okTgt {
 		return errors.New("ERR_UNREGISTERED_TAG: Tag missing from active floor pool")
 	}

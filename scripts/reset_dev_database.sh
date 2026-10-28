@@ -53,7 +53,7 @@ for f in services/core-api/migrations/[0-9][0-9][0-9][0-9]_*.sql; do
   }
   count=$((count+1))
 done
-[[ "$count" -eq 25 ]] || { echo "ERROR: expected 25 migrations, got $count"; exit 1; }
+[[ "$count" -eq 26 ]] || { echo "ERROR: expected 26 migrations, got $count"; exit 1; }
 
 # A clean database has zero application rows. Raise an error if migrations seed data.
 "${PSQL[@]}" -d agiparel_dev <<'SQL'

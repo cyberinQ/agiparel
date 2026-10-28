@@ -24,9 +24,10 @@ STRICT RULES:
 4. NEVER mention "SQL", "database", "tools", or "inference". Just give the final answer naturally.`
 
 type LLMMessage struct {
-	Role      string     `json:"role"`
-	Content   string     `json:"content"`
-	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+	Role       string     `json:"role"`
+	Content    string     `json:"content"`
+	ToolCallID string     `json:"tool_call_id,omitempty"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
 }
 
 type LLMRequest struct {
@@ -159,8 +160,14 @@ func (e *InterviewerEngine) Chat(ctx context.Context, db *sql.DB, messages []LLM
 				var args struct {
 					Query string `json:"query"`
 				}
-				_ = json.Unmarshal(tc.Function.Arguments, &args)
+				if err := json.Unmarshal(tc.Function.Arguments, &args); err != nil {
+					var rawStr string
+					if errStr := json.Unmarshal(tc.Function.Arguments, &rawStr); errStr == nil {
+						_ = json.Unmarshal([]byte(rawStr), &args)
+					}
+				}
 				fixedQuery := strings.ReplaceAll(args.Query, "active_floor_issues", "floor_issues")
+
 				out, err := inspector.ExecuteSafeSQL(ctx, fixedQuery)
 				if err != nil {
 					toolOut = fmt.Sprintf(`{"error": %q}`, err.Error())
@@ -173,8 +180,9 @@ func (e *InterviewerEngine) Chat(ctx context.Context, db *sql.DB, messages []LLM
 			}
 
 			fullMessages = append(fullMessages, LLMMessage{
-				Role:    "tool",
-				Content: toolOut,
+				Role:       "tool",
+				Content:    toolOut,
+				ToolCallID: tc.ID,
 			})
 		}
 	}
