@@ -72,3 +72,8 @@ func GetPackSimulationHTML() ([]byte, error) {
 func GetIntelSimulationHTML() ([]byte, error) {
 	return staticFS.ReadFile("static/factory_intelligence.html")
 }
+
+// Author: Sunil Jain, 2026-10-28. Restricted production evidence HMI.
+func GetIntelProductionHTML() ([]byte, error) {
+	return staticFS.ReadFile("static/factory_intelligence_production.html")
+}

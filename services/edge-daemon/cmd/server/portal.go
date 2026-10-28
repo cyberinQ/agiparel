@@ -139,8 +139,16 @@ func configuredOperatorGate(next http.Handler) http.Handler {
 		switch r.URL.Path {
 		case "/api/v1/sewing/production/observations", "/api/v1/sewing/production/completions", "/api/v1/sewing/production/completions/challenge",
 			"/api/v1/quality/production/events/challenge", "/api/v1/quality/production/events", "/api/v1/quality/production/catalog",
-            "/api/v1/packing/production/holds/challenge", "/api/v1/packing/production/holds", "/api/v1/packing/production/readiness":
+			"/api/v1/packing/production/holds/challenge", "/api/v1/packing/production/holds", "/api/v1/packing/production/readiness",
+			"/api/v1/intelligence/production/report":
 			next.ServeHTTP(w, r)
+		case "/intelligence", "/static/ux_unified.css", "/static/chapter_workflow.css",
+			"/static/factory_intelligence.css", "/static/factory_intelligence_production.js":
+			if r.Method == http.MethodGet || r.Method == http.MethodHead {
+				next.ServeHTTP(w, r)
+				return
+			}
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		default:
 			operatorAccessGate(next, "", "").ServeHTTP(w, r)
 		}

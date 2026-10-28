@@ -336,8 +336,9 @@ func main() {
 	if modules.IsEnabled("mod_sewing") {
 		registerSewProdRoutes(mux, server)
 		registerQCProdRoutes(mux, server)
-        // Packing staging reads Chapter 06/07 evidence, and never enables legacy carton actions.
-        registerPackProdRoutes(mux, server)
+		// Packing staging reads Chapter 06/07 evidence, and never enables legacy carton actions.
+		registerPackProdRoutes(mux, server)
+		registerIntelProdRoutes(mux, server)
 	}
 	if modules.IsEnabled("mod_sewing") {
 		mux.HandleFunc("/api/v1/sewing/sim/catalog", server.handleSewSimCatalog)

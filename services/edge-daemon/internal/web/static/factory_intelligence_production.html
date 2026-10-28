@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- Author: Sunil Jain, 2026-10-28. Read-only Chapter 09 production evidence console. -->
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agiparel · Factory report · Production evidence</title>
+<link rel="stylesheet" href="/static/ux_unified.css">
+<link rel="stylesheet" href="/static/chapter_workflow.css">
+<link rel="stylesheet" href="/static/factory_intelligence.css">
+<script src="/static/factory_intelligence_production.js" defer></script>
+</head><body data-ag-phase="reports" data-ag-workflow="simple">
+<main class="ag-report-main">
+<p class="ag-work-kicker">09 · FACTORY REPORT</p>
+<h1>How is work moving?</h1>
+<p class="ag-report-lead">Verified source records, limited to the plant your identity is authorized to inspect.</p>
+<p class="ag-note"><strong>Production evidence groups, not released garments.</strong> These counts do not establish worker efficiency, inventory, shipping or profit.</p>
+<ol class="ag-steps" aria-label="Report steps"><li><b>1</b>Choose period</li><li><b>2</b>See evidence</li><li><b>3</b>Check gaps</li></ol>
+<section class="card" aria-labelledby="choose-title">
+<h2 id="choose-title">Step 1 — Choose period</h2>
+<div class="ag-report-controls">
+<label for="since">From (local time)<input id="since" type="datetime-local" required></label>
+<label for="until">Until, exclusive (local time)<input id="until" type="datetime-local" required></label>
+</div>
+<details class="ag-work-extra"><summary>Authenticated manager access</summary><div class="ag-report-detail">
+<p>The identity provider must issue a short-lived, strong-authentication assertion with action <code>intelligence.read</code>, role <code>factory_manager</code>, and challenge <code>INTELLIGENCE_PROD_REPORT_V1</code>. A separately provisioned plant assignment is also required.</p>
+<label for="token">Short-lived identity assertion (never stored in browser storage)<input id="token" type="password" autocomplete="off" spellcheck="false"></label>
+<p>Manual token entry is for an access-controlled pilot; integrated enterprise SSO remains a release prerequisite.</p>
+</div></details>
+<div class="ag-report-controls"><button id="refresh" type="button">Show production evidence</button><button id="clear" type="button">Clear session view</button></div>
+<p id="status" role="status" aria-live="polite" class="ag-report-status">Choose the period, provide an authorized assertion, then load the report.</p>
+</section>
+<section class="card" aria-labelledby="progress-title">
+<h2 id="progress-title">Step 2 — See evidence</h2>
+<p id="scope" class="ag-report-note">Plant and authority will appear after authentication.</p>
+<div class="ag-report-metrics" aria-label="Authenticated production group evidence">
+<div class="ag-report-metric"><span>Sewing operation groups</span><strong id="sew">—</strong><small>Attested groups, not garment output</small></div>
+<div class="ag-report-metric"><span>QC reviewed groups</span><strong id="qc">—</strong><small>Latest independent QC review</small></div>
+<div class="ag-report-metric"><span>QC held groups</span><strong id="held">—</strong><small>Latest QC HOLD</small></div>
+<div class="ag-report-metric"><span>Current staging holds</span><strong id="stage">—</strong><small>Hold only; no carton or dispatch</small></div>
+</div>
+<details class="ag-work-extra"><summary>See all measured and missing indicators</summary><div class="ag-report-detail ag-report-scroll"><table><thead><tr><th>Indicator</th><th>Value</th><th>Evidence state</th><th>Source</th><th>Meaning</th></tr></thead><tbody id="measures"></tbody></table></div></details>
+</section>
+<section class="card" aria-labelledby="attention-title"><h2 id="attention-title">Step 3 — What needs checking?</h2>
+<ul id="notes" class="ag-report-findings"><li>Load evidence to see its limits.</li></ul>
+<p class="ag-report-note">Counts describe current source-record states of a selected sewing-completion cohort. No AI inference, employee scoring, estimated profit or unverified historical time series.</p>
+</section>
+</main></body></html>

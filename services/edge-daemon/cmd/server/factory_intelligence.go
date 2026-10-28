@@ -606,8 +606,22 @@ func serveIntelSimulation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "GET required", 405)
 		return
 	}
-	if os.Getenv("ENV") != "development" {
-		http.Error(w, "Development simulation only", 403)
+	// Production and staging show only the separately authorized group-evidence UI.
+	// Never serve rehearsal controls in production.
+	env := os.Getenv("ENV")
+	if env == "production" || env == "staging" {
+		b, e := web.GetIntelProductionHTML()
+		if e != nil {
+			http.Error(w, "View unavailable", 500)
+			return
+		}
+		portalHeaders(w)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write(b)
+		return
+	}
+	if env != "development" {
+		http.Error(w, "Factory report unavailable", 403)
 		return
 	}
 	b, e := web.GetIntelSimulationHTML()
