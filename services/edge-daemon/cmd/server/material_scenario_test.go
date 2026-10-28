@@ -135,6 +135,43 @@ func TestScenarioLimitsAndRounding(t *testing.T) {
 	}
 }
 
+func TestMaterialScenarioStageRequiresExactPreview(t *testing.T) {
+	intake := makeScenarioIntake(t)
+	src, err := buildScenario(intake, []byte(scenarioStockHeader+scenarioEligible), []byte(scenarioPrices), "stock.csv", "rates.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sha := src.Report.ScenarioSHA256
+	if !scenarioPreviewMatches(sha, sha) {
+		t.Fatal("unchanged preview must match")
+	}
+	for _, changed := range []string{"", "fake", strings.ToUpper(sha), strings.Repeat("a", 64), sha[:63]} {
+		if scenarioPreviewMatches(changed, sha) {
+			t.Fatalf("invalid preview accepted: %q", changed)
+		}
+	}
+	other, err := buildScenario(intake, []byte(scenarioStockHeader+strings.Replace(scenarioEligible, "500.000", "501.000", 1)), []byte(scenarioPrices), "stock.csv", "rates.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scenarioPreviewMatches(sha, other.Report.ScenarioSHA256) {
+		t.Fatal("changed evidence accepted")
+	}
+}
+
+func TestMaterialScenarioFactoryZeroPriceIsUnknownNotFree(t *testing.T) {
+	intake := makeScenarioIntake(t)
+	zeroRate := strings.Replace(scenarioPrices, "4.2500,USD,FACTORY", "0.0000,USD,FACTORY", 1)
+	if _, err := buildScenario(intake, []byte(scenarioStockHeader), []byte(zeroRate), "stock.csv", "rates.csv"); err == nil || !strings.Contains(err.Error(), "greater than zero") {
+		t.Fatalf("zero-price factory procurement improperly accepted: %v", err)
+	}
+	// Buyer supplied material can legitimately have no factory purchase rate.
+	buyerZero := strings.Replace(scenarioPrices, "4.2500,USD,FACTORY", "0.0000,USD,BUYER_OWNED", 1)
+	if _, err := buildScenario(intake, []byte(scenarioStockHeader), []byte(buyerZero), "stock.csv", "rates.csv"); err != nil {
+		t.Fatalf("buyer-owned 0 factory spend should remain allowed: %v", err)
+	}
+}
+
 // Run only against disposable Agiparel PostgreSQL with explicit opt-in.
 func TestMaterialScenarioPostgresPersistenceAndTenantRLS(t *testing.T) {
 	adminURL, appURL := os.Getenv("AGIPAREL_TEST_ADMIN_DATABASE_URL"), os.Getenv("AGIPAREL_TEST_APP_DATABASE_URL")

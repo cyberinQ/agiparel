@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -212,6 +213,11 @@ func buildScenario(intake intakeReport, stock, prices []byte, stockName, pricesN
 		}
 		if r[5] != "FACTORY" && r[5] != "BUYER_OWNED" {
 			return scenarioSources{}, fmt.Errorf("price row %d: procurement_owner must be FACTORY or BUYER_OWNED", i+2)
+		}
+		// An unquoted/zero factory rate is UNKNOWN, not free material.
+		// Reject it rather than publish false zero exposure or savings.
+		if r[5] == "FACTORY" && val == 0 {
+			return scenarioSources{}, fmt.Errorf("price row %d: factory unit_price must be greater than zero; obtain a sourced quote", i+2)
 		}
 		d.owner = r[5]
 		d.price = val
@@ -490,6 +496,10 @@ func (s *EdgeServer) handleMaterialScenario(w http.ResponseWriter, r *http.Reque
 		src.Report.EvidenceClass = "OPERATOR_SUBMITTED_SPREADSHEET_UNVERIFIED"
 	}
 	src.Stock, src.Prices = stock.Original, prices.Original
+	if action == "stage" && !scenarioPreviewMatches(r.FormValue("preview_sha256"), src.Report.ScenarioSHA256) {
+		http.Error(w, "Preview no longer matches the order and uploaded sheets. Check materials again before saving.", http.StatusConflict)
+		return
+	}
 	if action == "preview" {
 		writeIntakeJSON(w, 200, src.Report)
 		return
@@ -505,6 +515,19 @@ func (s *EdgeServer) handleMaterialScenario(w http.ResponseWriter, r *http.Reque
 	}
 	writeIntakeJSON(w, status, report)
 }
+
+// Stage requires the hash returned by the preview. The digest binds immutable
+// order identity/source plus original stock and rate bytes (including XLSX).
+// No state-changing request may be staged without this exact prior review.
+func scenarioPreviewMatches(provided, calculated string) bool {
+	if len(provided) != 64 || len(calculated) != 64 || provided != strings.ToLower(provided) {
+		return false
+	}
+	p, pe := hex.DecodeString(provided)
+	c, ce := hex.DecodeString(calculated)
+	return pe == nil && ce == nil && subtle.ConstantTimeCompare(p, c) == 1
+}
+
 func (s *EdgeServer) persistMaterialScenario(ctx context.Context, tenant string, src scenarioSources) (scenarioReport, bool, error) {
 	id, e := newOrderIntakeID()
 	if e != nil {

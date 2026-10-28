@@ -1,4 +1,4 @@
-// Author: Sunil Jain, 2026-10-27 — Show buyer-order demand before optional, evidence-backed sourcing calculations.
+// Author: Sunil Jain, 2026-10-28 — Bind sourcing drafts to reviewed evidence; prevent wrong-PO/race saves.
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -18,6 +18,14 @@ async function json(response) {
 const fetchData = url => fetch(url, { credentials: 'same-origin' }).then(json);
 let selected = null;
 let preview = null;
+let generation = 0; // Invalidate outdated order, evidence, and history requests.
+let pending = false;
+function invalidatePreview() {
+  generation += 1;
+  preview = null;
+  $('stage').disabled = true;
+  return generation;
+}
 function downloadExcel(name) {
   const a = document.createElement('a');
   a.href = '/static/' + name;
@@ -30,7 +38,8 @@ function line(parent, m, mode) {
   const item = add('div', '', parent, 'material-row');
   const name = add('div', '', item, 'material-name');
   add('strong', `${m.material_sku} · ${m.category}`, name);
-  add('small', mode === 'need' ? 'Saved buyer-order requirement · unverified for purchasing' : `${m.procurement_owner} · proposed`, name);
+  add('small', mode === 'need' ? 'Saved buyer-order requirement · unverified for purchasing' : (m.procurement_owner === 'BUYER_OWNED' ? 'Buyer must supply · verify delivery' : 'Factory to purchase · unapproved'), name);
+  if (mode !== 'need') add('small', `Submitted rate ${m.unit_price}/${m.uom} · ${m.price_source}`, name);
   const amounts = add('div', '', item, 'material-amounts');
   if (mode === 'need') {
     add('span', `Need: ${m.required} ${m.uom}`, amounts);
@@ -39,7 +48,8 @@ function line(parent, m, mode) {
   } else {
     add('span', `Need: ${m.gross} ${m.uom}`, amounts);
     add('span', `Potential stock: ${m.conditional_surplus} ${m.uom}`, amounts);
-    add('span', `Estimated gap: ${m.net_indent} ${m.uom}`, amounts, 'accent-value');
+    add('span', `Factory purchase gap: ${m.net_indent} ${m.uom}`, amounts, 'accent-value');
+    if (m.procurement_owner !== 'BUYER_OWNED') add('small', `Possible factory cost: ${m.net_cost}`, amounts, 'muted');
     if (m.buyer_supply_gap && Number(m.buyer_supply_gap) > 0) add('small', `Buyer-supplied gap: ${m.buyer_supply_gap} ${m.uom}`, amounts, 'muted');
   }
 }
@@ -65,10 +75,12 @@ function show(report) {
   $('gate').textContent = 'DRAFT · HOLD';
   $('need-state').textContent = `${(report.materials || []).length} material${(report.materials || []).length === 1 ? '' : 's'}`;
   $('need-sub').textContent = `${Number(report.ordered_qty).toLocaleString()} ordered pieces`;
-  $('have-state').textContent = 'Checked claims';
-  $('have-sub').textContent = 'Conditional stock, not approved';
-  $('short-state').textContent = 'See gaps below';
-  $('short-sub').textContent = 'Not an approved purchase order';
+  $('have-state').textContent = 'Claims only';
+  $('have-sub').textContent = 'Submitted sheets · not verified stores stock';
+  const factoryGaps = (report.materials || []).filter(m => m.procurement_owner !== 'BUYER_OWNED' && Number(m.net_indent) > 0).length;
+  const buyerGaps = (report.materials || []).filter(m => Number(m.buyer_supply_gap) > 0).length;
+  $('short-state').textContent = `${factoryGaps} factory / ${buyerGaps} buyer`;
+  $('short-sub').textContent = 'Lines with unmet quantities · not an approved purchase order';
   $('gross-cost').textContent = report.gross_material_cost;
   $('reuse-cost').textContent = report.conditional_reuse_value;
   $('net-cost').textContent = report.net_purchase_exposure;
@@ -102,49 +114,98 @@ async function loadOrders() {
     const option = add('option', `${order.po_number} · ${order.style_code} · ${Number(order.ordered_qty).toLocaleString()} pieces`, options);
     option.value = order.id;
   }
+  // Never silently select the latest buyer order: material purchasing is PO-specific.
   const requested = new URLSearchParams(location.search).get('intake');
-  if (requested && items.some(item => item.id === requested)) options.value = requested;
-  else if (items.length) options.value = items[0].id; // API returns latest staged intake first.
-  if (options.value) await chooseOrder();
-  else { $('order-summary').textContent = 'No saved buyer order yet. Start in Buyer Order.'; message('Save a buyer-order draft first.'); }
+  if (requested && items.some(item => item.id === requested)) {
+    options.value = requested;
+    await chooseOrder();
+  } else {
+    options.value = '';
+    $('order-summary').textContent = items.length ? 'Choose the exact buyer PO before checking material.' : 'No saved buyer order yet. Start in Buyer Order.';
+    if (requested) message('The linked buyer order was not found. Select a saved PO explicitly.', 'error');
+    else message(items.length ? 'Choose a buyer order to begin.' : 'Save a buyer-order draft first.');
+  }
 }
 async function chooseOrder() {
-  preview = null; selected = null; $('stage').disabled = true;
+  const token = invalidatePreview();
+  selected = null;
   $('results').hidden = true;
+  $('material-lines').replaceChildren();
+  $('history').textContent = 'Choose an order to see saved plans.';
   const id = $('intake').value;
-  if (!id) { $('order-summary').textContent = 'Choose a saved buyer order.'; $('material-lines').replaceChildren(); $('history').textContent = 'No order selected.'; return; }
+  if (!id) {
+    $('order-summary').textContent = 'Choose a saved buyer order.';
+    $('need-state').textContent = '—';
+    $('need-sub').textContent = 'From saved buyer order';
+    $('have-state').textContent = 'Not checked';
+    $('short-state').textContent = 'Unknown';
+    message('Choose the exact buyer order to begin.');
+    return;
+  }
+  $('order-summary').textContent = 'Loading the chosen buyer order…';
   try {
-    selected = await fetchData('/api/v1/order-intake?id=' + encodeURIComponent(id));
-    $('order-summary').textContent = `${selected.po_number} · ${selected.style_code} · ${Number(selected.ordered_qty).toLocaleString()} pieces`;
-    showNeed(selected);
-    message('Order loaded. Material demand is a draft; stock and shortage have not been checked.');
-    await refresh();
-  } catch (error) { message(error.message, 'error'); }
+    const order = await fetchData('/api/v1/order-intake?id=' + encodeURIComponent(id));
+    if (token !== generation || $('intake').value !== id) return;
+    if (order.id !== id) throw new Error('Buyer order identity mismatch. Refresh and choose again.');
+    selected = order;
+    $('order-summary').textContent = `${order.po_number} · ${order.style_code} · ${Number(order.ordered_qty).toLocaleString()} pieces`;
+    showNeed(order);
+    message('Order loaded. Confirm the uploaded stock and rate sheets belong to this PO; availability is not verified.');
+    await refresh(id, token);
+  } catch (error) {
+    if (token === generation) message(error.message, 'error');
+  }
 }
 async function evaluate(action) {
+  if (pending) return;
   const id = $('intake').value, stock = $('stock').files[0], prices = $('prices').files[0];
-  if (!selected || !id || !stock || !prices) { message('Choose a buyer order, a stock sheet, and a material-rate sheet.', 'error'); return; }
-  const form = new FormData(); form.append('intake_id', id); form.append('stock_file', stock); form.append('prices_file', prices);
+  if (!selected || selected.id !== id || !stock || !prices) {
+    message('Choose the exact buyer order, a stock sheet, and a material-rate sheet.', 'error'); return;
+  }
+  if (!Array.isArray(selected.materials) || !selected.materials.length) {
+    message('No material requirement exists for this PO. Complete the BOM in Buyer Order first.', 'error'); return;
+  }
+  if (action === 'stage' && (!preview || preview.intake !== id || preview.stock !== stock || preview.prices !== prices || !preview.sha)) {
+    message('The order or evidence changed. Check materials again before saving.', 'error'); return;
+  }
+  const token = generation;
+  const form = new FormData();
+  form.append('intake_id', id); form.append('stock_file', stock); form.append('prices_file', prices);
+  if (action === 'stage') form.append('preview_sha256', preview.sha);
+  pending = true;
   $('preview').disabled = true; $('stage').disabled = true;
   try {
-    message(action === 'preview' ? 'Checking stock claims and material costs…' : 'Saving the draft calculation…');
+    message(action === 'preview' ? 'Checking stock claims and material costs…' : 'Saving the reviewed draft calculation…');
     const result = await json(await fetch('/api/v1/material-scenario?action=' + action, { method: 'POST', credentials: 'same-origin', body: form }));
+    if (token !== generation || $('intake').value !== id || $('stock').files[0] !== stock || $('prices').files[0] !== prices) return;
+    if (result.intake_id !== id) throw new Error('The calculation belongs to a different order. Review again.');
     show(result);
     if (action === 'preview') {
-      preview = { intake: id, stock, prices };
+      if (!/^[0-9a-f]{64}$/.test(result.scenario_sha256 || '')) throw new Error('Missing evidence fingerprint; cannot save this draft.');
+      preview = { intake: id, stock, prices, sha: result.scenario_sha256 };
       $('stage').disabled = false;
-      message('Calculation ready. Check the gaps below, then save if appropriate. Nothing was reserved.', 'success');
+      message('Calculation ready. Review proposed gaps, sources and holds before saving. No stock reserved.', 'success');
     } else {
       preview = null;
-      message('Draft material plan saved. No buying or stock use has been approved.', 'success');
-      await refresh();
+      message('Draft plan saved. No buying or stock use has been approved.', 'success');
+      await refresh(id, token);
     }
-  } catch (error) { message(error.message, 'error'); } finally { $('preview').disabled = false; }
+  } catch (error) {
+    if (token === generation) {
+      preview = null;
+      $('stage').disabled = true;
+      message(error.message, 'error');
+    }
+  } finally {
+    pending = false;
+    $('preview').disabled = false;
+  }
 }
-async function refresh() {
-  if (!$('intake').value) { $('history').textContent = 'Choose a buyer order.'; return; }
+async function refresh(id = $('intake').value, token = generation) {
+  if (!id) { $('history').textContent = 'Choose a buyer order.'; return; }
   try {
-    const list = await fetchData('/api/v1/material-scenario?intake=' + encodeURIComponent($('intake').value));
+    const list = await fetchData('/api/v1/material-scenario?intake=' + encodeURIComponent(id));
+    if (token !== generation || $('intake').value !== id) return;
     const history = $('history'); history.replaceChildren();
     if (!(list.items || []).length) { history.textContent = 'No saved material plans yet.'; return; }
     for (const item of list.items) {
@@ -152,11 +213,19 @@ async function refresh() {
       add('strong', item.id, button);
       add('small', `${new Date(item.created_at).toLocaleString()} · Draft`, button);
       button.addEventListener('click', async () => {
-        try { const report = await fetchData('/api/v1/material-scenario?id=' + encodeURIComponent(item.id)); show(report); message('Saved draft loaded. Stock and purchasing remain on hold.', 'success'); }
-        catch (error) { message(error.message, 'error'); }
+        const historyToken = invalidatePreview();
+        try {
+          const report = await fetchData('/api/v1/material-scenario?id=' + encodeURIComponent(item.id));
+          if (historyToken !== generation || $('intake').value !== id) return;
+          if (report.intake_id !== id) throw new Error('Saved plan belongs to a different order.');
+          show(report);
+          message('Historical draft loaded for review. Recheck the uploaded sheets before saving a new plan.', 'success');
+        } catch (error) { if (historyToken === generation) message(error.message, 'error'); }
       });
     }
-  } catch (error) { $('history').textContent = 'Could not load previous plans: ' + error.message; }
+  } catch (error) {
+    if (token === generation) $('history').textContent = 'Could not load previous plans: ' + error.message;
+  }
 }
 $('scenario-form').addEventListener('submit', event => { event.preventDefault(); void evaluate('preview'); });
 $('stage').addEventListener('click', () => {
@@ -167,7 +236,7 @@ $('stage').addEventListener('click', () => {
 });
 $('intake').addEventListener('change', () => { void chooseOrder(); });
 for (const id of ['stock', 'prices']) $(id).addEventListener('change', () => {
-  preview = null; $('stage').disabled = true;
+  invalidatePreview();
   if (selected) { showNeed(selected); message('Files changed. Check materials before saving.'); }
 });
 $('template-stock').addEventListener('click', stockTemplate);

@@ -26,7 +26,7 @@
   <div class="plan-metrics" aria-label="Material planning status">
    <div><small>Need</small><strong id="need-state">—</strong><span id="need-sub">From saved buyer order</span></div>
    <div><small>Available</small><strong id="have-state">Not checked</strong><span id="have-sub">Only inspected, eligible stock counts</span></div>
-   <div><small>Shortage</small><strong id="short-state">Unknown</strong><span id="short-sub">Check stock before calculating</span></div>
+   <div><small>Conditional gap</small><strong id="short-state">Unknown</strong><span id="short-sub">Check stock before calculating</span></div>
   </div>
   <div id="message" class="message" role="status" aria-live="polite">Choose an order to begin.</div>
   <h3>Materials in this order</h3>
@@ -44,10 +44,10 @@
   </details>
   <section id="results" hidden aria-label="Calculated plan">
    <div class="section-heading calc-heading"><h3 id="scenario-title">Plan details</h3><span class="hold-label">Not approved</span></div>
-   <p class="support">Potential stock and costs are based on the submitted files. They do not authorize use or purchase.</p>
-   <div class="cost-line"><div><small>Estimated material spend</small><strong id="net-cost">—</strong></div><div><small>Currency</small><strong id="currency">—</strong></div></div>
+   <p class="support">Figures use unverified submitted sheets, not a live inventory balance or supplier quote. Proposed reuse and factory spend are conditional; buyer-supplied gaps are excluded from factory purchases. No approval or reservation.</p>
+   <div class="cost-line"><div><small>Possible factory purchases · unapproved</small><strong id="net-cost">—</strong></div><div><small>Currency</small><strong id="currency">—</strong></div></div>
    <details class="review-details"><summary>See stock checks, costs and reasons</summary><div class="details-body">
-    <div class="cost-line secondary-metrics"><div><small>Before possible stock reuse</small><strong id="gross-cost">—</strong></div><div><small>Potential savings</small><strong id="reuse-cost">—</strong></div></div>
+    <div class="cost-line secondary-metrics"><div><small>Factory demand before proposed reuse</small><strong id="gross-cost">—</strong></div><div><small>Conditional avoided purchase cost</small><strong id="reuse-cost">—</strong></div></div>
     <h4>Stock considered</h4><div class="table-scroll"><table><thead><tr><th>Lot / source</th><th>Material</th><th>Claimed</th><th>Potentially usable</th><th>Checks</th></tr></thead><tbody id="candidates"><tr><td colspan="5">No stock checked.</td></tr></tbody></table></div>
     <h4>Still needs checking</h4><ul id="holds"><li>Original stock evidence has not been checked.</li></ul>
     <p class="digest">Plan reference <code id="hash">—</code></p>
