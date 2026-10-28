@@ -141,7 +141,7 @@ func configuredOperatorGate(next http.Handler) http.Handler {
 			"/api/v1/quality/production/events/challenge", "/api/v1/quality/production/events", "/api/v1/quality/production/catalog",
 			"/api/v1/packing/production/holds/challenge", "/api/v1/packing/production/holds", "/api/v1/packing/production/readiness",
 			"/api/v1/intelligence/production/report",
-			"/auth/login", "/auth/callback", "/auth/logout", "/api/v1/workforce/session":
+			"/auth/login", "/auth/callback", "/auth/logout", "/api/v1/workforce/session", "/api/v1/workforce/chapter-access":
 			next.ServeHTTP(w, r)
 		case "/intelligence", "/static/ux_unified.css", "/static/chapter_workflow.css",
 			"/static/factory_intelligence.css", "/static/factory_intelligence_production.js":

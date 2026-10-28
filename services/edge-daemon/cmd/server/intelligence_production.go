@@ -163,13 +163,10 @@ func (p *intelProdAPI) identifyReporter(token string, r *http.Request) (attestat
 
 // This check runs inside the SAME RLS-scoped report transaction as all metrics.
 // The preexisting reader assignment remains an independent, mandatory second gate.
+// Kept as the chapter-09 compatibility contract; the shared policy also
+// requires workforce_identity_grants_v15 and the exact registered action.
 func workforceReportGrant(ctx context.Context, tx *sql.Tx, actor attestation.Claims) (bool, error) {
-	var granted bool
-	err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM workforce_identity_grants_v15
-       WHERE tenant_id=$1 AND plant_id=$2 AND idp_issuer=$3 AND idp_subject=$4
-       AND permission='intelligence.read' AND enabled)`,
-		actor.TenantID, actor.PlantID, actor.Issuer, actor.Subject).Scan(&granted)
-	return granted, err
+	return workforceChapterPermit(ctx, tx, actor, "intelligence.read")
 }
 
 func (p *intelProdAPI) report(w http.ResponseWriter, r *http.Request) {
@@ -223,16 +220,22 @@ func (p *intelProdAPI) report(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	if enterprise {
-		granted, err := workforceReportGrant(ctx, tx, actor)
-		if err != nil {
-			sewProdReply(w, err)
+	// A workforce grant is now mandatory for BOTH enterprise OIDC and signed
+	// pilot assertions. Session/role claims never grant permission by themselves.
+	if enterprise { // Enterprise and signed pilot actors use the same grant authority.
+		if p.workforce == nil {
+			docJSON(w, 503, map[string]string{"error": "ERR_WORKFORCE_CONFIG"})
 			return
 		}
-		if !granted {
-			docJSON(w, 403, map[string]string{"error": "ERR_WORKFORCE_GRANT_REQUIRED"})
-			return
-		}
+	}
+	granted, err := workforceReportGrant(ctx, tx, actor)
+	if err != nil {
+		sewProdReply(w, err)
+		return
+	}
+	if !granted {
+		docJSON(w, 403, map[string]string{"error": "ERR_WORKFORCE_GRANT_REQUIRED"})
+		return
 	}
 	var allowed bool
 	e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM intelligence_prod_readers_v13

@@ -126,6 +126,9 @@ func (p *packProdAPI) commit(ctx context.Context, c packProdCommand, actor attes
 		return "", false, err
 	}
 	defer tx.Rollback()
+	if err = workforceChapterRequire(ctx, tx, actor, "packing.stage"); err != nil {
+		return "", false, err
+	}
 	// Same lock as QC state-machine trigger: last-moment QC HOLD wins or fails staging.
 	_, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtext($1),hashtext('QC11:'||$2))`, actor.TenantID, c.CompletionID)
 	if err != nil {
@@ -195,6 +198,10 @@ func (p *packProdAPI) readiness(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	if err = workforceChapterRequire(ctx, tx, actor, "packing.read"); err != nil {
+		sewProdReply(w, err)
+		return
+	}
 	var authorized bool
 	err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM pack_prod_assignments_v12 WHERE tenant_id=$1 AND plant_id=$2 AND worker_subject=$3 AND role='packing_supervisor' AND enabled)`, actor.TenantID, actor.PlantID, actor.Subject).Scan(&authorized)
 	if err != nil {

@@ -367,6 +367,9 @@ func (p *sewProdAPI) persistCompletion(ctx context.Context, c sewProdCompleteCom
 		return "", false, 0, e
 	}
 	defer tx.Rollback()
+	if e = workforceChapterRequire(ctx, tx, actor, "sewing.complete"); e != nil {
+		return "", false, 0, e
+	}
 	if e = sewTxLock(ctx, tx, actor.TenantID, "PROD_COMPLETE:"+c.RouteID+":"+strconv.Itoa(c.MarkerPosition)+":"+strconv.Itoa(c.PlyGroup)); e != nil {
 		return "", false, 0, e
 	}

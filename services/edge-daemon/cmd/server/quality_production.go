@@ -156,6 +156,10 @@ func (q *qcProdAPI) commit(ctx context.Context, c qcProdCommand, actor attestati
 		return "", "", false, 0, e
 	}
 	defer tx.Rollback()
+	permission, _ := qcProdRole(c.Action)
+	if e = workforceChapterRequire(ctx, tx, actor, permission); e != nil {
+		return "", "", false, 0, e
+	}
 	// Identical lock with SQL trigger protects concurrent writers and retries.
 	_, e = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtext($1),hashtext('QC11:'||$2))`, actor.TenantID, c.CompletionID)
 	if e != nil {
@@ -251,6 +255,10 @@ func (q *qcProdAPI) catalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	if e = workforceChapterRequire(ctx, tx, actor, "quality.read"); e != nil {
+		sewProdReply(w, e)
+		return
+	}
 	// Read access also requires an enabled factory assignment, not merely a role in a JWT.
 	var authorized bool
 	e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM qc_prod_assignments_v11

@@ -192,6 +192,7 @@ func main() {
 		log.Print("[workforce-browser-v16] disabled (fail closed): missing prerequisites or invalid SSO configuration")
 	}
 	registerWorkforceBrowserRoutes(mux, server.browser)
+	registerWorkforceChapterRoutes(mux, server)
 	// Public routes are isolated; every other route requires operator access.
 	registerPublicPortal(mux)
 
