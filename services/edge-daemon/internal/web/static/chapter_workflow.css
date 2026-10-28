@@ -1,0 +1,92 @@
+/* Author: Sunil Jain, 2026-10-28
+ * Chapters 04–10: one quiet, accessible, step-by-step factory workspace.
+ * Presentation only. The shared chapter header, Aggie, data integrity and permissions are unchanged.
+ */
+body[data-ag-workflow="simple"] main {
+  width:min(100%, 1180px);
+  margin-inline:auto;
+  padding:clamp(16px,3vw,32px) clamp(14px,3vw,28px) 56px;
+}
+body[data-ag-workflow="simple"] main > h1,
+body[data-ag-workflow="simple"] main > .top h1,
+body[data-ag-workflow="simple"] main > .intro h1 {
+  font-size:clamp(26px,3vw,36px);
+  font-weight:800;
+  line-height:1.16;
+  letter-spacing:-.03em;
+  margin:4px 0 8px;
+  color:var(--ag-ink);
+}
+body[data-ag-workflow="simple"] .ag-work-kicker {
+  margin:0 0 4px;
+  font-weight:800;
+  font-size:12px;
+  letter-spacing:.095em;
+  color:var(--ag-accent);
+}
+body[data-ag-workflow="simple"] .ag-work-help {
+  font-size:14px;
+  line-height:1.5;
+  color:var(--ag-muted);
+}
+body[data-ag-workflow="simple"] .ag-steps {margin:18px 0 22px}
+body[data-ag-workflow="simple"] .ag-steps li {font-size:14px; background:#fff}
+body[data-ag-workflow="simple"] :is(.card,.panel) {
+  min-width:0;
+  background:#fff;
+  border:1px solid var(--ag-line);
+  border-radius:12px;
+  box-shadow:0 2px 8px #18324108;
+}
+body[data-ag-workflow="simple"] :is(.card,.panel) > h2 {font-size:19px}
+body[data-ag-workflow="simple"] main :is(input,select,textarea) {max-width:100%;min-height:44px}
+body[data-ag-workflow="simple"] main button {min-height:44px}
+/* File-name controls are neutral text links, not chapter primary actions. */
+body[data-ag-workflow="simple"] main button:not(.secondary):not(.green):not(.red):not(.warning):not(.danger):not(.refresh):not(.aggie-invite):not(.aggie-close):not(.file-choose):not(.file-name) {
+  background:var(--ag-accent);
+  border-color:var(--ag-accent);
+  color:#fff;
+}
+body[data-ag-workflow="simple"] :is(.ag-work-extra,.ag-work-card) {
+  min-width:0;
+  margin:14px 0;
+  border:1px solid var(--ag-line);
+  border-radius:10px;
+  background:#fff;
+  padding:0;
+}
+body[data-ag-workflow="simple"] .ag-work-extra > summary {
+  cursor:pointer;
+  display:list-item;
+  padding:12px 14px;
+  font-size:14px;
+  font-weight:700;
+  color:#355467;
+  line-height:1.5;
+}
+body[data-ag-workflow="simple"] .ag-work-extra[open] > summary {
+  border-bottom:1px solid var(--ag-line);
+}
+body[data-ag-workflow="simple"] .ag-work-extra > :not(summary) {
+  margin:12px 14px;
+}
+body[data-ag-workflow="simple"] .ag-work-extra > .card {padding:16px;margin:12px}
+body[data-ag-workflow="simple"] .ag-work-status > .ag-work-extra {margin-top:0}
+body[data-ag-workflow="simple"] .ag-note {font-weight:450}
+body[data-ag-workflow="simple"] :is(.layout,.grid,.pack-grid,.columns,.work-grid) > * {min-width:0}
+body[data-ag-workflow="simple"] :is(.scroll,.table-wrap) {overflow-x:auto}
+body[data-ag-workflow="simple"] :is(summary,button,a) {touch-action:manipulation}
+@media(max-width:800px) {
+  body[data-ag-workflow="simple"] :is(.layout,.grid,.pack-grid,.columns,.work-grid) {grid-template-columns:minmax(0,1fr)}
+  body[data-ag-workflow="simple"] :is(.wide,.sticky) {grid-column:auto;position:static}
+  body[data-ag-workflow="simple"] .ag-steps li {width:100%}
+}
+@media print {
+  body[data-ag-workflow="simple"] .ag-work-extra:not([open]) {display:none}
+}
+
+/* A single fabric-pick card, not a panel inside another decorated panel. */
+body[data-ag-workflow="simple"][data-ag-phase="stores"] .order-picks > #order-pick-planning {
+  padding:0; margin:6px 0 0; border:0; box-shadow:none;
+}
+body[data-ag-workflow="simple"][data-ag-phase="stores"] .order-picks > #order-pick-planning .panel-head {display:none}

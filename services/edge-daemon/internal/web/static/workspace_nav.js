@@ -1,125 +1,130 @@
-// Agiparel customer navigation: one guided journey, advanced tools kept available.
-// Shadow DOM isolates navigation styles from legacy operator screens.
+// Author: Sunil Jain, 2026-10-28
+// One uncluttered chapter banner (brand / previous chapter, Home, next chapter / Aggie) and WIP restoration.
+// Home alone owns the ten-chapter directory; this module never builds a chapter menu.
 (() => {
   'use strict';
-  // Chapter 01 supplies its own minimal Home + Aggie header. Keep the shared navigation contract without rendering a second header.
-  if (document.body?.dataset.agSimpleHeader === 'true') return;
-  if (document.getElementById('agiparel-workspace-navigation')) return;
-
-  const journey = [
-    { path: '/', label: 'Home', phase: 'home' },
-    { path: '/factory-setup', label: 'Factory setup', phase: 'factory' },
-    { path: '/documents', label: 'Upload files', phase: 'documents' },
-    { path: '/buyer-review', label: 'Buyer order', phase: 'buyer' },
-    { path: '/material-planning', label: 'Plan material', phase: 'material' },
-    { path: '/stores', label: 'Fabric store', phase: 'stores' },
-    { path: '/cutting', label: 'Cutting', phase: 'cutting' },
-    { path: '/sewing', label: 'Sewing', phase: 'sewing' },
-    { path: '/quality', label: 'Quality', phase: 'quality' },
-    { path: '/packing', label: 'Packing', phase: 'packing' },
-    { path: '/intelligence', label: 'Factory report', phase: 'reports' }
+  // Canonical chapter order is the same as the ten Home tiles. One source of
+  // truth for both navigation and chapter accents; aliases keep older routes working.
+  const chapters = [
+    {href:'/factory-setup', phase:'factory', name:'Factory setup'},
+    {href:'/buyer-review', phase:'buyer', name:'Buyer order'},
+    {href:'/material-planning', phase:'material', name:'Plan material'},
+    {href:'/stores', phase:'stores', name:'Fabric store'},
+    {href:'/cutting', phase:'cutting', name:'Cutting'},
+    {href:'/sewing', phase:'sewing', name:'Sewing'},
+    {href:'/quality', phase:'quality', name:'Quality'},
+    {href:'/packing', phase:'packing', name:'Packing'},
+    {href:'/intelligence', phase:'reports', name:'Factory report'},
+    {href:'/documents', phase:'documents', name:'Upload files'}
   ];
-  // Preserve specialist URLs and their existing implementations.
-  const tools = [
-    { path: '/order-intake', label: 'CSV order upload', phase: 'buyer' },
-    { path: '/planning', label: 'Line planning', phase: 'material' },
-    { path: '/plant', label: 'Floor board', phase: 'reports' },
-    { path: '/onboarding', label: 'Setup help', phase: 'factory' },
-    { path: '/sew01', label: 'Old station demo', phase: 'sewing' }
-  ];
-  const path = window.location.pathname.replace(/\/$/, '') || '/';
-  const currentIndex = journey.findIndex(item => item.path === path);
-  const current = journey[currentIndex] || tools.find(item => item.path === path) || journey[0];
-  const palette = {
-    home: '#167e88', factory: '#16869A', documents: '#28323B', buyer: '#306ccb',
-    material: '#8557bd', stores: '#b47712', cutting: '#df6b23', sewing: '#087f79',
-    quality: '#2b844b', packing: '#bb3975', reports: '#486484'
+  const aliases = {
+    '/onboarding':'/factory-setup', '/order-intake':'/buyer-review',
+    '/planning':'/material-planning', '/sew01':'/sewing',
+    '/plant':'/intelligence'
   };
-  const accent = palette[current.phase] || palette.home;
-  document.body.dataset.agPhase = current.phase;
+  const path = location.pathname.replace(/\/$/, '') || '/';
+  const canonicalPath = aliases[path] || path;
+  const currentChapterIndex = chapters.findIndex(chapter => chapter.href === canonicalPath);
+  if (currentChapterIndex < 0) return;
+  const mount = () => {
+    if (document.getElementById('agiparel-workspace-navigation')) return;
+    document.body.dataset.agPhase = chapters[currentChapterIndex].phase;
+    const sheet = document.createElement('link');
+    sheet.rel = 'stylesheet';
+    sheet.href = '/static/workspace_nav.css';
+    document.head.append(sheet);
 
-  const host = document.createElement('div');
-  host.id = 'agiparel-workspace-navigation';
-  host.setAttribute('role', 'navigation');
-  host.setAttribute('aria-label', 'Agiparel work areas');
-  const root = host.attachShadow({ mode: 'open' });
-  const css = document.createElement('style');
-  css.textContent = `
-    :host {display:block;position:sticky;top:0;z-index:1000;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#263747}
-    *,*::before,*::after {box-sizing:border-box}
-    a,button,summary {font:inherit}
-    a {text-decoration:none;color:inherit}
-    .shell {background:#fff;border-bottom:1px solid #dce3e9;box-shadow:0 2px 9px #132e4410}
-    .top {max-width:1440px;margin:auto;min-height:60px;display:flex;align-items:center;gap:15px;padding:9px 22px}
-    .brand {font-size:21px;font-weight:850;letter-spacing:-1.2px;color:#203744;white-space:nowrap}
-    .brand i {display:inline-block;width:9px;height:22px;background:${accent};border-radius:7px;margin-right:8px;vertical-align:-4px}
-    .phase {font-size:13px;font-weight:700;color:#506273;border-left:1px solid #dce3e9;padding-left:13px;min-width:0}
-    .spacer {flex:1}
-    .pager {display:flex;align-items:center;gap:8px}
-    .pager a {border:1px solid #c7d1da;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:750;white-space:nowrap;color:#2e4b5d;background:#fff}
-    .pager a.next {background:#1f5262;border-color:#1f5262;color:#fff}
-    .pager a:hover,.pager a:focus-visible {outline:2px solid ${accent};outline-offset:2px}
-    .areas {max-width:1440px;margin:auto;display:flex;gap:3px;align-items:center;padding:0 18px 9px;overflow-x:auto;scrollbar-width:thin}
-    .areas a {display:flex;gap:5px;align-items:center;white-space:nowrap;padding:8px 10px;border-radius:7px;font-size:12px;font-weight:700;color:#526476}
-    .areas a .number {font-size:10px;font-weight:850;color:#7a8998}
-    .areas a:hover,.areas a:focus-visible {background:#f1f5f7;color:#244d5d}
-    .areas a[aria-current] {background:${accent};color:#fff}
-    .areas a[aria-current] .number {color:#fff}
-    .more {position:relative;margin-left:auto;flex-shrink:0}
-    .more summary {cursor:pointer;list-style:none;border:1px solid #dbe3ea;border-radius:7px;padding:7px 11px;font-size:12px;font-weight:750;color:#3c5366;white-space:nowrap;background:#fff}
-    .more summary::-webkit-details-marker {display:none}
-    .more .menu {position:absolute;right:0;top:calc(100% + 8px);z-index:20;background:#fff;border:1px solid #d7e0e7;border-radius:10px;box-shadow:0 16px 35px #0e273526;min-width:210px;padding:7px}
-    .more .menu a {display:block;font-size:13px;padding:11px 13px}
-    .more[open] summary {border-color:${accent}}
-    .mobile-menu {display:none}
-    @media(max-width:900px){.top{padding:8px 13px;gap:9px}.brand{font-size:19px}.phase{font-size:12px}.pager a{padding:8px;font-size:12px}.areas{padding:0 9px 8px}.areas a{padding:8px}}
-    @media(max-width:620px){.phase{display:none}.pager a{font-size:11px}.areas{display:none}.mobile-menu{display:block;padding:0 12px 10px}.mobile-menu summary{cursor:pointer;background:#eef4f6;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:750}.mobile-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:8px 0}.mobile-links a{font-size:13px;padding:11px 8px;border-radius:7px}.mobile-links a[aria-current]{background:${accent};color:#fff}}
-    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
-  `;
-  root.append(css);
-  const shell = document.createElement('div'); shell.className = 'shell';
-  const top = document.createElement('div'); top.className = 'top';
-  const brand = document.createElement('a'); brand.href = '/'; brand.className = 'brand';
-  const bar = document.createElement('i'); bar.setAttribute('aria-hidden', 'true');
-  brand.append(bar, document.createTextNode('agiparel')); top.append(brand);
-  const phase = document.createElement('span'); phase.className = 'phase'; phase.textContent = current.label;
-  top.append(phase);
-  const spacer = document.createElement('span'); spacer.className = 'spacer'; top.append(spacer);
-  const pager = document.createElement('div'); pager.className = 'pager';
-  if (currentIndex > 0) addPager(pager, journey[currentIndex - 1], '← Back');
-  if (currentIndex >= 0 && currentIndex < journey.length - 1) addPager(pager, journey[currentIndex + 1], 'Next →', 'next');
-  if (currentIndex < 0) addPager(pager, journey[0], 'Home');
-  top.append(pager); shell.append(top);
-  const areas = document.createElement('nav'); areas.className = 'areas';
-  areas.setAttribute('aria-label', 'Main factory journey');
-  journey.forEach((item, i) => {
-    const link = document.createElement('a'); link.href = item.path;
-    if (item.path === path) link.setAttribute('aria-current', 'page');
-    const n = document.createElement('span'); n.className = 'number';
-    n.textContent = i === 0 ? '⌂' : String(i);
-    link.append(n, document.createTextNode(item.label)); areas.append(link);
-  });
-  const more = document.createElement('details'); more.className = 'more';
-  const summary = document.createElement('summary'); summary.textContent = 'More tools ▾'; more.append(summary);
-  const menu = document.createElement('div'); menu.className = 'menu';
-  tools.forEach(item => menu.append(linkTo(item)));
-  more.append(menu); areas.append(more); shell.append(areas);
-  const mobile = document.createElement('details'); mobile.className = 'mobile-menu';
-  const mobileSummary = document.createElement('summary'); mobileSummary.textContent = 'Work areas ▾'; mobile.append(mobileSummary);
-  const mobileLinks = document.createElement('div'); mobileLinks.className = 'mobile-links';
-  [...journey, ...tools].forEach(item => mobileLinks.append(linkTo(item)));
-  mobile.append(mobileLinks); shell.append(mobile);
-  root.append(shell);
-  function addPager(parent, item, text, extra = '') {
-    const a = document.createElement('a'); a.href = item.path; a.className = extra;
-    a.textContent = text; a.setAttribute('aria-label', `${text.replace(/[←→]/g, '').trim()}: ${item.label}`); parent.append(a);
-  }
-  function linkTo(item) {
-    const a = document.createElement('a'); a.href = item.path; a.textContent = item.label;
-    if (path === item.path) a.setAttribute('aria-current', 'page');
-    return a;
-  }
-  const mount = () => { if (!host.isConnected) document.body.prepend(host); };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, {once:true});
+    // Light DOM is intentional: Aggie's existing portal.js uses getElementById.
+    const header = document.createElement('header');
+    header.id = 'agiparel-workspace-navigation';
+    header.className = 'ag-chapter-bar';
+    const inner = document.createElement('div');
+    inner.className = 'ag-chapter-bar-inner';
+    const brand = document.createElement('a');
+    brand.href = '/'; brand.className = 'ag-chapter-brand';
+    brand.setAttribute('aria-label', 'Agiparel Home');
+    const pipe = document.createElement('span'); pipe.className = 'ag-chapter-pipe';
+    pipe.setAttribute('aria-hidden', 'true');
+    brand.append(pipe, document.createTextNode('agiparel'));
+    const actions = document.createElement('div'); actions.className = 'ag-chapter-actions';
+    // Real chapter links, not browser history: both arrows work on direct entry,
+    // refresh, and cross-chapter navigation. Endpoints omit unavailable arrows.
+    const historyGroup = document.createElement('nav');
+    historyGroup.className = 'ag-chapter-history-group';
+    historyGroup.setAttribute('aria-label', 'Chapter navigation');
+    if (currentChapterIndex > 0) {
+      const previousChapter = chapters[currentChapterIndex - 1];
+      const back = document.createElement('a');
+      back.className = 'ag-chapter-history';
+      back.href = previousChapter.href;
+      back.setAttribute('aria-label', 'Previous chapter: ' + previousChapter.name);
+      back.title = 'Previous chapter: ' + previousChapter.name;
+      back.textContent = '←';
+      historyGroup.append(back);
+    }
+    const home = document.createElement('a'); home.href = '/'; home.className = 'ag-chapter-home';
+    home.setAttribute('aria-label', 'Home'); home.title = 'Home';
+    // Outline house icon, identical on every chapter.
+    home.innerHTML = '<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>';
+    historyGroup.append(home);
+    if (currentChapterIndex < chapters.length - 1) {
+      const nextChapter = chapters[currentChapterIndex + 1];
+      const forward = document.createElement('a');
+      forward.className = 'ag-chapter-history';
+      forward.href = nextChapter.href;
+      forward.setAttribute('aria-label', 'Next chapter: ' + nextChapter.name);
+      forward.title = 'Next chapter: ' + nextChapter.name;
+      forward.textContent = '→';
+      historyGroup.append(forward);
+    }
+    actions.append(historyGroup);
+    let aggie = document.getElementById('aggie-open');
+    const hasExistingAggie = Boolean(aggie && document.getElementById('aggie-chat'));
+    if (!aggie) {
+      aggie = document.createElement('button'); aggie.type = 'button';
+      aggie.id = 'aggie-open'; aggie.className = 'aggie-invite';
+      aggie.setAttribute('aria-controls', 'aggie-chat'); aggie.setAttribute('aria-expanded', 'false');
+    }
+    // Keep exactly the same label and icon on every chapter, even when a
+    // legacy chapter supplied the button. Reparenting preserves its listeners.
+    aggie.classList.add('aggie-invite');
+    aggie.setAttribute('aria-controls', 'aggie-chat');
+    const face = document.createElement('span'); face.className = 'aggie-face';
+    face.setAttribute('aria-hidden', 'true'); face.textContent = '😄';
+    const label = document.createElement('span'); label.textContent = 'Aggie';
+    aggie.replaceChildren(face, label);
+    actions.append(aggie);
+    inner.append(brand, actions); header.append(inner);
+    document.body.prepend(header);
+
+    // The chapter footer is exactly the Home footer's three-part structure.
+    // It is presentation only; it does not claim authorization or change records.
+    const footer = document.createElement('footer');
+    footer.id = 'agiparel-workspace-footer';
+    footer.className = 'ag-chapter-footer';
+    const footerBrand = document.createElement('strong');
+    footerBrand.textContent = 'agiparel';
+    const powered = document.createElement('span');
+    powered.textContent = 'Empowered by CyberinQ.';
+    const privacy = document.createElement('span');
+    privacy.textContent = 'Customer Records are Private, Secured and Encrypted.';
+    footer.append(footerBrand, powered, privacy);
+    document.body.append(footer);
+    if (!hasExistingAggie) {
+      const panel = document.createElement('section');
+      panel.id = 'aggie-chat'; panel.className = 'aggie-chat ag-shared-chat';
+      panel.hidden = true; panel.setAttribute('role', 'dialog');
+      panel.setAttribute('aria-label', 'Chat with Aggie'); panel.setAttribute('aria-modal', 'false');
+      // Static, reviewed markup only; conversation responses always use textContent in portal.js.
+      panel.innerHTML = '<div class="aggie-top"><div class="aggie-identity"><span class="aggie-chat-face" aria-hidden="true">😄</span><strong>Aggie</strong><span class="aggie-bot-note">Factory helper</span></div><button type="button" id="aggie-close" class="aggie-close" aria-label="Close Aggie chat">×</button></div><div id="aggie-messages" class="aggie-messages" role="log" aria-live="polite"><p class="aggie-msg aggie-msg-bot">Hi! What would you like to know?</p></div><div class="aggie-compose"><label for="aggie-input">Ask Aggie</label><div class="aggie-compose-row"><textarea id="aggie-input" rows="2" maxlength="1000" placeholder="Type your question…"></textarea><button id="aggie-send" type="button">Send</button></div><p id="aggie-status" role="status">Operational decisions still require approval.</p></div>';
+      document.body.append(panel);
+      // Pages 03 and 04 already own a working Aggie and load portal.js themselves.
+      const script = document.createElement('script'); script.src = '/static/portal.js';
+      document.head.append(script);
+    }
+    const draft = document.createElement('script'); draft.src = '/static/workspace_draft.js';
+    document.head.append(draft);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, {once: true});
   else mount();
 })();

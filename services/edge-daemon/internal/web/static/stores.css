@@ -26,3 +26,67 @@
 /* Batch 07D: order-to-roll pick suggestions, never authorization. */
 .pick-results{display:grid;gap:14px;margin-top:20px}.pick-material{border:1px solid #dce5f1;background:#fbfdff;border-radius:12px;padding:20px}.pick-material h3{font-size:16px;margin:0 0 12px}.pick-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.pick-metrics div{padding:12px;background:#f0f5ff;border-radius:9px}.pick-metrics b{display:block;font-size:22px;color:#254776}.pick-metrics span{font-size:10px;color:#637994}.pick-rolls,.pick-holds{margin:12px 0 0;padding-left:18px;font-size:12px;color:#61768d;line-height:1.75}.pick-rolls b{color:#24476d}.pick-holds{color:#94611f}.pick-history-item{border:1px solid #e0e7f2;background:#fff;border-radius:8px;padding:13px;margin:9px 0}.pick-history-item button{background:none;color:#205cb8;border:0;text-decoration:underline;padding:5px 0;font-size:12px}.pick-history-item small{display:block;color:#7d8ca0;font-size:11px;line-height:1.5;margin-top:4px}.pick-results .empty{text-align:left;padding:18px 4px}.pick-notice{font-size:12px;line-height:1.6;color:#856122;background:#fff9ec;border:1px solid #f2dfb7;border-radius:9px;padding:12px 15px}
 @media(max-width:650px){.pick-metrics{grid-template-columns:1fr}}
+
+/* Author: Sunil Jain, 2026-10-27 — Chapter 04 progressive-disclosure visual system. */
+:root{--ink:#293021;--accent:#a87a25;--accent-soft:#fff8e9;--border:#e7e4dc;--muted:#686f71;font-size:16px;color:var(--ink);background:#faf9f6}
+body{background:#faf9f6;color:var(--ink);font-size:16px}
+a{color:#886017}
+.store-top{min-height:66px;padding:12px max(20px,calc((100vw - 1120px)/2));background:white;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:20px}
+.store-brand{color:#282f27;font-size:23px;font-weight:850;letter-spacing:-.8px;text-decoration:none}.brand-symbol{color:var(--accent);margin-right:6px}
+.store-top nav{display:flex;align-items:center;gap:22px}.store-top nav>a{font-weight:700;color:#565d56;font-size:14px}
+.store-top .aggie-invite{display:inline-flex;align-items:center;gap:8px;border:0;background:transparent;color:#47796c;font-size:15px;font-weight:800;min-height:46px}
+.store-top .aggie-face{font-size:25px}
+main{max-width:1160px;margin:auto;padding:35px 20px 70px}
+.intro{margin-bottom:25px}.chapter-label,.eyebrow{font-weight:850;font-size:12px;letter-spacing:1.2px;color:var(--accent)}
+.intro h1{font-size:clamp(32px,4vw,48px);letter-spacing:-1.7px;margin:9px 0 12px;line-height:1.12}
+.intro p{color:var(--muted);font-size:17px;line-height:1.5;margin:0}
+.store-snapshot{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:22px 0}
+.store-snapshot>div{border:1px solid var(--border);background:white;border-radius:13px;padding:18px 20px}
+.store-snapshot span{display:block;color:#656d67;font-size:13px}.store-snapshot strong{display:block;font-size:30px;margin-top:4px;line-height:1.15}
+.safety-note{background:var(--accent-soft);border-left:3px solid var(--accent);padding:13px 16px;margin:0 0 22px;font-size:14px;color:#70511c;line-height:1.5;border-radius:6px}
+.work-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:20px;align-items:start}
+.panel{background:white;border:1px solid var(--border);border-radius:14px;padding:24px;box-shadow:none;min-width:0}
+.section-head{display:flex;justify-content:space-between;align-items:start;gap:12px}.section-head h2{font-size:22px;letter-spacing:-.5px;margin:7px 0}
+.section-head a{font-size:13px;font-weight:750}.sub{font-size:14px;line-height:1.55;color:var(--muted);margin:5px 0 20px}
+label{font-size:14px;color:#3e4940;margin-bottom:13px}input,select,textarea{min-height:45px;padding:10px 12px;font-size:16px;border-color:#c7cdc7;border-radius:8px;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid #ebd8b1;border-color:var(--accent)}label small,.form-foot small{font-size:12px;color:var(--muted)}
+.form-grid{gap:11px}.form-foot{flex-wrap:wrap}.form-foot button,.action-button{background:var(--accent);color:white;border:0;border-radius:9px;min-height:46px;font-size:14px}
+.message{background:#f4f4ee;color:#4d5b55;font-size:13px;line-height:1.6}.roll-list{max-height:780px}.roll{background:white;border-color:var(--border);padding:14px}
+.roll-top strong{font-size:15px}.roll-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.roll-grid span{font-size:11px}.roll-grid b{font-size:13px}
+.roll-footer{line-height:1.6}.roll:hover,.roll:focus-visible{border-color:var(--accent);box-shadow:0 0 0 2px #f3e4c7}
+.quiet-details{margin-top:16px}.quiet-details>summary{list-style:none;cursor:pointer;display:flex;flex-direction:column;gap:5px;color:#343d36;font-weight:800;font-size:17px;min-height:45px;justify-content:center}
+.quiet-details>summary::-webkit-details-marker{display:none}.quiet-details>summary::after{content:'+';font-weight:400;color:var(--accent);font-size:27px;position:absolute;right:24px;top:16px}.quiet-details[open]>summary::after{content:'−'}
+.quiet-details>summary small{font-size:13px;font-weight:450;color:var(--muted);padding-right:30px;line-height:1.5}
+.quiet-details{position:relative}.quiet-details[open]>summary{border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:16px}.details-content{min-width:0}
+.order-picks{margin-top:20px}.order-picks>#order-pick-planning{background:transparent;padding:0;border:0;box-shadow:none;margin:0}
+.order-picks #order-pick-planning>.panel-head{display:none}.order-picks #order-pick-planning>.review-columns{gap:16px}
+.review-pane{padding:18px;background:#fafaf8;border:1px solid var(--border)}.review-pane h3{font-size:16px}
+.refresh{background:#faf8f2;border:1px solid #dfd3be;color:#7e5a1b;min-height:43px;font-size:13px}
+.review-history{max-height:310px}.action-button{min-height:46px;font-size:14px}
+.pick-material,.compare-card,.admission-card,.revision,.reservation-line{background:#fff;border:1px solid var(--border)}
+.pick-metrics div{background:var(--accent-soft)}.pick-metrics b{font-size:20px;color:#795716}
+.additional-checks{display:grid;gap:12px;margin-top:20px}.additional-checks>.panel{padding:18px 24px;margin:0}
+.additional-checks .details-content>section.panel{padding:0;border:0;box-shadow:none;background:transparent;margin:0}
+.additional-checks .details-content .panel-head h2{font-size:18px}
+.additional-checks .details-content .bottom>p{font-size:13px}
+.additional-checks .details-content .review-columns{margin-top:16px}
+.ledger-stats{display:flex;flex-wrap:wrap;gap:15px;margin-top:15px;font-size:13px;color:#576258}.ledger-stats strong{font-size:18px;color:#262f29}
+.final-guard{font-size:13px;color:var(--muted);margin:20px 0;line-height:1.6}
+.chapter-next{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:30px;border-top:1px solid var(--border);padding-top:24px}.chapter-next a{font-weight:750;font-size:14px}
+/* Aggie; same guarded /api/v1/aggie/chat integration as factory home. */
+.aggie-chat[hidden]{display:none!important}.aggie-chat{position:fixed;z-index:40;right:18px;bottom:18px;width:min(390px,calc(100vw - 20px));height:min(540px,calc(100dvh - 24px));display:flex;flex-direction:column;background:white;border:1px solid #bfd7d9;border-radius:16px;box-shadow:0 16px 50px #132e4140;overflow:hidden}
+.aggie-top{display:flex;align-items:center;justify-content:space-between;background:#e7f6f3;padding:10px 14px}.aggie-identity{display:flex;align-items:center;gap:9px}.aggie-chat-face{font-size:26px}.aggie-bot-note{font-size:12px;color:#59717b}.aggie-close{border:0;background:transparent;min-width:44px;min-height:44px;font-size:30px}
+.aggie-messages{flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:11px}.aggie-msg{white-space:pre-wrap;overflow-wrap:anywhere;border-radius:12px;padding:10px 13px;margin:0;max-width:94%;font-size:15px;line-height:1.5}.aggie-msg-bot{align-self:flex-start;background:#eaf5f3}.aggie-msg-user{align-self:flex-end;background:#176c72;color:white}
+.aggie-compose{padding:12px 14px 10px;border-top:1px solid #dce8e9}.aggie-label{display:block;margin-bottom:4px}.aggie-compose-row{display:flex;gap:9px;align-items:flex-end}.aggie-compose textarea{flex:1;min-width:0;min-height:60px;font-size:16px}.aggie-send{background:#176c72;color:white;min-width:66px;min-height:46px;border:0;border-radius:8px}.aggie-status{font-size:12px;color:#627781;margin:7px 0 0}
+@media(max-width:900px){.work-grid{grid-template-columns:1fr}.roll-list{max-height:480px}.order-picks .review-columns{grid-template-columns:1fr}}
+@media(max-width:610px){main{padding:22px 12px 60px}.store-top{padding:10px 14px}.store-top nav{gap:10px}.store-top nav>a{font-size:12px}.store-top .aggie-invite{font-size:13px}.store-snapshot>div{padding:14px 12px}.store-snapshot strong{font-size:25px}.store-snapshot span{font-size:11px}.panel{padding:17px}.additional-checks>.panel{padding:15px 18px}.quiet-details>summary::after{right:16px}.chapter-next{align-items:flex-start;flex-direction:column}.pick-metrics{grid-template-columns:1fr}.review-pane{padding:13px}.roll-grid{grid-template-columns:1fr 1fr}}
+.heading-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.heading-actions a{white-space:nowrap}
+@media(max-width:610px){.heading-actions{justify-content:flex-end}.section-head{flex-wrap:wrap}}
+
+/* Author: Sunil Jain, 2026-10-28 — Restrained Home-style header; no chapter pager or duplicate chapter menu. */
+body[data-ag-phase="stores"]{background:#f6f8fa}
+.store-top{min-height:70px}
+.store-brand{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:22px;letter-spacing:-1.1px;color:#203744}
+.store-top nav{gap:18px}
+.store-top nav>a{color:#506273}
+@media(max-width:610px){.store-top{min-height:64px}.store-top nav{display:flex;gap:10px}.store-top nav>a{font-size:13px}}

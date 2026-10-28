@@ -1,38 +1,44 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Author: Sunil Jain, 2026-10-28 — Chapter 07 simple quality steps; repair separation preserved. -->
 <title>Agiparel · Quality and finishing</title>
 <style>
 :root{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#f3f6fa;color:#192a42}*{box-sizing:border-box}body{margin:0}main{max-width:1360px;margin:auto;padding:26px 22px 60px}h1{font-size:27px;margin:8px 0 3px}h2{font-size:18px;margin:0 0 14px}p{line-height:1.45}.muted{color:#516782;font-size:13px}.banner{background:#fff4df;border:1px solid #e8b352;color:#734e05;padding:15px;border-radius:10px;font-weight:650;margin:16px 0 20px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{border:1px solid #dae3ef;background:white;padding:21px;border-radius:12px}.wide{grid-column:1/-1}label{font-size:12px;color:#354a66;font-weight:800;display:block;margin:12px 0 5px}input,select{width:100%;background:white;border:1px solid #b8c9dd;border-radius:7px;min-height:40px;padding:9px;font:inherit;font-size:14px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}button{border:1px solid #244c81;background:#245ec9;color:white;border-radius:7px;padding:10px 13px;font-weight:750;cursor:pointer;font-size:13px}button:disabled{opacity:.5;cursor:not-allowed}.secondary{background:white;color:#265286;border-color:#b7cbe4}.red{background:#ac3f37;border-color:#ac3f37}.green{background:#167753;border-color:#167753}.actions{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}.info{background:#eef5ff;color:#204b79;padding:11px;border-radius:7px;font-size:13px;white-space:pre-wrap}.error{background:#fff0ee;color:#922b22}.ok{background:#e5f5ed;color:#116b49}.mono{font-family:ui-monospace,Menlo,monospace;overflow-wrap:anywhere;font-size:12px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px;text-align:left;border-bottom:1px solid #e7edf5}th{color:#526982}tr[data-serial]{cursor:pointer}tr[data-serial]:hover{background:#eef4ff}.selected{background:#e6f0ff}.badge{display:inline-block;padding:3px 7px;border-radius:12px;background:#f1e6d3;color:#765100;font-weight:800;font-size:10px}.small{font-size:12px}.stat{font-size:23px;font-weight:800}.metrics{display:flex;gap:35px;flex-wrap:wrap}.step{font-size:12px;padding:5px 8px;margin:3px;border-radius:5px;display:inline-block;background:#e8eef6}.step.done{background:#d6f4e5}@media(max-width:900px){.grid,.two{grid-template-columns:1fr}.wide{grid-column:auto}}
 </style><script src="/static/workspace_nav.js" defer></script><link rel="stylesheet" href="/static/ux_unified.css">
+
+<link rel="stylesheet" href="/static/chapter_workflow.css">
 </head>
-<body data-ag-phase="quality"><main>
-<h1>Quality check and finishing</h1>
-<p class="muted">Check each piece. Hold defects, fix them, and finish good pieces.</p>
+<body data-ag-workflow="simple" data-ag-phase="quality"><main>
+<p class="ag-work-kicker">07 · QUALITY</p><h1>Check each piece.</h1>
+<p class="muted">Find a problem? Hold the piece so it can be fixed and checked again. Need finished sewing? <a href="/sewing">See sewing work</a>.</p>
 <p class="ag-note"><strong>Demo mode:</strong> Button taps stand in for scans and checks. A passed test piece is not approved finished stock.</p>
+<ol class="ag-steps" aria-label="Quality steps"><li><b>1</b>Choose a piece</li><li><b>2</b>Check it</li><li><b>3</b>Finish and tag it</li></ol>
 <div class="grid">
-<section class="card"><h2>Step 1 — Choose a sewn piece</h2>
+<section class="card"><h2>Step 1 — Choose a piece</h2>
 <div class="two"><div><label for="lay">Sewing order</label><select id="lay"><option value="">Loading…</option></select></div><div><label for="plant">Plant</label><input id="plant" value="SIM-PLANT-01"></div></div>
 <div class="actions"><button id="reload" class="secondary">Refresh pieces</button></div>
 <p class="muted" id="sourceStatus">No simulated sewing output selected.</p>
 <label for="serial">Piece number</label><select id="serial"><option value="">Choose garment</option></select>
 <div class="actions"><button id="enroll">Record piece arrival</button></div>
 <p class="mono" id="garmentInfo"></p></section>
-<section class="card"><h2>Step 2 — Choose finishing jobs</h2>
+<section class="card"><h2>Set up finishing for this style</h2>
 <label for="profile">Finishing steps for this style</label><select id="profile"><option value="WOVEN_STANDARD">Woven · trim → press</option><option value="WASH_FINISH">Wash · wash → dry → press → trim</option><option value="HANGER_FINISH">Hanger · trim → press → hanger</option><option value="KNIT_FOLD">Knit · trim → press → fold</option></select>
 <div class="actions"><button id="setRoute" class="secondary">Save demo finishing steps</button></div><p class="muted">Check the tech pack before setting up real finishing.</p>
 <div id="routeSteps"></div><p id="routeInfo" class="muted"></p></section>
-<section class="card"><h2>Step 3 — Check the piece</h2>
-<div class="two"><div><label for="actor">Checker or repair worker</label><input id="actor" value="QC-INSPECTOR-01"></div><div><label for="station">Station</label><input id="station" value="QC-STATION-01"></div></div>
-<label for="defect">Defect found</label><input id="defect" value="STITCH_DEFECT" maxlength="64">
-<div class="actions"><button id="pass" class="green">Pass check</button><button id="fail" class="red">Hold this piece</button><button id="repair" class="secondary">Mark repair done</button><button id="repass" class="green">Pass recheck</button><button id="refail" class="red">Hold after recheck</button></div>
+<section class="card"><h2>Step 2 — Check the piece</h2>
+<details class="ag-work-extra"><summary>Checker and station details</summary><div class="two"><div><label for="actor">Checker or repair worker</label><input id="actor" value="QC-INSPECTOR-01"></div><div><label for="station">Station</label><input id="station" value="QC-STATION-01"></div></div>
+</details>
+<label for="defect">Problem found (if any)</label><input id="defect" value="STITCH_DEFECT" maxlength="64">
+<div class="actions"><button id="pass" class="green">Pass check</button><button id="fail" class="red">Hold this piece</button></div>
+<details class="ag-work-extra"><summary>Repair or check a held piece again</summary><p class="muted">The repair worker and rechecker must be different people.</p><div class="actions"><button id="repair" class="secondary">Mark repair done</button><button id="repass" class="green">Pass recheck</button><button id="refail" class="red">Hold after recheck</button></div></details>
 <p class="muted">A different person must repair the piece. Another checker must check it again.</p></section>
-<section class="card"><h2>Step 4 — Finish and add buyer tag</h2>
+<section class="card"><h2>Step 3 — Finish and add the buyer tag</h2>
 <div class="actions"><button id="finish">Mark next finishing job done</button></div><p class="muted" id="finishInfo">Awaiting QC acceptance and route.</p>
 <div class="two"><div><label for="style">Buyer style code</label><input id="style" placeholder="Exact PO style code"></div><div><label for="size">Garment size</label><input id="size" placeholder="Size from source"></div></div>
 <label for="buyer">Buyer tag number</label><input id="buyer" placeholder="BUYER-GARMENT-0001">
 <div class="actions"><button id="bind" class="secondary">Save buyer tag number</button></div><p class="muted">Check style and size against the buyer PO. Each buyer tag number can belong to one piece only.</p></section>
-<section class="card wide"><h2>Step 5 — Quality work list</h2>
+<section class="card wide"><h2>Saved quality work</h2>
 <div id="metrics" class="metrics"></div><div class="actions"><button id="retry" class="secondary">Try sending again</button><button id="discard" class="secondary">Clear unsent tap</button></div><p class="muted" id="pendingInfo"></p><p id="feedback" class="info" role="status">Choose a sewing order with finished demo pieces.</p>
-<div style="overflow-x:auto"><table><thead><tr><th>Garment serial</th><th>Color / size</th><th>QA state</th><th>Defect</th><th>Finished</th><th>Buyer identity</th></tr></thead><tbody id="units"></tbody></table></div>
+<details class="ag-work-extra"><summary>See each piece and its check result</summary><div style="overflow-x:auto"><table><thead><tr><th>Garment serial</th><th>Color / size</th><th>QA state</th><th>Defect</th><th>Finished</th><th>Buyer identity</th></tr></thead><tbody id="units"></tbody></table></div></details>
 <p class="muted">A held piece stays on hold until it is repaired and checked again. Other good pieces can move on.</p></section>
 </div></main><script src="/static/quality_execution.js" defer></script></body></html>

@@ -1,5 +1,5 @@
-// Author: Sunil Jain, 2026-10-27
-// Test document preflight rejection, Office macro detection, benign apparel images, and AV failures.
+// Author: Sunil Jain, 2026-10-28 — Test development-only XLS retention and active-content rejection.
+// Test document preflight allowing inert garment evidence while rejecting executable payloads.
 package main
 
 import (
@@ -42,7 +42,14 @@ func TestDocumentSafetyPreflight(t *testing.T) {
 	macro := makeOffice(t, map[string]string{"xl/workbook.xml": "<workbook/>", "xl/vbaProject.bin": "macro"})
 	link := makeOffice(t, map[string]string{"word/document.xml": "<document/>", "word/_rels/document.xml.rels": `<Relationships><Relationship TargetMode = "External" Target="https://example.org/size-chart"/></Relationships>`})
 	workbookLink := makeOffice(t, map[string]string{"xl/workbook.xml": "<workbook/>", "xl/externalLinks/externalLink1.xml": "<externalLink/>", "xl/_rels/workbook.xml.rels": `<Relationships><Relationship TargetMode="External" Target="https://example.org/catalog"/></Relationships>`})
-	localLink := makeOffice(t, map[string]string{"xl/workbook.xml": "<workbook/>", "xl/_rels/workbook.xml.rels": `<Relationships><Relationship TargetMode="External" Target="file:///etc/passwd"/></Relationships>`})
+	localLink := makeOffice(t, map[string]string{"xl/workbook.xml": "<workbook/>", "xl/_rels/workbook.xml.rels": `<Relationships><Relationship TargetMode="External" Target="file:///etc/passwd" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"/></Relationships>`})
+	localExcelBook := makeOffice(t, map[string]string{"xl/workbook.xml": "<workbook/>", "xl/externalLinks/externalLink1.xml": "<externalLink><externalBook/></externalLink>", "xl/externalLinks/_rels/externalLink1.xml.rels": `<Relationships><Relationship TargetMode="External" Target="file:///C:/supplier/measurements.xlsx" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath"/></Relationships>`})
+	activeTemplate := makeOffice(t, map[string]string{"word/document.xml": "<document/>", "word/_rels/document.xml.rels": `<Relationships><Relationship TargetMode="External" Target="https://example.org/template.dotm" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/attachedTemplate"/></Relationships>`})
+	activeDDE := makeOffice(t, map[string]string{"xl/workbook.xml": "<workbook/>", "xl/externalLinks/externalLink1.xml": "<externalLink><ddeLink/></externalLink>"})
+	legacy := make([]byte, 512)
+	copy(legacy, []byte{0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1})
+	legacy[28] = 0xfe; legacy[29] = 0xff
+	binary.LittleEndian.PutUint16(legacy[30:32], 9)
 	// Magic-byte valid PNG, not a content classifier: swimsuit and underwear photography are permitted.
 	png := append([]byte{137, 80, 78, 71, 13, 10, 26, 10}, bytes.Repeat([]byte{0}, 24)...)
 	for _, x := range []struct {
@@ -60,17 +67,45 @@ func TestDocumentSafetyPreflight(t *testing.T) {
 		{"spoofed.xlsm", macro, false},
 		{"external.docx", link, true},
 		{"linked-workbook.xlsx", workbookLink, true},
+		{"linked-local-workbook.xlsx", localExcelBook, true},
+		{"active-template.docx", activeTemplate, false},
+		{"dangerous-dde.xlsx", activeDDE, false},
 		{"local-file-link.xlsx", localLink, false},
 		{"active.pdf", []byte("%PDF-1.5\n<</OpenAction <</S /J#53>>>>"), false},
 		{"active2.pdf", []byte("%PDF-1.4\n<</JavaScript 1 0 R>>"), false},
+		{"static-acroform.pdf", []byte("%PDF-1.7\n<</AcroForm <</XFA 9 0 R>> /SubmitForm (Printed instructions) >>"), true},
+		{"active-submit.pdf", []byte("%PDF-1.7\n<</S /SubmitForm /F (https://example.com)>>"), false},
+		{"active-import.pdf", []byte("%PDF-1.7\n<</S /ImportData /F (file:///etc/passwd)>>"), false},
+		{"tech-pack-attachments.pdf", []byte("%PDF-1.7\n<</Names <</EmbeddedFiles 5 0 R>> /EF 1 0 R>>"), true},
+		{"stream-false-positive.pdf", []byte("%PDF-1.7\n<</Length 19>>stream\n/JS /XFA /JavaScript\nendstream"), true},
 		{"program.exe", []byte("MZabcdef"), false},
 		{"disguised.png", xlsx, false},
 		{"unknown.svg", []byte(`<svg onload="alert(1)"></svg>`), false},
-		{"old.xls", []byte{0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1}, false}, // No AV: legacy binaries stay blocked.
+		{"old.xls", legacy, true}, // Storage only in development; worker marks unsupported.
+		{"truncated.xls", legacy[:8], false},
 	} {
 		e := checkDocumentSafety(ctx, x.name, x.data)
 		if (e == nil) != x.allowed {
 			t.Errorf("%s: allowed=%t err=%v", x.name, x.allowed, e)
+		}
+	}
+}
+
+// Legacy binary workbooks can be retained only in explicit development mode.
+// Production and unset environments must not bypass antivirus.
+func TestLegacyXLSStorageOnlyDevelopmentGate(t *testing.T) {
+	legacy := make([]byte, 512)
+	copy(legacy, []byte{0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1})
+	legacy[28] = 0xfe; legacy[29] = 0xff
+	binary.LittleEndian.PutUint16(legacy[30:32], 9)
+	t.Setenv("AGIPAREL_CLAMD_ADDR", "")
+	for _, mode := range []struct { env string; allowed bool }{
+		{"development", true}, {"production", false}, {"", false}, {"staging", false},
+	} {
+		t.Setenv("ENV", mode.env)
+		err := checkDocumentSafety(context.Background(), "sample.xls", legacy)
+		if (err == nil) != mode.allowed {
+			t.Errorf("ENV=%q allowed=%t err=%v", mode.env, mode.allowed, err)
 		}
 	}
 }
@@ -202,8 +237,10 @@ func TestPDFNavigationVersusActivePayloads(t *testing.T) {
 	}{
 		{"page-navigation", "%PDF-1.7\n<</OpenAction [3 0 R /Fit]>>", false},
 		{"js-escaped", "%PDF-1.7\n<</OpenAction <</S /J#53>>>>", true},
-		{"embedded-file", "%PDF-1.7\n<</Names <</EmbeddedFiles 5 0 R>>>>", true},
+		{"embedded-file", "%PDF-1.7\n<</Names <</EmbeddedFiles 5 0 R>>>>", false},
 		{"launch", "%PDF-1.7\n<</S /Launch>>", true},
+		{"metadata-string", "%PDF-1.7\n<</Title (Code /JS not executable) >>", false},
+		{"font-stream", "%PDF-1.7\n<</Length 21>>\nstream\n/JavaScript /JS /XFA\nendstream", false},
 	} {
 		if got := unsafePDF([]byte(tc.pdf)); got != tc.blocked {
 			t.Errorf("%s: blocked=%v, want %v", tc.name, got, tc.blocked)

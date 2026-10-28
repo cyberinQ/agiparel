@@ -1,4 +1,4 @@
-// Author: Sunil Jain, 2026-10-25 — Repair planning API compilation and database readiness.
+// Author: Sunil Jain, 2026-10-28 — Register protected spreadsheet preview alongside existing planning APIs.
 package main
 
 import (
@@ -240,6 +240,7 @@ func main() {
 	// Batch 07D: buyer-PO/BOM to surplus-first tentative roll picks; NEVER reserve or issue here.
 	mux.HandleFunc("/api/v1/stores/pick-proposals", server.handleStoresPickProposals)
 	mux.HandleFunc("/api/v1/order-intake", server.handleOrderIntake)
+	mux.HandleFunc("/api/v1/tabular-preview", server.handleTabularPreview)
 	mux.HandleFunc("/api/v1/buyer-review", server.handleBuyerReview)
 	mux.HandleFunc("/buyer-review", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -1022,22 +1023,38 @@ func (s *EdgeServer) handleAgieChat(w http.ResponseWriter, r *http.Request) {
 		reply, err := groundedOperationalReply(r.Context(), s.db, intent)
 		if err != nil {
 			log.Printf("[AGIE] Operational query failed: %v", err)
-			http.Error(w, "Verified factory records are unavailable. Please check the database connection.", http.StatusServiceUnavailable)
+			writeAgieServiceError(w, "records_unavailable", "Factory records are not available right now.")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"reply": reply, "source": "live_postgresql"})
 		return
 	}
-	reply, err := s.interviewer.Chat(r.Context(), s.db, req.Messages)
+	// Use the same tenant selected by Chapter 01 and document intake. The
+	// interpreter must never fall back to the unrelated TENANT_DEFAULT scope.
+	tenant, tenantErr := intakeTenant()
+	if tenantErr != nil {
+		writeAgieServiceError(w, "records_unavailable", "Factory tenant identity is unavailable.")
+		return
+	}
+	reply, err := s.interviewer.Chat(r.Context(), s.db, req.Messages, tenant)
 	if err != nil {
 		log.Printf("[AGIE] Chat backend failed: %v", err)
-		http.Error(w, "AI service is unavailable; verify Ollama on the host. No answer was inferred.", http.StatusServiceUnavailable)
+		writeAgieServiceError(w, "model_unavailable", "Aggie's AI model is unavailable. No answer was invented.")
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{"reply": reply})
+}
+
+// Author: Sunil Jain, 2026-10-28 — Return safe, actionable chat errors.
+// Distinguish a missing model from an unavailable factory record service.
+func writeAgieServiceError(w http.ResponseWriter, code, message string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusServiceUnavailable)
+	_ = json.NewEncoder(w).Encode(map[string]string{"code": code, "error": message})
 }
 
 type ConfirmRequest struct {

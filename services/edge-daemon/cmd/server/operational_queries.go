@@ -1,4 +1,4 @@
-// Author: Sunil Jain, 2026-10-25 — Tenant-scoped attendance, PO and capacity answers without AI hallucination.
+// Author: Sunil Jain, 2026-10-28 — Tenant-scoped, source-backed factory identity and operations answers without AI hallucination.
 package main
 
 import (
@@ -20,6 +20,9 @@ func operationalIntent(messages []interviewer.LLMMessage) string {
 		}
 		q := strings.ToLower(strings.TrimSpace(messages[i].Content))
 		switch {
+		case strings.Contains(q, "factory") && (strings.Contains(q, "name") || strings.Contains(q, "called")) &&
+			(strings.Contains(q, "what") || strings.Contains(q, "tell") || strings.Contains(q, "show") || strings.Contains(q, "know")):
+			return "factory_name"
 		case (strings.Contains(q, "list") || strings.Contains(q, "show") || strings.Contains(q, "who are") || strings.Contains(q, "what are")) &&
 			(strings.Contains(q, "worker") || strings.Contains(q, "employee") || strings.Contains(q, "staff")) &&
 			(strings.Contains(q, "machine") || strings.Contains(q, "equipment")):
@@ -40,6 +43,10 @@ func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (s
 	if db == nil {
 		return "", fmt.Errorf("PostgreSQL is not configured")
 	}
+	tenant, err := intakeTenant()
+	if err != nil {
+		return "", fmt.Errorf("factory tenant is not configured: %w", err)
+	}
 	queryCtx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
 	tx, err := db.BeginTx(queryCtx, &sql.TxOptions{ReadOnly: true})
@@ -47,14 +54,32 @@ func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (s
 		return "", err
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(queryCtx, `SELECT set_config('app.current_tenant_id', $1, true)`, "TENANT_DEFAULT"); err != nil {
+	if _, err := tx.ExecContext(queryCtx, `SELECT set_config('app.current_tenant_id', $1, true)`, tenant); err != nil {
 		return "", err
 	}
 
 	switch intent {
+	case "factory_name":
+		// The latest Chapter 01 revision is the only authoritative source for
+		// this question. Provisional names are never presented as confirmed.
+		var name, state string
+		err := tx.QueryRowContext(queryCtx, `SELECT value_text, review_state
+          FROM factory_fact_events_v65b
+          WHERE tenant_id=$1 AND field_key='factory.name'
+          ORDER BY revision DESC LIMIT 1`, tenant).Scan(&name, &state)
+		if err == sql.ErrNoRows {
+			return "I do not have your factory name recorded yet. You can add it in Chapter 01 — Factory Setup.", nil
+		}
+		if err != nil {
+			return "", err
+		}
+		if state == "CONFIRMED" {
+			return fmt.Sprintf("Chapter 01 confirms your factory name as %q.", name), nil
+		}
+		return fmt.Sprintf("Chapter 01 lists your factory name as %q, but it still needs checking.", name), nil
 	case "workers_and_machines":
 		workers := make([]string, 0, 100)
-		rows, err := tx.QueryContext(queryCtx, `SELECT name, employee_code, primary_skill FROM workers WHERE tenant_id=$1 ORDER BY name, id LIMIT 100`, "TENANT_DEFAULT")
+		rows, err := tx.QueryContext(queryCtx, `SELECT name, employee_code, primary_skill FROM workers WHERE tenant_id=$1 ORDER BY name, id LIMIT 100`, tenant)
 		if err != nil {
 			return "", err
 		}
@@ -73,7 +98,7 @@ func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (s
 		rows.Close()
 
 		machines := make([]string, 0, 100)
-		rows, err = tx.QueryContext(queryCtx, `SELECT name, line_id, station_id, status FROM machine_roster WHERE tenant_id=$1 ORDER BY line_id, station_id, id LIMIT 100`, "TENANT_DEFAULT")
+		rows, err = tx.QueryContext(queryCtx, `SELECT name, line_id, station_id, status FROM machine_roster WHERE tenant_id=$1 ORDER BY line_id, station_id, id LIMIT 100`, tenant)
 		if err != nil {
 			return "", err
 		}
@@ -109,7 +134,7 @@ func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (s
 		var totalMachines, activeMachines, machineLines int
 		err = tx.QueryRowContext(queryCtx, `
             SELECT COUNT(*), COUNT(*) FILTER (WHERE status='ACTIVE'), COUNT(DISTINCT line_id)
-            FROM machine_roster WHERE tenant_id=$1`, "TENANT_DEFAULT").Scan(&totalMachines, &activeMachines, &machineLines)
+            FROM machine_roster WHERE tenant_id=$1`, tenant).Scan(&totalMachines, &activeMachines, &machineLines)
 		if err != nil {
 			return "", err
 		}
@@ -119,7 +144,7 @@ func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (s
             SELECT COUNT(*), COUNT(*) FILTER (WHERE status='PRESENT'),
                    COUNT(*) FILTER (WHERE status='LATE')
             FROM attendance_register
-            WHERE tenant_id=$1 AND shift_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date`, "TENANT_DEFAULT").Scan(&attendanceRecords, &presentWorkers, &lateWorkers)
+            WHERE tenant_id=$1 AND shift_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date`, tenant).Scan(&attendanceRecords, &presentWorkers, &lateWorkers)
 		if err != nil {
 			return "", err
 		}
@@ -128,7 +153,7 @@ func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (s
 		err = tx.QueryRowContext(queryCtx, `
             SELECT COUNT(*), COALESCE(SUM(actual_units),0), COALESCE(SUM(target_units),0), COUNT(DISTINCT line_id)
             FROM hourly_line_metrics
-            WHERE tenant_id=$1 AND shift_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date`, "TENANT_DEFAULT").Scan(&reportingWindows, &observedUnits, &targetUnits, &reportingLines)
+            WHERE tenant_id=$1 AND shift_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date`, tenant).Scan(&reportingWindows, &observedUnits, &targetUnits, &reportingLines)
 		if err != nil {
 			return "", err
 		}
@@ -157,13 +182,13 @@ func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (s
                    COUNT(*) FILTER (WHERE status='ON_LEAVE'),
                    COUNT(*)
             FROM attendance_register
-            WHERE tenant_id=$1 AND shift_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date`, "TENANT_DEFAULT").Scan(&shiftDay, &present, &late, &absent, &leave, &recorded)
+            WHERE tenant_id=$1 AND shift_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date`, tenant).Scan(&shiftDay, &present, &late, &absent, &leave, &recorded)
 		if err != nil {
 			return "", err
 		}
 		if recorded == 0 {
 			var mostRecent sql.NullTime
-			if err := tx.QueryRowContext(queryCtx, `SELECT MAX(shift_date) FROM attendance_register WHERE tenant_id=$1`, "TENANT_DEFAULT").Scan(&mostRecent); err != nil {
+			if err := tx.QueryRowContext(queryCtx, `SELECT MAX(shift_date) FROM attendance_register WHERE tenant_id=$1`, tenant).Scan(&mostRecent); err != nil {
 				return "", err
 			}
 			if mostRecent.Valid {
@@ -178,7 +203,7 @@ func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (s
 			qty        int
 		}
 		orders := []order{}
-		rows, err := tx.QueryContext(queryCtx, `SELECT po_number,status,ordered_qty FROM dynamic_work_orders WHERE tenant_id=$1 AND status='IN_PROGRESS' ORDER BY started_at DESC LIMIT 5`, "TENANT_DEFAULT")
+		rows, err := tx.QueryContext(queryCtx, `SELECT po_number,status,ordered_qty FROM dynamic_work_orders WHERE tenant_id=$1 AND status='IN_PROGRESS' ORDER BY started_at DESC LIMIT 5`, tenant)
 		if err != nil {
 			return "", err
 		}
@@ -202,7 +227,7 @@ func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (s
 			}
 			return "PO(s) marked IN_PROGRESS: " + strings.Join(parts, ", ") + ".", nil
 		}
-		rows, err = tx.QueryContext(queryCtx, `SELECT po_number,status,ordered_qty FROM dynamic_work_orders WHERE tenant_id=$1 AND status IN ('PROPOSED','PLANNED','LOCKED','HOLD') ORDER BY started_at DESC LIMIT 5`, "TENANT_DEFAULT")
+		rows, err = tx.QueryContext(queryCtx, `SELECT po_number,status,ordered_qty FROM dynamic_work_orders WHERE tenant_id=$1 AND status IN ('PROPOSED','PLANNED','LOCKED','HOLD') ORDER BY started_at DESC LIMIT 5`, tenant)
 		if err != nil {
 			return "", err
 		}

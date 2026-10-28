@@ -1,3 +1,6 @@
+// Author: Sunil Jain, 2026-10-28
+// The public portal serves a same-origin authenticated Aggie client; tests
+// behavioral API and safe rendering contracts rather than obsolete comments.
 package main
 
 import (
@@ -27,7 +30,7 @@ func TestPublicPortalAndAssetsNoOperatorAuth(t *testing.T) {
 		{"/", `href="/documents"`, "text/html"},
 		{"/demo", `href="/stores"`, "text/html"},
 		{"/demo-assets/portal.css", ".phase-grid", "text/css"},
-		{"/demo-assets/portal.js", "No fabricated orders", "text/javascript"},
+		{"/demo-assets/portal.js", "fetch('/api/v1/agie/chat'", "text/javascript"},
 	} {
 		w := httptest.NewRecorder()
 		gate.ServeHTTP(w, httptest.NewRequest(http.MethodGet, c.path, nil))
@@ -40,6 +43,19 @@ func TestPublicPortalAndAssetsNoOperatorAuth(t *testing.T) {
 			for _, fake := range []string{"GP240812", "PO-4518", "MK6574J9"} {
 				if strings.Contains(w.Body.String(), fake) {
 					t.Errorf("%s leaks fictional production record %q", c.path, fake)
+				}
+			}
+		}
+		// The chat asset must preserve unfinished work and render untrusted replies
+		// as text. Do not couple this test to arbitrary JavaScript comments.
+		if c.path == "/demo-assets/portal.js" {
+			for _, required := range []string{
+				"sessionStorage.setItem(STORAGE_KEY",
+				"sessionStorage.getItem(STORAGE_KEY",
+				"answerNode.textContent = data.reply",
+			} {
+				if !strings.Contains(w.Body.String(), required) {
+					t.Errorf("%s: missing Aggie behavior %q", c.path, required)
 				}
 			}
 		}

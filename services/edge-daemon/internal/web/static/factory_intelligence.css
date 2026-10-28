@@ -1,0 +1,66 @@
+/* Author: Sunil Jain, 2026-10-28. Chapter 09 worker-first report presentation; never resize the shared banner or Aggie. */
+body[data-ag-phase="reports"] .ag-report-main {max-width:1110px}
+.ag-report-lead {color:#526677;font-size:16px;max-width:65ch;margin:6px 0 14px}
+.ag-report-main .card {padding:clamp(16px,3vw,24px);margin:17px 0}
+.ag-report-main .card>h2 {margin:0 0 10px}
+.ag-report-main .ag-report-controls {display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin-top:16px}
+.ag-report-main .ag-report-controls label {flex:1 1 290px;font-size:14px;font-weight:700}
+.ag-report-main :is(select,input) {display:block;margin-top:7px;padding:10px 12px;min-height:44px;border:1px solid #b6c6d0;border-radius:8px;width:100%;background:#fff;color:#243746}
+.ag-report-main button {border:0;background:var(--ag-accent);color:#fff;font-weight:700;padding:10px 17px;cursor:pointer;min-height:44px}
+.ag-report-main button:disabled {opacity:.58;cursor:not-allowed}
+.ag-report-status {padding:12px 14px;border-radius:9px;background:#edf3f9;margin:16px 0 0;color:#354c60;overflow-wrap:anywhere}
+.ag-report-note {font-size:14px;color:#526677;line-height:1.55;margin:8px 0}
+.ag-report-metrics {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0}
+.ag-report-metric {display:flex;flex-direction:column;gap:7px;min-width:0;padding:17px;background:#f7f9fc;border:1px solid #dae4ec;border-radius:11px}
+.ag-report-metric span {font-weight:700;font-size:14px;color:#3c5266}
+.ag-report-metric strong {font-size:clamp(24px,3.2vw,34px);line-height:1.1;letter-spacing:-.025em;font-variant-numeric:tabular-nums;color:#273b50}
+.ag-report-metric small {font-size:12px;color:#607588}
+.ag-report-readiness {padding:12px 14px;border-left:3px solid var(--ag-accent);background:#f7f9fc;border-radius:7px;font-size:14px}
+.ag-report-readiness p {margin:4px 0 0;color:#536878}
+.ag-report-main .ag-report-findings {padding-left:21px;margin:14px 0 18px}
+.ag-report-main .ag-report-findings li {padding:5px 0;line-height:1.5}
+.ag-report-main .ag-report-buttons {margin:16px 0}
+.ag-report-main .ag-report-scroll {overflow-x:auto;max-width:100%}
+.ag-report-main table {border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+.ag-report-main th,.ag-report-main td {text-align:left;padding:10px;border-bottom:1px solid #e2e8ee;vertical-align:top;min-width:78px}
+.ag-report-main th {background:#f4f7fb;color:#445e75;white-space:nowrap}
+.ag-report-main td {overflow-wrap:anywhere}
+.ag-report-main .ag-work-extra {margin-top:12px}
+.ag-report-main .ag-report-detail {padding:4px 0;color:#3d5264;font-size:14px;line-height:1.55}
+.ag-report-main .ag-report-detail p {margin:9px 0}
+.ag-report-main #snapshots,#interval-exclusions {white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:850px){.ag-report-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.ag-report-metrics{grid-template-columns:minmax(0,1fr)}.ag-report-main .ag-report-controls{align-items:stretch}.ag-report-main .ag-report-controls button{width:100%}}
+/* Chapter 09 cross-chapter governed indicators. Do not alter the shared chapter banner, Aggie, or footer. */
+.ag-indicator-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px}
+.ag-indicator-group{border:1px solid #dce5eb;border-radius:13px;padding:14px;background:#fff;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-content:start;border-top:4px solid var(--indicator-accent)}
+.ag-indicator-group-name{grid-column:1/-1;font-size:15px;margin:0 0 4px;color:#253d4f}
+.ag-report-main .ag-indicator-stamp{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;text-align:left;gap:12px;background:#f7f9fb;color:#263f51;border:1px solid #dfe6ed;border-radius:10px;border-left:4px solid var(--indicator-accent);padding:12px;min-height:93px;min-width:0;font-weight:600;font-size:13px;line-height:1.4;cursor:pointer}
+.ag-report-main .ag-indicator-stamp:hover,.ag-report-main .ag-indicator-stamp:focus-visible{background:#eef4f8;outline:2px solid var(--indicator-accent);outline-offset:2px}
+.ag-indicator-stamp-title{overflow-wrap:anywhere}
+.ag-indicator-stamp-status{font-size:11px;font-weight:600;color:#5b6c78}
+.ag-indicator-view[hidden]{display:none!important}
+body.ag-indicator-open{overflow:hidden}
+.ag-indicator-view{position:fixed;inset:0;z-index:3500;overflow-y:auto;background:#f5f8fa;color:#273d50}
+.ag-indicator-page{max-width:1260px;margin:0 auto;min-height:100dvh}
+.ag-indicator-page-head{display:flex;align-items:center;justify-content:space-between;gap:18px;background:#fff;border-bottom:4px solid var(--indicator-accent);padding:18px clamp(18px,4vw,45px)}
+.ag-indicator-page-head h2{font-size:clamp(23px,3vw,33px);margin:4px 0 0;color:#263e50}
+.ag-indicator-chapter{font-size:12px;font-weight:800;letter-spacing:.05em;color:var(--indicator-accent)}
+.ag-indicator-page-head button{background:#fff;color:#273c50;border:1px solid #bacbd6;border-radius:10px;min-height:44px;padding:10px 16px;cursor:pointer;font:inherit;font-weight:700}
+.ag-indicator-page-body{padding:clamp(15px,3vw,36px);display:grid;gap:17px}
+.ag-indicator-page-body>section,.ag-indicator-two-col>section{padding:clamp(17px,2.5vw,25px);background:white;border:1px solid #dce5ed;border-radius:13px}
+.ag-indicator-page-body h3{font-size:18px;margin:0 0 12px;color:#243d4f}
+.ag-indicator-page-body p{font-size:15px;line-height:1.65;color:#485d6c;overflow-wrap:anywhere}
+.ag-indicator-hero{border-left:5px solid var(--indicator-accent)!important}
+.ag-indicator-hero strong{font-size:clamp(35px,5vw,64px);line-height:1.1;display:inline-block;margin:7px 12px 8px 0;font-variant-numeric:tabular-nums}
+.ag-indicator-state{font-size:12px!important;font-weight:800;letter-spacing:.05em;margin:0}
+.ag-indicator-two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}
+.ag-indicator-page a{color:#126d83;text-decoration:underline;text-underline-offset:3px}
+.ag-indicator-chart-row{display:grid;grid-template-columns:minmax(130px,1.3fr) minmax(130px,3fr) 68px;gap:12px;align-items:center;padding:8px 0;font-size:13px}
+.ag-indicator-chart-label{overflow-wrap:anywhere}
+.ag-indicator-chart-track{height:18px;border-radius:6px;background:#edf2f6;overflow:hidden}
+.ag-indicator-chart-fill{height:100%;background:var(--indicator-accent);border-radius:6px}
+.ag-indicator-chart-value{text-align:right;font-variant-numeric:tabular-nums}
+.ag-indicator-page-body li{margin-bottom:9px;line-height:1.55}
+@media(max-width:980px){.ag-indicator-group{grid-template-columns:minmax(0,1fr)}.ag-indicator-stamp{min-height:66px!important}.ag-indicator-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:660px){.ag-indicator-grid,.ag-indicator-two-col{grid-template-columns:minmax(0,1fr)}.ag-indicator-group{grid-template-columns:repeat(2,minmax(0,1fr))}.ag-indicator-page-head{align-items:flex-start;flex-direction:column}.ag-indicator-chart-row{grid-template-columns:minmax(85px,1fr) minmax(80px,2fr) 45px;gap:7px;font-size:11px}}

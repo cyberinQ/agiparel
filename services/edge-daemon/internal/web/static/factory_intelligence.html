@@ -1,21 +1,108 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Author: Sunil Jain, 2026-10-28. Evidence-first Chapter 09 reports; no simulated data may be represented as factory production. -->
 <title>Agiparel · Factory report</title>
-<link rel="stylesheet" href="/static/ux_unified.css"><script src="/static/workspace_nav.js" defer></script>
-<style>
-main{max-width:1220px;margin:auto;padding:30px 22px 60px}h1{font-size:30px;margin:3px 0 6px}h2{font-size:19px;margin:0 0 12px}h3{font-size:16px;margin:22px 0 10px}.sub,.muted{color:#536a78;font-size:14px}
-.card{background:#fff;border:1px solid #dbe3e9;border-radius:12px;padding:24px;margin:15px 0}.row{display:flex;flex-wrap:wrap;align-items:end;gap:16px}label{font-size:14px;font-weight:700;display:block}input,select{min-height:44px;display:block;padding:9px;border:1px solid #b2c2ca;border-radius:7px;margin-top:6px;min-width:190px}
-button{background:#1f5262;color:white;padding:11px 15px;border:0;border-radius:8px;font-size:14px;font-weight:750;cursor:pointer;min-height:44px}button:disabled{opacity:.5}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:10px;border-bottom:1px solid #e0e9ee}th{background:#f0f5f7;color:#506773}.scroll{max-width:100%;overflow-x:auto}.warning{font-weight:700;color:#9c5217}pre{white-space:pre-wrap;overflow-wrap:anywhere}#status{background:#edf4f7;border-radius:7px;padding:12px 14px;margin:16px 0}
-@media(max-width:760px){main{padding:20px 12px}.card{padding:15px}.row{align-items:stretch;flex-direction:column}}
-</style></head><body data-ag-phase="reports"><main>
-<p class="sub">FACTORY REPORT</p><h1>Factory report</h1><p class="sub">See what moved, what is waiting and which step took longer.</p>
-<p class="ag-note"><strong>Demo data only:</strong> These figures come from saved demo events. They do not count real factory output or wages.</p>
-<ol class="ag-steps" aria-label="Report steps"><li><b>1</b>Choose a cutting lay</li><li><b>2</b>Check pieces and delays</li><li><b>3</b>Save the report</li></ol>
-<section class="card"><h2>Step 1 — Choose work to check</h2><div class="row"><label>Cutting lay<select id="lay"></select></label><label>Factory time zone<input id="timezone" value="Asia/Kolkata"></label><button id="refresh">Show report</button><button id="capture">Save report</button></div><p id="status" role="status">Choose a lay and select Show report.</p></section>
-<section class="card"><h2>Step 2 — Count the pieces</h2><div class="scroll"><table><thead><tr><th>Work area</th><th>Pieces</th><th>Unit</th><th>Saved record</th></tr></thead><tbody id="stages"></tbody></table></div>
-<h3>Do the counts match?</h3><div class="scroll"><table><thead><tr><th>From → To</th><th>Not yet found</th><th>Status</th><th>Reason</th></tr></thead><tbody id="residuals"></tbody></table></div></section>
-<section class="card"><h2>Where did work slow down?</h2><p class="muted">We compare saved times between steps. Missing or unclear times are not counted as a delay.</p><div class="scroll"><table><thead><tr><th>Between steps</th><th>Known / Missing</th><th>Typical (min)</th><th>Slow end (min)</th><th>Spread (min)</th><th>Variation</th></tr></thead><tbody id="intervals"></tbody></table></div>
-<h3>Sewing job times</h3><div class="scroll"><table><thead><tr><th>Sewing job</th><th>Target (sec)</th><th>Samples</th><th>Slow end (min)</th><th>Signal</th></tr></thead><tbody id="operations"></tbody></table></div>
-<details class="ag-details"><summary>How are these times worked out?</summary><p>Only saved time gaps greater than zero and up to two hours on one factory-local day are counted. These are not shift-adjusted queue times. The slow end is the 90th percentile; variation is the coefficient of variation.</p></details></section>
-<section class="card"><h2>Step 3 — Problems and saved reports</h2><ul id="alerts"></ul><div id="method" class="muted"></div><h3>Saved reports</h3><div id="snapshots"></div><p class="muted">A saved report cannot be changed. These demo records cannot be used for payroll, real dispatch or accounts.</p></section>
-</main><script src="/static/factory_intelligence.js" defer></script></body></html>
+<link rel="stylesheet" href="/static/ux_unified.css">
+<link rel="stylesheet" href="/static/chapter_workflow.css">
+<link rel="stylesheet" href="/static/factory_intelligence.css">
+<script src="/static/workspace_nav.js" defer></script>
+<script src="/static/factory_report_metrics.js" defer></script>
+<script src="/static/factory_intelligence.js" defer></script>
+<script src="/static/factory_indicator_catalog.js" defer></script>
+<script src="/static/factory_indicator_panel.js" defer></script>
+</head>
+<body data-ag-phase="reports" data-ag-workflow="simple">
+<main class="ag-report-main">
+  <p class="ag-work-kicker">09 · FACTORY REPORT</p>
+  <h1>How is work moving?</h1>
+  <p class="ag-report-lead">See what was recorded, what needs checking, and what we still do not know.</p>
+  <p class="ag-note" id="report-authority"><strong>Practice records only.</strong> This report uses saved simulation events, not verified factory output, shipments or payroll.</p>
+  <ol class="ag-steps" aria-label="Report steps"><li><b>1</b>Choose work</li><li><b>2</b>See progress</li><li><b>3</b>Check what needs attention</li></ol>
+
+  <section class="card" aria-labelledby="choose-title">
+    <h2 id="choose-title">Step 1 — Choose work</h2>
+    <div class="ag-report-controls">
+      <label for="lay">Cutting plan<select id="lay"><option value="">Loading saved plans…</option></select></label>
+      <button id="refresh" type="button">Show progress</button>
+    </div>
+    <details class="ag-work-extra"><summary>Factory time zone</summary><div class="ag-report-detail"><label for="timezone">Used to compare recorded times<input id="timezone" value="Asia/Kolkata" maxlength="64"></label></div></details>
+    <p id="status" class="ag-report-status" role="status" aria-live="polite">Choose a cutting plan and show progress.</p>
+  </section>
+
+  <section class="card" aria-labelledby="progress-title">
+    <h2 id="progress-title">Step 2 — See progress</h2>
+    <p class="ag-report-note">These counts are distinct garment IDs in a practice run, not real finished goods.</p>
+    <div class="ag-report-metrics" aria-label="Practice-run progress counts">
+      <div class="ag-report-metric"><span>Sewing complete</span><strong id="metric-sewn">—</strong><small>Practice garments</small></div>
+      <div class="ag-report-metric"><span>Quality accepted</span><strong id="metric-accepted">—</strong><small>Current QC state</small></div>
+      <div class="ag-report-metric"><span>Waiting for QC</span><strong id="metric-hold">—</strong><small>Hold or reinspection</small></div>
+      <div class="ag-report-metric"><span>In cartons</span><strong id="metric-packed">—</strong><small>Currently packed</small></div>
+    </div>
+    <div class="ag-report-readiness"><strong>What about live factory KPIs?</strong><p id="unavailable-summary">First-pass yield, labor efficiency, real shipment performance and cost cannot be calculated from this practice report. Missing is not zero.</p></div>
+    <details class="ag-work-extra"><summary>See all step-by-step counts and their sources</summary><div class="ag-report-detail ag-report-scroll"><table><thead><tr><th>Step</th><th>Count</th><th>Unit</th><th>Source</th></tr></thead><tbody id="stages"></tbody></table></div></details>
+    <details class="ag-work-extra"><summary>Where do counts not match?</summary><div class="ag-report-detail"><p class="ag-report-note">A difference can mean unfinished work, a quality hold, or missing evidence. It does not automatically mean scrap.</p><div class="ag-report-scroll"><table><thead><tr><th>From → To</th><th>Difference</th><th>State</th><th>What it means</th></tr></thead><tbody id="residuals"></tbody></table></div></div></details>
+  </section>
+
+  <section class="card" aria-labelledby="action-title">
+    <h2 id="action-title">Step 3 — What needs attention?</h2>
+    <p class="ag-report-note">These are checks suggested by recorded evidence, not proven causes.</p>
+    <ul id="alerts" class="ag-report-findings"><li>Load a report to see what needs checking.</li></ul>
+    <div class="ag-report-controls ag-report-buttons">
+      <button type="button" id="ask-aggie" disabled>Ask Aggie to explain</button>
+      <button type="button" id="capture" disabled>Save this report</button>
+    </div>
+    <p class="ag-report-note">Aggie can explain these records, but cannot approve a change or invent missing evidence. Saving creates an immutable practice snapshot, not a signed factory report.</p>
+    <details class="ag-work-extra"><summary>Earlier saved reports</summary><div class="ag-report-detail" id="snapshots">Choose work first.</div></details>
+  </section>
+
+  <section class="card ag-indicator-section" aria-labelledby="indicators-title">
+    <h2 id="indicators-title">Explore your factory</h2>
+    <p class="ag-report-note">Choose a colored indicator to see what it means, what the evidence shows, and where to check the original records. These indicators measure work and systems, not people's worth.</p>
+    <div id="indicator-grid" class="ag-indicator-grid" aria-label="Factory measures by chapter"></div>
+    <p class="ag-report-note">Practice = supported only by selected rehearsal records. Not measured = more validated evidence is needed. A blank measure is never a zero.</p>
+  </section>
+
+  <section class="card" aria-labelledby="detail-title">
+    <h2 id="detail-title">Look deeper, when needed</h2>
+    <p class="ag-report-note">These five areas follow our factory reporting rules. Only values supported by the current source appear.</p>
+    <details class="ag-work-extra"><summary>1. Flow time and slow steps</summary><div class="ag-report-detail">
+      <p>Typical and slow-end times describe bounded elapsed gaps from saved practice events. A missing or overnight gap is unknown, not a long wait or zero. We need at least five valid samples before comparing slow-end times.</p>
+      <div class="ag-report-scroll"><table><thead><tr><th>Between steps</th><th>Samples</th><th>Unknown</th><th>Typical p50 (min)</th><th>Slow p90 (min)</th><th>p95 (min)</th><th>Variation</th><th>Sample check</th></tr></thead><tbody id="intervals"></tbody></table></div>
+      <details class="ag-work-extra"><summary>Why were some times excluded?</summary><div id="interval-exclusions" class="ag-report-detail">Load a report first.</div></details>
+    </div></details>
+    <details class="ag-work-extra"><summary>2. Sewing pace and machine issues</summary><div class="ag-report-detail">
+      <p>Operation times use completed simulated cycles. They do not measure real labor efficiency, station blockage, starvation, or machine utilization.</p>
+      <div class="ag-report-scroll"><table><thead><tr><th>Operation</th><th>Target SAM (sec)</th><th>Samples</th><th>Typical p50 (min)</th><th>Slow p90 (min)</th><th>p95 (min)</th><th>Issue events</th><th>Signal</th></tr></thead><tbody id="operations"></tbody></table></div>
+    </div></details>
+    <details class="ag-work-extra"><summary>3. Quality and repair</summary><div class="ag-report-detail"><p>Current QC accepted, held and pending counts appear above and in the source table. First-pass yield, defects per hundred and repair turnaround are <strong>not measured</strong> by this report because their first-inspection and lifecycle evidence is not reconstructed.</p></div></details>
+    <details class="ag-work-extra"><summary>4. Fabric and cutting</summary><div class="ag-report-detail"><p>Cut marker positions and draft bundle candidates are not verified fabric consumption or accepted cut garments. Fabric yield, remnant value and cut-to-ship conservation are <strong>not measured</strong> here.</p><p>Check <a href="/stores">Fabric Store</a> and <a href="/cutting">Cutting</a> for their source records.</p></div></details>
+    <details class="ag-work-extra"><summary>5. Shipment, cost and margin</summary><div class="ag-report-detail"><p>Packing and dispatch rehearsal events are not buyer-accepted shipments. Real OTIF, labor cost, cost per accepted garment and order margin are <strong>not measured</strong>. These require approved commercial and actual-cost records.</p><p>See <a href="/packing">Packing</a> for the practice packing records.</p></div></details>
+    <details class="ag-work-extra"><summary>How this report is calculated</summary><div class="ag-report-detail"><p id="method">Load a report to read its methods.</p><p id="evidence">Source and authority appear here after a report is loaded.</p></div></details>
+  </section>
+</main>
+<section id="indicator-view" class="ag-indicator-view" role="dialog" aria-modal="true" aria-labelledby="indicator-title" hidden>
+  <div class="ag-indicator-page">
+    <header class="ag-indicator-page-head">
+      <div><span id="indicator-chapter" class="ag-indicator-chapter"></span><h2 id="indicator-title">Indicator</h2></div>
+      <button type="button" id="indicator-close" aria-label="Close indicator view">← Back to reports</button>
+    </header>
+    <div class="ag-indicator-page-body">
+      <section class="ag-indicator-hero" aria-label="Current indicator value">
+        <p id="indicator-state" class="ag-indicator-state"></p>
+        <strong id="indicator-value">—</strong><span id="indicator-unit"></span>
+        <p id="indicator-explanation"></p>
+      </section>
+      <div class="ag-indicator-two-col">
+        <section><h3>What this measures</h3><p id="indicator-definition"></p><h3>Important limit</h3><p id="indicator-caution"></p></section>
+        <section><h3>Evidence & origin</h3><p id="indicator-evidence"></p><p id="indicator-source"></p><a id="indicator-source-link" href="/">Open the source chapter</a><p><a id="indicator-report-link" href="#detail-title">See this report's evidence tables</a></p></section>
+      </div>
+      <section class="ag-indicator-graph" aria-labelledby="indicator-graph-title"><h3 id="indicator-graph-title">Snapshot comparison</h3><p id="indicator-graph-note"></p><div id="indicator-plot" class="ag-indicator-plot"></div></section>
+      <section class="ag-indicator-graph"><h3>Trend over time</h3><p>Not yet available. A time trend needs comparable, dated, authority-checked metric values across multiple periods. Saved snapshot hashes alone are not a trend.</p></section>
+      <section class="ag-indicator-graph"><h3>What to check next</h3><ul id="indicator-checks"></ul></section>
+    </div>
+  </div>
+</section>
+</body>
+</html>

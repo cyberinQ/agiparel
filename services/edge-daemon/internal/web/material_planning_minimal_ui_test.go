@@ -1,6 +1,6 @@
 package web
 
-// Author: Sunil Jain, 2026-10-27 — Preserve Chapter 03 controls, evidence safeguards, and a minimal work area.
+// Author: Sunil Jain, 2026-10-28 — Preserve Chapter 03 controls and verify Home via the shared banner.
 import (
 	"strings"
 	"testing"
@@ -15,7 +15,7 @@ func TestMaterialPlanningMinimalEvidenceAwareUI(t *testing.T) {
 	for _, required := range []string{
 		`data-ag-phase="material"`, `data-ag-simple-header="true"`,
 		`src="/static/workspace_nav.js"`, `src="/static/portal.js"`,
-		`id="aggie-open"`, `id="aggie-chat"`, `href="/"`,
+		`id="aggie-open"`, `id="aggie-chat"`,
 		`03 · PLAN MATERIAL`, `Plan your materials.`, `id="intake"`,
 		`id="need-state"`, `id="have-state"`, `id="short-state"`,
 		`id="material-lines"`, `id="scenario-form"`, `id="stock"`, `id="prices"`,
@@ -31,6 +31,12 @@ func TestMaterialPlanningMinimalEvidenceAwareUI(t *testing.T) {
 		if strings.Contains(html, forbidden) {
 			t.Errorf("clutter or fabricated example visible: %q", forbidden)
 		}
+	}
+	// Home is provided by the shared banner, not duplicated in the page body.
+	sharedNav, err := staticFS.ReadFile("static/workspace_nav.js")
+	if err != nil { t.Fatal(err) }
+	if !strings.Contains(string(sharedNav), "brand.href = '/'") || !strings.Contains(string(sharedNav), "home.href = '/'") {
+		t.Error("the shared chapter banner must link to Home")
 	}
 	js, err := staticFS.ReadFile("static/material_planning.js")
 	if err != nil {

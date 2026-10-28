@@ -18,17 +18,14 @@ async function json(response) {
 const fetchData = url => fetch(url, { credentials: 'same-origin' }).then(json);
 let selected = null;
 let preview = null;
-function download(name, content) {
-  const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }));
-  const link = document.createElement('a'); link.href = url; link.download = name; link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+function downloadExcel(name) {
+  const a = document.createElement('a');
+  a.href = '/static/' + name;
+  a.download = name;
+  a.click();
 }
-function stockTemplate() {
-  download('stock_check_blank.csv', 'lot_id,material_sku,uom,available_qty,fabric_spec,required_spec,gsm,required_gsm,gsm_tolerance_pct,shade_delta_e,shade_max_delta_e,usable_width_mm,marker_width_mm,inspection_status,age_days,max_age_days,buyer_escrow,held_for_po,source_reference\n');
-}
-function priceTemplate() {
-  download('material_rates_blank.csv', 'material_sku,category,uom,unit_price,currency,procurement_owner,source_reference\n');
-}
+function stockTemplate() { downloadExcel('agiparel_stock_check_template.xlsx'); }
+function priceTemplate() { downloadExcel('agiparel_material_rates_template.xlsx'); }
 function line(parent, m, mode) {
   const item = add('div', '', parent, 'material-row');
   const name = add('div', '', item, 'material-name');
@@ -64,7 +61,7 @@ function showNeed(order) {
 function show(report) {
   $('results').hidden = false;
   $('scenario-title').textContent = `${report.po_number} · ${report.style_code}`;
-  $('scenario-subtitle').textContent = 'Calculated from the two supplied CSV files. All material use remains on hold.';
+  $('scenario-subtitle').textContent = 'Calculated from your checked Excel or CSV sheets. All material use remains on hold.';
   $('gate').textContent = 'DRAFT · HOLD';
   $('need-state').textContent = `${(report.materials || []).length} material${(report.materials || []).length === 1 ? '' : 's'}`;
   $('need-sub').textContent = `${Number(report.ordered_qty).toLocaleString()} ordered pieces`;
@@ -126,7 +123,7 @@ async function chooseOrder() {
 }
 async function evaluate(action) {
   const id = $('intake').value, stock = $('stock').files[0], prices = $('prices').files[0];
-  if (!selected || !id || !stock || !prices) { message('Choose a buyer order and both checked CSV files.', 'error'); return; }
+  if (!selected || !id || !stock || !prices) { message('Choose a buyer order, a stock sheet, and a material-rate sheet.', 'error'); return; }
   const form = new FormData(); form.append('intake_id', id); form.append('stock_file', stock); form.append('prices_file', prices);
   $('preview').disabled = true; $('stage').disabled = true;
   try {

@@ -1,3 +1,4 @@
+/* Author: Sunil Jain, 2026-10-28 — Match chapter accents to Home across all ten shared headers. */
 /* Agiparel workspaces: shared paper-and-ink design language. Phase identity is not approval status. */
 :root { --ag-page:#f6f8fa; --ag-card:#ffffff; --ag-ink:#243746; --ag-muted:#556878; --ag-line:#dbe3e9;
   --ag-action:#1f5262; --ag-good:#23754d; --ag-hold:#ad6c11; --ag-bad:#ac403d; }
@@ -5,14 +6,14 @@ body[data-ag-phase] { --ag-accent:#167e88; background:var(--ag-page)!important; 
   font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif; line-height:1.5; border-top:6px solid var(--ag-accent); }
 body[data-ag-phase="factory"] {--ag-accent:#16869A}
 body[data-ag-phase="documents"] {--ag-accent:#28323B}
-body[data-ag-phase="buyer"] {--ag-accent:#306ccb}
-body[data-ag-phase="material"] {--ag-accent:#8557bd}
-body[data-ag-phase="stores"] {--ag-accent:#b47712}
-body[data-ag-phase="cutting"] {--ag-accent:#df6b23}
-body[data-ag-phase="sewing"] {--ag-accent:#087f79}
-body[data-ag-phase="quality"] {--ag-accent:#2b844b}
-body[data-ag-phase="packing"] {--ag-accent:#bb3975}
-body[data-ag-phase="reports"] {--ag-accent:#486484}
+body[data-ag-phase="buyer"] {--ag-accent:#326DB3}
+body[data-ag-phase="material"] {--ag-accent:#7759B2}
+body[data-ag-phase="stores"] {--ag-accent:#A87A25}
+body[data-ag-phase="cutting"] {--ag-accent:#C76B3D}
+body[data-ag-phase="sewing"] {--ag-accent:#16847D}
+body[data-ag-phase="quality"] {--ag-accent:#3C855E}
+body[data-ag-phase="packing"] {--ag-accent:#B34E7A}
+body[data-ag-phase="reports"] {--ag-accent:#566F91}
 body[data-ag-phase] :is(.panel,.card,.surface,.step-card,.candidate-panel,.source-preview) {
   border-radius:12px; box-shadow:0 2px 8px #1832410b; }
 body[data-ag-phase] :is(.panel,.card,.surface,.step-card,.candidate-panel) {border-color:var(--ag-line)}

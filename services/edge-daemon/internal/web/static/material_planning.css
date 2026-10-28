@@ -1,7 +1,6 @@
 /* Author: Sunil Jain, 2026-10-27 — Responsive, violet-accented Chapter 03 with quiet advanced controls. */
 :root{color-scheme:light;--material:#7759B2;--ink:#243746;--muted:#5e7080;--line:#dce3e9;--surface:#fff;--background:#f6f8fa}
 *{box-sizing:border-box}body[data-ag-phase="material"]{--ag-accent:#7759B2;background:var(--background)!important;color:var(--ink);margin:0;font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;border-top:4px solid var(--material)}
-body[data-ag-phase="material"] #agiparel-workspace-navigation{display:none!important}
 button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:#62449a;text-underline-offset:3px}
 .material-app{max-width:1120px;margin:0 auto;padding:0 24px 68px}
 .material-top{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:76px;border-bottom:1px solid var(--line)}
@@ -23,3 +22,15 @@ h3{font-size:17px;margin:24px 0 11px;letter-spacing:-.015em}.material-list{displ
 @media(max-width:800px){.file-grid{grid-template-columns:1fr}.material-row{flex-direction:column;gap:9px}.material-amounts{text-align:left}.material-app{padding:0 17px 44px}}
 @media(max-width:580px){.material-app{padding:0 14px 40px}.material-top{gap:8px}.material-brand{font-size:19px}.material-top nav{gap:9px}.material-top nav>a{font-size:13px}.aggie-invite{font-size:13px;gap:4px}.aggie-face{width:34px;height:34px;font-size:24px}.intro{padding:26px 0 18px}.panel{padding:16px}.plan-metrics{grid-template-columns:1fr;gap:8px}.plan-metrics>div{padding:10px 13px}.plan-metrics strong{font-size:19px}.aggie-chat{right:7px;bottom:7px;width:calc(100vw - 14px);height:min(570px,calc(100dvh - 14px))}}
 @media(prefers-reduced-motion:reduce){.aggie-face{animation:none}}
+
+/* Author: Sunil Jain, 2026-10-28 — Restrained Home-style header; no chapter pager or duplicate chapter menu. */
+body[data-ag-phase="material"]{border-top:0}
+.material-app{max-width:1160px}
+.material-top{min-height:70px}
+.material-brand{font-size:22px;letter-spacing:-1.1px;color:#203744}
+.material-top nav{gap:18px}
+.material-top nav>a{color:#506273}
+@media(max-width:580px){.material-top{min-height:64px}.material-top nav{gap:10px}}
+
+/* Author: Sunil Jain, 2026-10-28 — One shared, visible Home/Aggie banner; no local duplicate. */
+body[data-ag-phase="material"] #agiparel-workspace-navigation{display:block}

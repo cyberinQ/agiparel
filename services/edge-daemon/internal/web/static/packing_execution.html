@@ -1,7 +1,9 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Author: Sunil Jain, 2026-10-28 — Chapter 08 focused carton workflow; dispatch demo unchanged. -->
 <title>Agiparel · Packing and dispatch</title>
-<link rel="stylesheet" href="/static/ux_unified.css"><script src="/static/workspace_nav.js" defer></script>
+<link rel="stylesheet" href="/static/ux_unified.css">
+<script src="/static/workspace_nav.js" defer></script>
 <style>
 main{max-width:1220px;margin:auto;padding:30px 22px 60px}h1{font-size:30px;margin:3px 0 6px}h2{font-size:19px;margin:0 0 14px}p{line-height:1.5}.sub{color:#526a78}
 .pack-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.card{border:1px solid #dbe3e9;background:white;border-radius:12px;padding:23px;margin:0 0 18px}.wide{grid-column:1/-1}
@@ -9,20 +11,21 @@ main{max-width:1220px;margin:auto;padding:30px 22px 60px}h1{font-size:30px;margi
 button{background:#1f5262;color:#fff;padding:11px 15px;border:1px solid #1f5262;border-radius:8px;font-size:14px;font-weight:750;min-height:44px;cursor:pointer;margin:4px 6px 4px 0}button:disabled{opacity:.48;cursor:not-allowed}.secondary{background:#fff;color:#1f5262;border-color:#c2d2da}.buttons{display:flex;gap:5px;flex-wrap:wrap;margin:13px 0}
 .muted{color:#536a79;font-size:14px}#feedback{white-space:pre-wrap;background:#edf4f7;padding:12px 15px;border-radius:9px;margin:14px 0}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:10px;text-align:left;border-bottom:1px solid #e2e9ed}th{background:#f0f5f7;color:#47606c}.scroll{max-width:100%;overflow-x:auto}.tiny{font-size:13px;color:#58707b}
 @media(max-width:820px){.pack-grid{grid-template-columns:1fr}.wide{grid-column:auto}main{padding:20px 12px}}
-</style></head>
-<body data-ag-phase="packing"><main>
-<p class="sub">PACKING</p><h1>Packing and dispatch</h1><p class="sub">Put checked pieces in cartons. Seal boxes and make a dispatch list.</p>
+</style><link rel="stylesheet" href="/static/chapter_workflow.css">
+</head>
+<body data-ag-workflow="simple" data-ag-phase="packing"><main>
+<p class="ag-work-kicker">08 · PACKING</p><h1>Pack checked pieces.</h1><p class="sub">Choose a piece, put it in a carton, then seal the carton. Make a dispatch list when ready. Need checked pieces? <a href="/quality">See quality work</a>.</p>
 <p class="ag-note"><strong>Demo mode:</strong> Button taps stand in for scans. No real shipment is released.</p>
-<ol class="ag-steps" aria-label="Packing steps"><li><b>1</b>Choose a checked piece</li><li><b>2</b>Scan into a carton</li><li><b>3</b>Seal the carton</li><li><b>4</b>Add to dispatch list</li></ol>
+<ol class="ag-steps" aria-label="Packing steps"><li><b>1</b>Choose and pack</li><li><b>2</b>Seal the carton</li><li><b>3</b>Make a dispatch list</li></ol>
 <div class="pack-grid">
-<section class="card wide"><h2>Station details</h2><div class="fields"><label>Worker (demo)<input id="actor" value="PACK_OPERATOR_01"></label><label>Packing station<input id="station" value="PACK_STATION_01"></label><label>Reader (demo)<input id="reader" value="UI_PACK_READER_01"></label></div>
+<section class="card wide ag-work-status"><details class="ag-work-extra"><summary>Worker, station and reader details</summary><div class="fields"><label>Worker (demo)<input id="actor" value="PACK_OPERATOR_01"></label><label>Packing station<input id="station" value="PACK_STATION_01"></label><label>Reader (demo)<input id="reader" value="UI_PACK_READER_01"></label></div></details>
 <div id="feedback" role="status" aria-live="polite">Choose a checked piece to start.</div>
-<div class="buttons"><button id="refresh" class="secondary">Refresh list</button><button id="retry" class="secondary">Try sending again</button><button id="discard" class="secondary">Clear unsent tap</button></div><p id="pending" class="tiny"></p></section>
+<details class="ag-work-extra"><summary>Refresh or retry a saved tap</summary><div class="buttons"><button id="refresh" class="secondary">Refresh list</button><button id="retry" class="secondary">Try sending again</button><button id="discard" class="secondary">Clear unsent tap</button></div></details><p id="pending" class="tiny"></p></section>
 <section class="card"><h2>Step 1 — Choose a piece and carton</h2><p class="muted">Only checked, finished pieces with buyer tags can be packed. A piece can go in one carton only.</p><div class="fields"><label>Ready piece<select id="serial"></select></label><label>Carton number<input id="carton" placeholder="CARTON_001"></label></div>
 <p id="garmentInfo" class="muted"></p><div class="buttons"><button data-action="OPEN_CARTON">Make new carton</button><button data-action="ADD_GARMENT">Scan piece into carton</button><button class="secondary" data-action="REMOVE_GARMENT">Remove piece before sealing</button></div></section>
-<section class="card"><h2>Step 2 — Seal a full carton</h2><p class="muted">Check the pieces in the carton. You cannot change it after sealing.</p><button data-action="SEAL_CARTON">Seal carton</button><h3>Carton list</h3><div class="scroll"><table><thead><tr><th>Carton</th><th>Factory</th><th>Status</th><th>Pieces</th><th>Dispatch list</th></tr></thead><tbody id="cartons"></tbody></table></div></section>
+<section class="card"><h2>Step 2 — Seal a full carton</h2><p class="muted">Check the pieces in the carton. You cannot change it after sealing.</p><button data-action="SEAL_CARTON">Seal carton</button><details class="ag-work-extra"><summary>See all cartons</summary><h3>Carton list</h3><div class="scroll"><table><thead><tr><th>Carton</th><th>Factory</th><th>Status</th><th>Pieces</th><th>Dispatch list</th></tr></thead><tbody id="cartons"></tbody></table></div></details></section>
 <section class="card wide"><h2>Step 3 — Make a dispatch list</h2><div class="fields"><label>Dispatch list number<input id="manifest" placeholder="MANIFEST_001"></label><label>Factory<input id="plant" placeholder="PLANT_01"></label></div>
 <div class="buttons"><button data-action="OPEN_MANIFEST">Make dispatch list</button><button data-action="LOAD_CARTON">Scan sealed carton</button><button data-action="DISPATCH_REHEARSAL">Mark demo dispatch done</button></div>
-<div class="scroll"><table><thead><tr><th>Dispatch list</th><th>Factory</th><th>Status</th><th>Cartons</th><th>Pieces</th></tr></thead><tbody id="manifests"></tbody></table></div>
+<details class="ag-work-extra"><summary>See saved dispatch lists</summary><div class="scroll"><table><thead><tr><th>Dispatch list</th><th>Factory</th><th>Status</th><th>Cartons</th><th>Pieces</th></tr></thead><tbody id="manifests"></tbody></table></div></details>
 <details class="ag-details"><summary>What this demo does not do</summary><p>It does not book a real shipment, reduce stock, make an invoice, or confirm a carrier pickup. Real dispatch needs proper approval.</p></details>
 </section></div></main><script src="/static/packing_execution.js" defer></script></body></html>

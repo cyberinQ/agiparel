@@ -1,31 +1,32 @@
 <!doctype html>
+<!-- Author: Sunil Jain, 2026-10-28 — Excel-first, reviewed buyer-order intake. -->
 <html lang="en">
 <head>
  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
  <meta name="robots" content="noindex,nofollow">
- <title>Agiparel · CSV order upload</title>
+ <title>Agiparel · Order spreadsheet upload</title>
  <link rel="stylesheet" href="/static/order_intake.css">
  <script src="/static/order_intake.js" defer></script>
   <script src="/static/workspace_nav.js" defer></script>
 <link rel="stylesheet" href="/static/ux_unified.css">
 </head>
 <body data-ag-phase="buyer">
-<div style="padding:13px 24px;background:#eaf1ff;color:#244f9c;font-size:13px;border-bottom:1px solid #cfdffd"><strong>This is the CSV tool.</strong> For normal buyer files, <a href="/documents">Upload files</a> and then <a href="/buyer-review">check the buyer order</a>.</div>
+<div style="padding:13px 24px;background:#eaf1ff;color:#244f9c;font-size:13px;border-bottom:1px solid #cfdffd"><strong>This is the structured spreadsheet tool.</strong> For normal buyer files, <a href="/documents">Upload files</a> and then <a href="/buyer-review">check the buyer order</a>.</div>
  <header class="top">
    <a href="/" class="wordmark">agiparel <span>FACTORY OS</span></a>
    <span class="ops-pill">RESTRICTED · DEVELOPMENT</span>
    <a href="/planning">Existing planning workspace ↗</a>
  </header>
  <main class="layout">
-  <section class="hero"><div class="eyebrow">ADVANCED TOOL · CSV FILES</div><h1>Upload order CSV files.</h1><p>Use this tool if your PO and cloth list are in CSV format. Check the figures before you save.</p></section>
+  <section class="hero"><div class="eyebrow">ADVANCED TOOL · ORDER SPREADSHEETS</div><h1>Check a buyer order.</h1><p>Choose an Excel workbook for the buyer order and another for the material list. Check the amounts before saving.</p></section>
   <div class="guard"><strong>HOLD by design</strong><span>All intakes remain PROPOSED until buyer identity/revision, approved tech pack, operation bulletin, material, packing and shipping obligations are verified by authorized owners. CSVs are user-supplied evidence, not proof of buyer approval.</span></div>
-  <ol class="ag-steps" aria-label="Steps on this page"><li><b>1</b>Choose CSV files</li><li><b>2</b>Check quantities</li><li><b>3</b>Save draft</li></ol><div class="columns">
+  <ol class="ag-steps" aria-label="Steps on this page"><li><b>1</b>Choose spreadsheets</li><li><b>2</b>Check quantities</li><li><b>3</b>Save draft</li></ol><div class="columns">
    <section class="surface">
-     <div class="section-num">A / ADVANCED · TEMPORARY CSV STAGING</div><h2>Step 1 — Choose two CSV files</h2>
-     <p class="muted">Use CSV files in the shown format. For PDF, Excel or Word, use <a href="/documents">Upload documents</a> first. Semantic review and automatic handoff to this screen are available through the buyer review workbench. Maximum 2 MiB per CSV, 2,000 data rows.</p>
+     <div class="section-num">A / STRUCTURED ORDER UPLOAD</div><h2>Step 1 — Choose two spreadsheets</h2>
+     <p class="muted">Excel (.xlsx) is preferred. Use the blank templates below for the correct columns. For unstructured PDFs, Word files, photographs, or complex tech packs, use <a href="/documents">Upload Records</a> and <a href="/buyer-review">Buyer Review</a>.</p>
      <form id="intake-form">
-       <label class="upload">Buyer PO lines <small>po_number, style_code, color_code, size_code, ordered_qty, upc</small><input id="po-file" name="po_file" type="file" accept=".csv,text/csv" required></label>
-       <label class="upload">Style BOM <small>style_code, material_sku, category, qty_per_garment, uom</small><input id="bom-file" name="bom_file" type="file" accept=".csv,text/csv" required></label>
+       <label class="upload">Buyer PO lines <small>po_number, style_code, color_code, size_code, ordered_qty, upc</small><input id="po-file" name="po_file" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" required></label>
+       <label class="upload">Style BOM <small>style_code, material_sku, category, qty_per_garment, uom</small><input id="bom-file" name="bom_file" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" required></label>
        <div class="templates"><button type="button" data-template="po">Download PO template</button><button type="button" data-template="bom">Download BOM template</button></div>
        <div class="actions"><button class="primary" id="preview-btn" type="submit">Step 2 — Check numbers</button><button class="secondary" id="stage-btn" type="button" disabled>Step 3 — Save draft</button></div>
      </form>
@@ -36,12 +37,12 @@
      <div class="metrics"><div><small>PO</small><strong id="po-name">—</strong></div><div><small>Style</small><strong id="style-name">—</strong></div><div><small>Ordered pieces</small><strong id="quantity">—</strong></div><div><small>Release gate</small><strong class="held" id="release">HOLD</strong></div></div>
      <div class="result-area"><h3>Color / size matrix</h3><div class="table-wrap"><table><thead><tr><th>Color</th><th>Size</th><th>UPC</th><th class="num">Qty</th></tr></thead><tbody id="sku-rows"><tr><td colspan="4" class="empty">No validated source yet</td></tr></tbody></table></div></div>
      <div class="result-area"><h3>Cloth and trims needed</h3><div class="table-wrap"><table><thead><tr><th>Material</th><th>Class</th><th class="num">Per garment</th><th class="num">Total / unit</th></tr></thead><tbody id="bom-rows"><tr><td colspan="4" class="empty">Upload a BOM to calculate</td></tr></tbody></table></div></div>
-     <div class="result-area"><h3>What needs checking</h3><ul id="holds"><li>Upload and validate source CSVs</li></ul></div>
+     <div class="result-area"><h3>What needs checking</h3><ul id="holds"><li>Choose and check the two source spreadsheets</li></ul></div>
      <div class="digest"><small>File check code</small><code id="digest">—</code></div>
    </section>
   </div>
   <section class="surface recent"><div class="section-num">NEXT · MATERIAL PLANNING</div><h2>Apply eligible surplus before new purchases</h2><p class="muted">Material planning connects staged BOM quantities to a proposed sourcing scenario with six compatibility checks and a conditional net indent. Start from a stored buyer intake, not a fabricated order.</p><a id="plan-link" href="/material-planning" class="plan-link">Open material planning workbench →</a></section>
-  <section class="surface recent"><div class="head-row"><div><div class="section-num">SAVED DRAFTS</div><h2>Saved draft orders</h2></div><button type="button" id="refresh">Refresh</button></div><p class="muted">Choose a saved draft to see its details. The original CSV files stay on record.</p><div id="history" class="history">No records loaded.</div></section>
+  <section class="surface recent"><div class="head-row"><div><div class="section-num">SAVED DRAFTS</div><h2>Saved draft orders</h2></div><button type="button" id="refresh">Refresh</button></div><p class="muted">Choose a saved draft to see its details. The original uploaded files stay on record.</p><div id="history" class="history">No records loaded.</div></section>
   <footer>Agiparel Factory OS · Development operator workflow · Proposed source data is never production approval.</footer>
  </main>
 </body>

@@ -1,3 +1,4 @@
+/* Author: Sunil Jain, 2026-10-28 — Shared Aggie presentation for the public Home page. */
 :root{color-scheme:light;--ink:#233746;--muted:#556878;--border:#dee6eb;--bg:#f6f8fa;--accent:#167e88;--white:#fff}*{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.5}
 a{text-decoration:none;color:inherit}a:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:5px}
@@ -42,3 +43,17 @@ footer{border-top:1px solid var(--border);display:flex;gap:20px;align-items:cent
 .phase-08{--color:#B34E7A}
 .phase-09{--color:#566F91}
 .phase-10{--color:#28323B}
+
+/* Home and all chapters use the same full-height chat geometry. */
+#aggie-chat {
+  position:fixed; z-index:3000; top:12px; right:12px; bottom:12px;
+  width:min(510px,calc(100vw - 24px)); height:calc(100dvh - 24px);
+  max-height:none; min-height:0; display:flex; flex-direction:column;
+  box-sizing:border-box; overflow:hidden;
+}
+#aggie-chat[hidden] {display:none!important}
+#aggie-messages {flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain}
+#aggie-chat .aggie-top,#aggie-chat .aggie-compose {flex:0 0 auto}
+@media(max-width:600px) {
+  #aggie-chat {top:5px;right:5px;bottom:5px;width:calc(100vw - 10px);height:calc(100dvh - 10px);max-height:none}
+}

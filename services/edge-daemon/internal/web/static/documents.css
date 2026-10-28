@@ -47,3 +47,48 @@
 .revision-toggle{display:inline-flex;align-items:center;gap:7px;margin-left:auto;font-size:13px;font-weight:650;color:#345b69;min-height:44px;cursor:pointer}
 .revision-toggle input{width:18px;height:18px;accent-color:#16869a}
 .revision-label{display:inline-block;margin-left:5px;color:#58717b;font-size:12px;font-weight:650;white-space:nowrap}
+
+/* Author: Sunil Jain, 2026-10-28 — Chapter 10 returns to the quiet 01–03 visual rhythm.
+   All uploads, revisions, inspection and manager-review controls remain usable. */
+body[data-ag-phase="documents"] .upload-page {max-width:1050px;padding-top:0}
+body[data-ag-phase="documents"] .upload-intro {padding:26px 0 13px}
+body[data-ag-phase="documents"] .upload-intro h1 {font-size:clamp(28px,3vw,36px);line-height:1.15;margin:4px 0 8px}
+body[data-ag-phase="documents"] .upload-intro p {max-width:680px;margin:0;font-size:14px;color:var(--muted)}
+body[data-ag-phase="documents"] .upload-page > .panel {margin-top:14px;box-shadow:none;border:1px solid var(--line);border-radius:12px}
+body[data-ag-phase="documents"] .upload-page > .panel > h2,
+body[data-ag-phase="documents"] .upload-page > .panel .panel-head h2 {font-size:18px;line-height:1.3;margin:0}
+body[data-ag-phase="documents"] .drop {min-height:110px}
+body[data-ag-phase="documents"] .library-options {margin:10px 0 12px;font-size:13px;color:#435968}
+body[data-ag-phase="documents"] .library-options > summary {cursor:pointer;display:list-item;min-height:36px;padding:7px 0;font-weight:650}
+body[data-ag-phase="documents"] .library-options .sort-controls {margin:6px 0 10px;padding:8px 0;border-top:1px solid var(--line)}
+body[data-ag-phase="documents"] .file-table {font-size:14px}
+body[data-ag-phase="documents"] .file-table :is(td,th) {padding-block:10px}
+body[data-ag-phase="documents"] .review-section {border-top:1px solid var(--line);box-shadow:none}
+body[data-ag-phase="documents"] .review-summary {min-height:60px;padding:14px 18px}
+body[data-ag-phase="documents"] .review-summary strong {font-size:18px}
+@media(max-width:620px){body[data-ag-phase="documents"] .upload-intro{padding-top:19px}}
+
+/* Author: Sunil Jain, 2026-10-28 — Plain clickable file names, not dark chapter-accent badges.
+   Override the generic workflow primary-button selector without changing upload buttons. */
+body[data-ag-workflow="simple"][data-ag-phase="documents"] main .file-table button.file-name {
+  display:block;
+  width:100%;
+  max-width:100%;
+  min-height:44px;
+  padding:5px 0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  color:#215c78;
+  font-weight:650;
+  line-height:1.45;
+  text-align:left;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+body[data-ag-workflow="simple"][data-ag-phase="documents"] main .file-table button.file-name:hover {
+  background:transparent;
+  color:#174b64;
+  text-decoration:underline;
+}

@@ -1,4 +1,4 @@
-// Author: Sunil Jain, 2026-10-27 — original-file intake and sortable evidence library.
+// Author: Sunil Jain, 2026-10-28 — original-file intake and compact, sortable evidence library.
 (()=>{'use strict';
 const $=id=>document.getElementById(id),text=(node,value)=>{node.textContent=value??'';return node};
 const create=(tag,cls,contents,parent)=>{const n=document.createElement(tag);if(cls)n.className=cls;text(n,contents);if(parent)parent.append(n);return n};
@@ -6,9 +6,15 @@ const UPLOAD_BUILD = "20261027.v9";
 let files=[],library=[],current=null,currentSegments=[];
 const deepLink=new URLSearchParams(window.location.search);let deepLinkOpened=false;
 const formatSize=n=>n>=1024*1024?`${(n/1024/1024).toFixed(1)} MiB`:`${(n/1024).toFixed(1)} KiB`;
-function feedback(message,kind='',issues=[]){
+function feedback(message,kind='',issues=[],duplicates=[]){
  const el=$('feedback');el.className=`feedback ${kind}`;el.replaceChildren();
  create('span','',message,el);
+ if(duplicates.length){
+  const earlier=create('details','upload-issues',null,el);
+  create('summary','',`View ${duplicates.length} already-saved file${duplicates.length===1?'':'s'}`,earlier);
+  const names=create('ul','',null,earlier);
+  for(const name of duplicates)create('li','',name,names);
+ }
  if(issues.length){
   const details=create('details','upload-issues',null,el);
   create('summary','',`View ${issues.length} file issue${issues.length===1?'':'s'}`,details);
@@ -62,8 +68,7 @@ async function upload(){
   }
   const parts=[`${added} added`,`${revised} revised`,`${existing} already saved`];
   if(fail.length)parts.push(`${fail.length} need attention`);
-  if(duplicateNames.length)parts.push(`Already saved: ${duplicateNames.join(', ')}`);
-  feedback(parts.join(' · ')+'.',fail.length?'error':'success',fail);
+  feedback(parts.join(' · ')+'.',fail.length?'error':'success',fail,duplicateNames);
   if(received.length){
    selection([]);$('files').value='';
   }
@@ -79,20 +84,18 @@ const fileName=(d)=>String(d.filename||'Unnamed file');
 const sortValue=(d)=>{if(sortKey==='filename')return fileName(d).toLocaleLowerCase();if(sortKey==='uploaded_by')return String(d.uploaded_by||'').toLocaleLowerCase();if(sortKey==='format')return String(d.format||'').toLocaleLowerCase();return Date.parse(d.captured_at)||0};
 function renderList(){
  const list=$('doc-list');list.replaceChildren();const latest=library.filter(d=>d.current_version!==false);const shown=showHistory?library:latest;text($('total'),latest.length);
- if(!library.length){const row=create('tr','',null,list);const cell=create('td','file-empty','No files yet. Upload one above.',row);cell.colSpan=5;return;}
+ if(!library.length){const row=create('tr','',null,list);const cell=create('td','file-empty','No files yet. Upload one above.',row);cell.colSpan=3;return;}
  const sorted=[...shown].sort((a,b)=>{const x=sortValue(a),y=sortValue(b);let cmp=typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y));if(!cmp)cmp=String(a.id).localeCompare(String(b.id));return sortAscending?cmp:-cmp;});
  for(const d of sorted){
   const row=create('tr','',null,list);
   const nameCell=create('td','',null,row);const name=create('button','file-name',fileName(d),nameCell);if(d.version_count>1)create('span','revision-label',` · v${d.version}${d.current_version?' current':' earlier'}`,nameCell);name.type='button';name.title='View source details';name.addEventListener('click',()=>void inspect(d.id));
-  create('td','',d.uploaded_by||'Not recorded',row);
   const moment=Date.parse(d.captured_at);create('td','',Number.isFinite(moment)?new Date(moment).toLocaleString():'Date unavailable',row);
-  create('td','',d.format||'Unknown',row);
   const action=create('td','',null,row);const link=create('a','file-download','↓',action);link.href=`/api/v1/documents/${encodeURIComponent(d.id)}/source`;link.download=fileName(d);link.title=`Download ${fileName(d)}`;link.setAttribute('aria-label',`Download ${fileName(d)}`);
  }
 }
 $('sort-by').addEventListener('change',e=>{sortKey=e.target.value;sortAscending=sortKey!=='captured_at';$('sort-direction').textContent=sortAscending?'Ascending ↑':'Newest first ↓';renderList()});
 $('sort-direction').addEventListener('click',()=>{sortAscending=!sortAscending;$('sort-direction').textContent=sortAscending?'Ascending ↑':'Descending ↓';renderList()});
-async function refresh({preferred=""}={}){try{const result=await request('/api/v1/documents');library=result.items||[];renderList();document.dispatchEvent(new CustomEvent('agiparel-documents-updated',{detail:{items:library.filter(d=>d.current_version!==false),preferred}}));if(!deepLinkOpened&&deepLink.has('document')){deepLinkOpened=true;const id=deepLink.get('document');if(library.some(d=>d.id===id))await inspect(id);}}catch(e){const list=$('doc-list');list.replaceChildren();const row=create('tr','',null,list);const cell=create('td','file-empty',`Cannot load files: ${e.message}`,row);cell.colSpan=5;}}
+async function refresh({preferred=""}={}){try{const result=await request('/api/v1/documents');library=result.items||[];renderList();document.dispatchEvent(new CustomEvent('agiparel-documents-updated',{detail:{items:library.filter(d=>d.current_version!==false),preferred}}));if(!deepLinkOpened&&deepLink.has('document')){deepLinkOpened=true;const id=deepLink.get('document');if(library.some(d=>d.id===id))await inspect(id);}}catch(e){const list=$('doc-list');list.replaceChildren();const row=create('tr','',null,list);const cell=create('td','file-empty',`Cannot load files: ${e.message}`,row);cell.colSpan=3;}}
 async function inspect(id){try{current=id;$('source-details').open=true;renderList();const payload=await request(`/api/v1/documents/${encodeURIComponent(id)}`),d=payload.document;const revision=library.find(item=>item.id===id);text($('inspect-title'),d.filename+(revision?.version_count>1?` · Version ${revision.version} of ${revision.version_count}`:''));text($('inspect-desc'),`${d.format} · ${d.status} · ${d.segment_count} source segments. ${d.outcome||'Still being processed.'}`);text($('inspect-sha'),d.sha256);text($('inspect-readiness'),'UNREVIEWED · HOLD');$('download-source').hidden=false;$('download-source').href=`/api/v1/documents/${encodeURIComponent(id)}/source`;currentSegments=payload.segments||[];document.dispatchEvent(new CustomEvent('agiparel-document-selected',{detail:{id}}));$('search').disabled=false;$('search').value='';renderSegments();if(!deepLink.has('document'))$('source-details').scrollIntoView({behavior:'smooth',block:'start'});const ordinal=Number(deepLink.get('segment'));if(Number.isSafeInteger(ordinal)&&ordinal>0){const matched=document.getElementById(`source-segment-${ordinal}`);if(matched){matched.classList.add('source-highlight');matched.scrollIntoView({behavior:'smooth',block:'center'});}else{feedback(`The requested segment #${ordinal} is outside the first 200 shown here. Download the source to inspect it.`);}}}
  catch(e){text($('evidence-message'),`Cannot load source: ${e.message}`)}}
 function renderSegments(){const q=$('search').value.trim().toLocaleLowerCase();const holder=$('segments');holder.replaceChildren();let found=0;for(const s of currentSegments){if(q&&!s.content.toLocaleLowerCase().includes(q)&&!JSON.stringify(s.locator).toLocaleLowerCase().includes(q))continue;found++;const card=create('article','segment','',holder);card.id=`source-segment-${s.ordinal}`;create('div','segment-label',`${s.kind} #${s.ordinal} · ${Object.entries(s.locator||{}).map(([k,v])=>`${k}: ${v}`).join(' · ')}`,card);create('pre','',s.content,card)}text($('evidence-message'),currentSegments.length?`${found} matching segment(s) of ${currentSegments.length} loaded. This view shows up to 200 source segments; the original is always available.`:'No extracted text for this document yet. Check the job status or download the original.')}

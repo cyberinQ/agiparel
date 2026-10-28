@@ -1,3 +1,4 @@
+// Author: Sunil Jain, 2026-10-28 — Accept workbook evidence without weakening buyer-order validation.
 // Agiparel Batch 05 — deterministic, source-backed PO/BOM intake.
 // A staged submission is a proposed document, NOT an approved production order.
 package main
@@ -17,7 +18,6 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -220,8 +220,8 @@ func parseIntake(poRaw, bomRaw []byte, poName, bomName string) (sourceSubmission
 }
 
 func receiveIntake(w http.ResponseWriter, r *http.Request) (sourceSubmission, error) {
-	r.Body = http.MaxBytesReader(w, r.Body, 5<<20)
-	if err := r.ParseMultipartForm(2 << 20); err != nil {
+	r.Body = http.MaxBytesReader(w, r.Body, 18<<20)
+	if err := r.ParseMultipartForm(8 << 20); err != nil {
 		return sourceSubmission{}, fmt.Errorf("invalid multipart form: %w", err)
 	}
 	if r.MultipartForm != nil {
@@ -230,35 +230,33 @@ func receiveIntake(w http.ResponseWriter, r *http.Request) (sourceSubmission, er
 	if len(r.MultipartForm.File["po_file"]) != 1 || len(r.MultipartForm.File["bom_file"]) != 1 || len(r.MultipartForm.File) != 2 {
 		return sourceSubmission{}, errors.New("upload exactly one po_file and one bom_file")
 	}
-	read := func(key string) ([]byte, string, error) {
-		h := r.MultipartForm.File[key][0]
-		name := h.Filename
-		if len(name) > 255 || strings.ContainsAny(name, "/\\") || filepath.Ext(name) != ".csv" {
-			return nil, "", errors.New("source must have a simple .csv filename")
-		}
-		f, e := h.Open()
-		if e != nil {
-			return nil, "", e
-		}
-		defer f.Close()
-		data, e := io.ReadAll(io.LimitReader(f, intakeMaxFile+1))
-		if e != nil {
-			return nil, "", e
-		}
-		if len(data) > intakeMaxFile {
-			return nil, "", errors.New("CSV exceeds 2 MiB")
-		}
-		return data, name, nil
-	}
-	po, pon, e := read("po_file")
+	poHeaders := []string{"po_number", "style_code", "color_code", "size_code", "ordered_qty", "upc"}
+	bomHeaders := []string{"style_code", "material_sku", "category", "qty_per_garment", "uom"}
+	po, e := readSourceTable(r.MultipartForm.File["po_file"][0], poHeaders, false)
 	if e != nil {
 		return sourceSubmission{}, e
 	}
-	bom, bomn, e := read("bom_file")
+	bom, e := readSourceTable(r.MultipartForm.File["bom_file"][0], bomHeaders, false)
 	if e != nil {
 		return sourceSubmission{}, e
 	}
-	return parseIntake(po, bom, pon, bomn)
+	sub, e := parseIntake(po.CSV, bom.CSV, po.Name, bom.Name)
+	if e != nil {
+		return sourceSubmission{}, e
+	}
+	// Source identity and bytea evidence always reflect untouched uploaded files.
+	if po.Spreadsheet || bom.Spreadsheet {
+		d := sha256.New()
+		_, _ = d.Write([]byte("AGIPAREL-ORDER-INTAKE-V5\x00"))
+		for _, v := range [][]byte{po.Original, bom.Original} {
+			_, _ = d.Write([]byte(strconv.Itoa(len(v))))
+			_, _ = d.Write([]byte{0})
+			_, _ = d.Write(v)
+		}
+		sub.Report.SourceSHA256 = hex.EncodeToString(d.Sum(nil))
+	}
+	sub.PO, sub.BOM = po.Original, bom.Original
+	return sub, nil
 }
 
 func writeIntakeJSON(w http.ResponseWriter, status int, v any) {

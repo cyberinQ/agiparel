@@ -1,3 +1,4 @@
+// Author: Sunil Jain, 2026-10-28 — Read checked Excel evidence and retain originals for sourcing drafts.
 // Batch 06 — deterministic sourcing what-if scenarios, not authoritative stock/quotes.
 package main
 
@@ -10,10 +11,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math/big"
 	"net/http"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -361,54 +360,47 @@ func scenarioReadFile(r *http.Request, key string) ([]byte, string, error) {
 	if len(files) != 1 {
 		return nil, "", fmt.Errorf("upload exactly one %s", key)
 	}
-	h := files[0]
-	name := h.Filename
-	if name == "" || len(name) > 255 || strings.ContainsAny(name, "/\\") || filepath.Ext(name) != ".csv" {
-		return nil, "", errors.New("file needs a simple .csv filename")
+	cols := stockColumns
+	allowEmpty := true
+	if key == "prices_file" {
+		cols = priceColumns
+		allowEmpty = false
 	}
-	f, e := h.Open()
+	src, e := readSourceTable(files[0], cols, allowEmpty)
 	if e != nil {
 		return nil, "", e
 	}
-	defer f.Close()
-	b, e := io.ReadAll(io.LimitReader(f, intakeMaxFile+1))
-	if e != nil {
-		return nil, "", e
-	}
-	if len(b) > intakeMaxFile {
-		return nil, "", errors.New("source CSV exceeds 2 MiB")
-	}
-	return b, name, nil
+	return src.CSV, src.Name, nil
 }
-func receiveScenario(w http.ResponseWriter, r *http.Request) (string, []byte, []byte, string, string, error) {
-	r.Body = http.MaxBytesReader(w, r.Body, 5<<20)
-	if e := r.ParseMultipartForm(2 << 20); e != nil {
-		return "", nil, nil, "", "", e
+func receiveScenario(w http.ResponseWriter, r *http.Request) (string, sourceTable, sourceTable, error) {
+	r.Body = http.MaxBytesReader(w, r.Body, 18<<20)
+	if e := r.ParseMultipartForm(8 << 20); e != nil {
+		return "", sourceTable{}, sourceTable{}, e
 	}
 	if r.MultipartForm != nil {
 		defer r.MultipartForm.RemoveAll()
 	}
-	if len(r.MultipartForm.File) != 2 {
-		return "", nil, nil, "", "", errors.New("upload exactly stock_file and prices_file")
+	if len(r.MultipartForm.File) != 2 || len(r.MultipartForm.File["stock_file"]) != 1 || len(r.MultipartForm.File["prices_file"]) != 1 {
+		return "", sourceTable{}, sourceTable{}, errors.New("choose one stock sheet and one rate sheet")
 	}
 	id := r.FormValue("intake_id")
 	if len(id) != 35 || !strings.HasPrefix(id, "OI-") {
-		return "", nil, nil, "", "", errors.New("valid staged intake_id required")
+		return "", sourceTable{}, sourceTable{}, errors.New("valid staged intake_id required")
 	}
 	for _, c := range id[3:] {
 		if !strings.ContainsRune("0123456789abcdef", c) {
-			return "", nil, nil, "", "", errors.New("invalid intake ID")
+			return "", sourceTable{}, sourceTable{}, errors.New("invalid intake ID")
 		}
 	}
-	stock, sn, e := scenarioReadFile(r, "stock_file")
+	stock, e := readSourceTable(r.MultipartForm.File["stock_file"][0], stockColumns, true)
 	if e != nil {
-		return "", nil, nil, "", "", e
+		return "", sourceTable{}, sourceTable{}, e
 	}
-	prices, pn, e := scenarioReadFile(r, "prices_file")
+	prices, e := readSourceTable(r.MultipartForm.File["prices_file"][0], priceColumns, false)
 	if e != nil {
-		return "", nil, nil, "", "", e
+		return "", sourceTable{}, sourceTable{}, e
 	}
-	return id, stock, prices, sn, pn, nil
+	return id, stock, prices, nil
 }
 
 func (s *EdgeServer) scenarioIntake(ctx context.Context, tenant, id string) (intakeReport, error) {
@@ -474,7 +466,7 @@ func (s *EdgeServer) handleMaterialScenario(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "action must be preview or stage", 400)
 		return
 	}
-	id, stock, prices, sn, pn, e := receiveScenario(w, r)
+	id, stock, prices, e := receiveScenario(w, r)
 	if e != nil {
 		http.Error(w, e.Error(), 400)
 		return
@@ -488,11 +480,16 @@ func (s *EdgeServer) handleMaterialScenario(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Staged intake could not be read", 503)
 		return
 	}
-	src, e := buildScenario(intake, stock, prices, sn, pn)
+	src, e := buildScenario(intake, stock.CSV, prices.CSV, stock.Name, prices.Name)
 	if e != nil {
 		http.Error(w, e.Error(), 400)
 		return
 	}
+	if stock.Spreadsheet || prices.Spreadsheet {
+		src.Report.ScenarioSHA256 = scenarioDigest(id, intake.SourceSHA256, stock.Original, prices.Original)
+		src.Report.EvidenceClass = "OPERATOR_SUBMITTED_SPREADSHEET_UNVERIFIED"
+	}
+	src.Stock, src.Prices = stock.Original, prices.Original
 	if action == "preview" {
 		writeIntakeJSON(w, 200, src.Report)
 		return

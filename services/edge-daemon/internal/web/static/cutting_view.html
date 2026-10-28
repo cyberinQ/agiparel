@@ -2,66 +2,71 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Author: Sunil Jain, 2026-10-28 — Simple Chapter 05 steps; preserve signed cutting gates. -->
 <title>Agiparel · Cutting & Bundle Genealogy</title>
 <link rel="stylesheet" href="/static/cutting_lay.css">
 <script src="/static/workspace_nav.js" defer></script>
 <script src="/static/cutting_lay.js" defer></script>
+<script src="/static/cutting_sheet_upload.js" defer></script>
 <script src="/static/cutting_spread.js" defer></script>
 <script src="/static/cutting_release_status.js" defer></script>
 <link rel="stylesheet" href="/static/ux_unified.css">
+
+<link rel="stylesheet" href="/static/chapter_workflow.css">
 </head>
-<body data-ag-phase="cutting">
+<body data-ag-workflow="simple" data-ag-phase="cutting">
 <main>
  <header class="top">
-  <div><p class="eyebrow">CUTTING</p><h1>Cutting and bundle history</h1>
-   <p>Choose an order, plan the lay and check cut bundles.</p></div>
-  <a class="back" href="/stores">Fabric Stores</a>
+  <div><p class="eyebrow">05 · CUTTING</p><h1>Plan the cut.</h1>
+   <p>Choose the order, plan the pieces, then check what was cut. Need fabric details? <a href="/stores">See fabric rolls</a>.</p></div>
  </header>
  <div class="ag-note" role="note"><strong>PROPOSED / HOLD · NOT RELEASED.</strong> This is a cutting plan. Bundles cannot move to real sewing without the required checks.</div><details class="ag-details"><summary>Why is cutting on hold?</summary><p>Draft labels are not RFID EPCs or reader scans. Entered ply counts are reports, not proven cuts. Cutting needs signed issue and reader checks before real release.</p></details>
- <section class="stats" aria-label="Cutting overview">
+ <details class="ag-work-extra" id="cut-summary-details"><summary>See cutting totals and release status</summary><section class="stats" aria-label="Cutting overview">
   <article><span>Saved lay plans</span><strong id="metric-lays">—</strong></article>
   <article><span>Pieces in latest plan</span><strong id="metric-garments">—</strong></article>
   <article><span>Planned bundles</span><strong id="metric-bundles">—</strong></article>
   <article><span>Production release</span><strong class="hold" id="metric-cut-release">NOT RELEASED</strong></article>
- </section>
- <ol class="ag-steps" aria-label="Steps on this page"><li><b>1</b>Choose order and set lay</li><li><b>2</b>Record spread and bundles</li><li><b>3</b>Check release status</li></ol><div class="columns">
-  <section class="panel"><h2>Step 1 — Make a lay plan</h2><p class="hint">Choose a buyer order. Enter marker, fabric, shade and ply details.</p>
+ </section></details>
+ <ol class="ag-steps" aria-label="Steps on this page"><li><b>1</b>Plan the cut</li><li><b>2</b>Check the fabric spread</li><li><b>3</b>Check bundles before sewing</li></ol><div class="columns">
+  <section class="panel"><h2>Step 1 — Plan the cut</h2><p class="hint">Start with the buyer order. The marker and measurements must match the fabric and pattern.</p>
    <form id="cut-form">
     <label>Buyer order <select name="intake_id" id="cut-order" required><option value="">Loading orders…</option></select></label>
     <div class="source-facts" id="cut-source-facts" aria-live="polite">Select a buyer PO to inspect its fabric BOM and color/size quantities.</div>
     <div class="two"><label>Cut number<input name="cut_no" type="number" min="1" max="100000" value="1" required></label>
-      <label>Expected revision<input name="expected_revision" type="number" min="0" max="10000" value="0" required></label></div>
+      <label>Plan version (usually 0)<input name="expected_revision" type="number" min="0" max="10000" value="0" required></label></div>
     <div class="two"><label>Marker code<input name="marker_code" maxlength="64" placeholder="MARK-001" required></label>
       <label>Fabric SKU<input name="fabric_sku" maxlength="128" placeholder="Match buyer BOM" required></label></div>
     <div class="two"><label>Shade band<input name="shade_band" maxlength="32" placeholder="SHADE-A" required></label>
       <label>Reported plies<input name="reported_plies" type="number" min="1" max="210" placeholder="30" required></label></div>
-    <label>Sub-bundle ply group size <small>Maximum plies per classic sub-sub-bundle (e.g. 20; remainder forms final group)</small><input name="bundle_ply_group_size" type="number" min="1" max="210" value="20" required></label>
+    <label>Plies per bundle group <small>Usually 20. The last group may be smaller.</small><input name="bundle_ply_group_size" type="number" min="1" max="210" value="20" required></label>
     <div class="two"><label>Marker length (mm)<input name="marker_length_mm" type="number" min="100" max="100000000" placeholder="6500" required></label>
       <label>Usable fabric width (mm)<input name="usable_width_mm" type="number" min="100" max="4000" placeholder="1450" required></label></div>
-    <label>Marker positions <small>One per line: position,color_code,size_code</small>
+    <label>Marker positions <small>Use a spreadsheet or enter rows below. <a href="/static/agiparel_marker_positions_template.xlsx" download>Blank Excel sheet</a></small>
+      <input type="file" data-cut-sheet="marker_positions" data-cut-target="positions" accept=".xlsx,.csv" aria-label="Marker positions Excel file">
       <textarea name="positions" rows="5" spellcheck="false" placeholder="1,BLACK,32\n2,BLACK,34" required></textarea></label>
-    <label>Pattern parts <small>One per line: part_code,pieces_per_garment</small>
+    <label>Pattern pieces <small>Use a spreadsheet or enter rows below. <a href="/static/agiparel_pattern_parts_template.xlsx" download>Blank Excel sheet</a></small>
+      <input type="file" data-cut-sheet="pattern_parts" data-cut-target="parts" accept=".xlsx,.csv" aria-label="Pattern parts Excel file">
       <textarea name="parts" rows="5" spellcheck="false" placeholder="FRONT,2\nBACK,2\nWAISTBAND,1" required></textarea></label>
     <label>Evidence / planning note <small>12–1000 characters</small><textarea name="note" rows="3" maxlength="1000" required placeholder="Marker checked against tech pack; physical spread not verified."></textarea></label>
     <button type="submit" id="save-cut">Save lay draft</button>
     <p class="hint">Saving a revision preserves the previous version. Draft quantities cannot exceed the buyer's ordered color/size quantities across the latest cuts.</p>
    </form>
   </section>
-  <section class="panel"><h2>Saved lay plans</h2>
+  <section class="panel"><h2>Your saved cut plans</h2>
    <p class="hint">Choose a plan to see its cut parts and bundles.</p>
    <button class="secondary" id="refresh-cut" type="button">Refresh register</button>
    <div id="cut-register" class="register" aria-live="polite"></div>
   </section>
  </div>
- <section class="panel detail"><div class="detail-head"><div><h2>Cut bundles</h2><p class="hint" id="cut-title">Choose or save a lay to inspect its labels.</p></div>
+ <section class="panel detail"><div class="detail-head"><div><h2>Bundles in this plan</h2><p class="hint" id="cut-title">Choose or save a lay to inspect its labels.</p></div>
     <button class="secondary" id="print-cut" type="button" disabled>Print draft labels</button></div>
    <div class="chips" id="cut-summary"></div>
    <div class="table-wrap"><table><thead><tr><th>Draft label code</th><th>Marker position</th><th>Color / size</th><th>Part</th><th>Ply group</th><th>Plies</th><th>Pieces</th><th>RFID status</th></tr></thead><tbody id="cut-bundles"><tr><td colspan="8">No lay selected.</td></tr></tbody></table></div>
-   <p class="hint">Bundle count = marker positions × unique parts × ply groups. Each bundle represents its specific ply range, with piece count = plies in that range × pieces per garment. Label codes are deterministic within the lay revision and are not assigned as physical EPCs.</p>
+   <details class="ag-details"><summary>How are bundle counts worked out?</summary><p>Each pattern position, part and ply group makes one bundle. The number of pieces depends on its plies and the pieces required per garment. Printed draft labels are not physical RFID scans.</p></details>
  </section>
 
  <section class="panel detail" id="cut-spread-workbench" aria-label="Issued-fabric reconciliation">
-  <h2>Step 2 — Record the fabric spread</h2>
+  <h2>Step 2 — Check the fabric spread</h2>
   <p class="ag-note"><strong>Draft only.</strong> Entered fabric use does not decrement stores again or approve bundles for sewing.</p><details class="ag-details"><summary>What must be checked before release?</summary><p>Match measured cloth against signed-issue reconciliation. Operator reports alone do not prove a scanner read or cutting approval.</p></details>
   <p id="spread-selection" class="hint">Open a lay draft to inspect matching signed issues and prepare a physical-spread report.</p>
   <div class="two">
@@ -70,20 +75,21 @@
     <label>Actual number of plies <small>Must equal this lay revision or revise the lay first</small><input name="actual_plies" type="number" min="1" max="210" required></label>
     <label>Measured marker length (mm)<input name="measured_marker_length_mm" type="number" min="100" max="100000000" required></label>
     <label>Fabric used (mm) <small>Must cover measured marker × plies; all mm must be attributed to signed issues</small><input name="reported_consumption_mm" type="number" min="1" required></label>
-    <label>Fabric issue amounts <small>One signed issue UUID,consumed_mm per line. The sum must equal reported consumption.</small><textarea name="issue_allocations" rows="4" spellcheck="false" placeholder="00000000-0000-0000-0000-000000000000,125000" required></textarea></label>
+    <label>Fabric issue amounts <small>Use a spreadsheet or enter signed issue IDs and amounts below. <a href="/static/agiparel_issue_allocations_template.xlsx" download>Blank Excel sheet</a></small>
+      <input type="file" data-cut-sheet="issue_allocations" data-cut-target="issue_allocations" accept=".xlsx,.csv" aria-label="Fabric issue allocations Excel file"><textarea name="issue_allocations" rows="4" spellcheck="false" placeholder="00000000-0000-0000-0000-000000000000,125000" required></textarea></label>
     <label>Spread check note <small>12–1000 characters, actual operator observations; not a physical scanner credential</small><textarea name="evidence_note" rows="3" minlength="12" maxlength="1000" required></textarea></label>
     <button type="submit" id="save-spread" disabled>Save spread report</button>
    </form></section>
   </div>
   <div class="two"><section><h3>Spread reports</h3><div id="spread-register" class="register">No spread report.</div></section>
-  <section><h3>Bundle scan checks</h3><p class="hint">Only signed, strongly authenticated cutting-reader witnesses may register EPCs through the secure API. The dev login is read-only. Hardware RF presence is not verified by an operator signature alone.</p><div id="spread-scans" class="register">No signed bundle witnesses.</div></section></div>
+  <section><details class="ag-work-extra"><summary>See signed bundle reader checks</summary><h3>Bundle scan checks</h3><p class="hint">Only signed, strongly authenticated cutting-reader witnesses may register EPCs through the secure API. The dev login is read-only. Hardware RF presence is not verified by an operator signature alone.</p><div id="spread-scans" class="register">No signed bundle witnesses.</div></details></section></div>
   <p id="spread-message" role="status" aria-live="polite"></p>
  </section>
  <section class="panel detail" id="cut-release-workbench">
   <div class="detail-head"><div><h2>Step 3 — Check bundles before sewing</h2>
    <p class="hint">Check reader records and approvals. A matching scan alone does not release bundles.</p></div>
    <button class="secondary" type="button" id="release-refresh">Refresh status</button></div>
-  <div class="alert"><strong>SECURE HANDOFF:</strong> Only enrolled gateway keys may submit signed read reports. Supervisor and quality approvers must separately authorize release with strong external identities. Basic development credentials cannot approve production.</div>
+  <details class="ag-details"><summary>Who can release bundles?</summary><div class="alert"><strong>SECURE HANDOFF:</strong> Only enrolled gateway keys may submit signed read reports. Supervisor and quality approvers must separately authorize release with strong external identities. Basic development credentials cannot approve production.</div></details>
   <div id="cut-release-evidence" class="register" aria-live="polite">Select a cutting draft to see release evidence.</div>
  </section>
  <p id="cut-message" role="status" aria-live="polite"></p>
