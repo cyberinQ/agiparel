@@ -1,0 +1,33 @@
+# Author: Sunil Jain, 2026-10-28
+# Prevent local history, private records, and development artifacts entering Docker build context.
+.git/
+.github/
+.DS_Store
+**/.DS_Store
+__MACOSX/
+**/__MACOSX/
+data/
+.science-env/
+.venv/
+**/.venv/
+**/venv/
+**/node_modules/
+**/__pycache__/
+**/*.pyc
+*.zip
+*.tar
+*.tgz
+*.log
+# The Dockerfile copies only go.mod, go.sum, pkg/, services/, scripts/.
+# Exclude other root-level directories from the build context.
+bff/
+central-cloud/
+deploy/
+docs/
+edge-kernel/
+examples/
+packages/
+templates/
+tests/
+tools/
+web/
