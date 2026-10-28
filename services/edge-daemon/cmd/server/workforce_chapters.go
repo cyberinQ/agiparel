@@ -40,6 +40,8 @@ var chapterPermissions = map[string]chapterPermission{
 	"quality.read":      {7, "SIGNED_READ"},
 	"quality.inspect":   {7, "SIGNED_WRITE"},
 	"quality.repair":    {7, "SIGNED_WRITE"},
+	"quality.finish":    {7, "SIGNED_WRITE"},
+	"quality.release":   {7, "SIGNED_WRITE"},
 	"packing.read":      {8, "SIGNED_READ"},
 	"packing.stage":     {8, "SIGNED_WRITE"},
 	"intelligence.read": {9, "READ"},
