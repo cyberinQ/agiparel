@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"github.com/cyberinq/agiparel/services/edge-daemon/internal/web"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -56,5 +58,26 @@ func TestDocumentIntakeReadOnlyByDefault(t *testing.T) {
 		if w.Code != http.StatusMethodNotAllowed {
 			t.Errorf("%s %s status=%d", item.method, item.url, w.Code)
 		}
+	}
+}
+
+// Author: Sunil Jain, 2026-10-27 — Prevent a stale front-end or duplicate count regression.
+func TestDocumentUploadV9Contract(t *testing.T) {
+	raw, err := web.GetDocumentsHTML()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, token := range []string{`name="agiparel-upload-version" content="20261027.v9"`, `/static/documents.js?v=20261027.v9`, `/static/review_submit.js?v=20261027.v9`} {
+		if !strings.Contains(string(raw), token) {
+			t.Errorf("missing versioned asset %q", token)
+		}
+	}
+	sample := docSummary{ID: "DOC-abc", AlreadyPresent: true, Version: 2, VersionCount: 3, CurrentVersion: false}
+	b, err := json.Marshal(sample)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"version_count":3`) || !strings.Contains(string(b), `"already_present":true`) {
+		t.Errorf("duplicate upload result missing marker: %s", b)
 	}
 }

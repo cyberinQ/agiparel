@@ -40,7 +40,9 @@ func TestDocumentSafetyPreflight(t *testing.T) {
 	xlsx := makeOffice(t, map[string]string{"xl/workbook.xml": "<workbook/>", "xl/worksheets/sheet1.xml": "<sheet/>"})
 	docx := makeOffice(t, map[string]string{"word/document.xml": "<document/>"})
 	macro := makeOffice(t, map[string]string{"xl/workbook.xml": "<workbook/>", "xl/vbaProject.bin": "macro"})
-	link := makeOffice(t, map[string]string{"word/document.xml": "<document/>", "word/_rels/document.xml.rels": `<Relationships><Relationship TargetMode = "External" Target="https://host/evil"/></Relationships>`})
+	link := makeOffice(t, map[string]string{"word/document.xml": "<document/>", "word/_rels/document.xml.rels": `<Relationships><Relationship TargetMode = "External" Target="https://example.org/size-chart"/></Relationships>`})
+	workbookLink := makeOffice(t, map[string]string{"xl/workbook.xml": "<workbook/>", "xl/externalLinks/externalLink1.xml": "<externalLink/>", "xl/_rels/workbook.xml.rels": `<Relationships><Relationship TargetMode="External" Target="https://example.org/catalog"/></Relationships>`})
+	localLink := makeOffice(t, map[string]string{"xl/workbook.xml": "<workbook/>", "xl/_rels/workbook.xml.rels": `<Relationships><Relationship TargetMode="External" Target="file:///etc/passwd"/></Relationships>`})
 	// Magic-byte valid PNG, not a content classifier: swimsuit and underwear photography are permitted.
 	png := append([]byte{137, 80, 78, 71, 13, 10, 26, 10}, bytes.Repeat([]byte{0}, 24)...)
 	for _, x := range []struct {
@@ -50,18 +52,21 @@ func TestDocumentSafetyPreflight(t *testing.T) {
 	}{
 		{"sizes.csv", []byte("material_sku,rate\nCOTTON,1.5\n"), true},
 		{"buyer tech pack.pdf", []byte("%PDF-1.4\n1 0 obj <</Type /Catalog>> endobj\n%%EOF"), true},
+		{"ordinary-catalog.pdf", []byte("%PDF-1.7\n1 0 obj <</OpenAction [2 0 R /Fit] /AA <</O <</S /GoTo /D [2 0 R /Fit]>>>>>> endobj\n%%EOF"), true},
 		{"swimwear.png", png, true},
 		{"machines.xlsx", xlsx, true},
 		{"buyer.docx", docx, true},
 		{"macros.xlsx", macro, false},
 		{"spoofed.xlsm", macro, false},
-		{"external.docx", link, false},
+		{"external.docx", link, true},
+		{"linked-workbook.xlsx", workbookLink, true},
+		{"local-file-link.xlsx", localLink, false},
 		{"active.pdf", []byte("%PDF-1.5\n<</OpenAction <</S /J#53>>>>"), false},
 		{"active2.pdf", []byte("%PDF-1.4\n<</JavaScript 1 0 R>>"), false},
 		{"program.exe", []byte("MZabcdef"), false},
 		{"disguised.png", xlsx, false},
 		{"unknown.svg", []byte(`<svg onload="alert(1)"></svg>`), false},
-		{"old.xls", []byte{0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1}, false},
+		{"old.xls", []byte{0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1}, false}, // No AV: legacy binaries stay blocked.
 	} {
 		e := checkDocumentSafety(ctx, x.name, x.data)
 		if (e == nil) != x.allowed {
@@ -186,5 +191,22 @@ func TestClamAVDetectedMalwareRejected(t *testing.T) {
 	<-done
 	if e == nil || !strings.Contains(e.Error(), "malware detected") {
 		t.Fatalf("infected file must be rejected: %v", e)
+	}
+}
+
+// OpenAction commonly selects a starting page; it is not itself JavaScript.
+func TestPDFNavigationVersusActivePayloads(t *testing.T) {
+	for _, tc := range []struct {
+		name, pdf string
+		blocked   bool
+	}{
+		{"page-navigation", "%PDF-1.7\n<</OpenAction [3 0 R /Fit]>>", false},
+		{"js-escaped", "%PDF-1.7\n<</OpenAction <</S /J#53>>>>", true},
+		{"embedded-file", "%PDF-1.7\n<</Names <</EmbeddedFiles 5 0 R>>>>", true},
+		{"launch", "%PDF-1.7\n<</S /Launch>>", true},
+	} {
+		if got := unsafePDF([]byte(tc.pdf)); got != tc.blocked {
+			t.Errorf("%s: blocked=%v, want %v", tc.name, got, tc.blocked)
+		}
 	}
 }

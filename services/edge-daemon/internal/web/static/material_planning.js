@@ -1,62 +1,180 @@
-(()=>{'use strict';
-const $=id=>document.getElementById(id);
-const add=(tag,text,parent,cls)=>{const node=document.createElement(tag);node.textContent=text??'';if(cls)node.className=cls;parent.append(node);return node};
-const message=(text,cls='')=>{const e=$('message');e.textContent=text;e.className='message '+cls};
-async function json(res){if(!res.ok)throw new Error((await res.text()).trim().slice(0,300)||`HTTP ${res.status}`);return res.json()}
-const fetchData=url=>fetch(url,{credentials:'same-origin'}).then(json);
-const clean=x=>String(x??'').replace(/\r|\n|,/g,'_');
-let selected=null,preview=null;
-function download(name,content){const url=URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function stockTemplate(){if(!selected){message('Choose a staged intake first.','error');return}
- const headers='lot_id,material_sku,uom,available_qty,fabric_spec,required_spec,gsm,required_gsm,gsm_tolerance_pct,shade_delta_e,shade_max_delta_e,usable_width_mm,marker_width_mm,inspection_status,age_days,max_age_days,buyer_escrow,held_for_po,source_reference';
- const rows=[headers];
- for(const [i,m] of selected.materials.filter(m=>m.category==='FABRIC').entries()){
-  // Examples are NOT measured stock. Replace every submitted compatibility statement with verified sources.
-  rows.push([`EXAMPLE-LOT-${i+1}`,m.material_sku,m.uom,'500.000','EXAMPLE-SPEC','EXAMPLE-SPEC','220.000','220.000','3.000','0.500','1.000','1650.000','1600.000','ACCEPTED_PASS','60','365','ALLOWED','','EXAMPLE-GRN-REPLACE'].map(clean).join(','));
- }
- download('agiparel_example_surplus_unverified.csv',rows.join('\n')+'\n');
+// Author: Sunil Jain, 2026-10-27 — Show buyer-order demand before optional, evidence-backed sourcing calculations.
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const add = (tag, value, parent, className) => {
+  const element = document.createElement(tag);
+  element.textContent = value ?? '';
+  if (className) element.className = className;
+  parent.append(element);
+  return element;
+};
+const message = (value, type = '') => { $('message').textContent = value; $('message').className = 'message ' + type; };
+async function json(response) {
+  if (response.ok) return response.json();
+  if (response.status === 401 || response.status === 403) throw new Error('Sign in to check material records.');
+  throw new Error((await response.text()).trim().slice(0, 280) || `Request failed (${response.status})`);
 }
-function priceTemplate(){if(!selected){message('Choose a staged intake first.','error');return}
- const rows=['material_sku,category,uom,unit_price,currency,procurement_owner,source_reference'];
- for(const m of selected.materials)rows.push([m.material_sku,m.category,m.uom,m.category==='FABRIC'?'4.2500':'0.3300','USD','FACTORY','EXAMPLE-QUOTE-REPLACE'].map(clean).join(','));
- download('agiparel_example_prices_unverified.csv',rows.join('\n')+'\n')
+const fetchData = url => fetch(url, { credentials: 'same-origin' }).then(json);
+let selected = null;
+let preview = null;
+function download(name, content) {
+  const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a'); link.href = url; link.download = name; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-function show(rep){
- $('scenario-title').textContent=`${rep.po_number} · ${rep.style_code}`;
- $('scenario-subtitle').textContent=`${Number(rep.ordered_qty).toLocaleString()} ordered garments · ${rep.evidence_class} · status ${rep.status}`;
- $('gate').textContent=rep.release_gate;
- $('gross-cost').textContent=rep.gross_material_cost;
- $('reuse-cost').textContent=rep.conditional_reuse_value;
- $('net-cost').textContent=rep.net_purchase_exposure;
- $('currency').textContent=rep.currency+' · CSV';
- $('hash').textContent=rep.scenario_sha256;
- const body=$('material-lines');body.replaceChildren();for(const m of rep.materials){const tr=add('tr','',body);for(const text of [`${m.material_sku} · ${m.category} · ${m.procurement_owner}`,`${m.gross} ${m.uom}`,`${m.conditional_surplus} ${m.uom}`,`${m.net_indent} ${m.uom}`,`${m.buyer_supply_gap} ${m.uom}`,`${m.unit_price} ${rep.currency}`,`${m.net_cost} ${rep.currency}`])add('td',text,tr)}
- const cand=$('candidates');cand.replaceChildren();for(const c of rep.candidates){const tr=add('tr','',cand);const lot=add('td',c.lot_id,tr);add('span',c.source_reference,lot,'lot-source');add('td',c.material_sku,tr);add('td',c.submitted_qty,tr);const applied=add('td',c.suggested_qty,tr);add('span',c.verdict.replaceAll('_',' ').toLowerCase(),applied,'lot-source');const checks=add('td','',tr);const badges=add('div','',checks,'checks');for(const ck of c.checks){const badge=add('span',ck.criterion.replaceAll('_',' '),badges,ck.pass?'check':'check fail');badge.title=ck.detail}}
- const holds=$('holds');holds.replaceChildren();for(const h of rep.holds)add('li',h,holds);
+function stockTemplate() {
+  download('stock_check_blank.csv', 'lot_id,material_sku,uom,available_qty,fabric_spec,required_spec,gsm,required_gsm,gsm_tolerance_pct,shade_delta_e,shade_max_delta_e,usable_width_mm,marker_width_mm,inspection_status,age_days,max_age_days,buyer_escrow,held_for_po,source_reference\n');
 }
-async function loadOrders(){const list=await fetchData('/api/v1/order-intake');const el=$('intake');el.replaceChildren();const opt=add('option','Choose a staged buyer order',el);opt.value='';for(const item of list.items){const o=add('option',`${item.po_number} · ${item.style_code} · ${Number(item.ordered_qty).toLocaleString()} pieces`,el);o.value=item.id}
- const wanted=new URLSearchParams(location.search).get('intake');if(wanted&&list.items.some(item=>item.id===wanted))el.value=wanted;
- if(el.value)await chooseOrder();else message('Select a staged order. Upload or stage one first on the Order Intake screen.');
+function priceTemplate() {
+  download('material_rates_blank.csv', 'material_sku,category,uom,unit_price,currency,procurement_owner,source_reference\n');
 }
-async function chooseOrder(){preview=null;$('stage').disabled=true;selected=null;const id=$('intake').value;
- if(!id){$('order-summary').textContent='Select a staged order first.';$('history').textContent='No order selected.';return}
- try{selected=await fetchData('/api/v1/order-intake?id='+encodeURIComponent(id));$('order-summary').textContent=`${selected.ordered_qty.toLocaleString()} pieces · ${selected.materials.length} BOM lines · original intake SHA ${selected.source_sha256.slice(0,14)}…`;
- message('Order loaded from PostgreSQL. Download illustrative CSV inputs, then replace claims and prices with your evidence before assessing.');await refresh()}
- catch(err){message(err.message,'error')}
+function line(parent, m, mode) {
+  const item = add('div', '', parent, 'material-row');
+  const name = add('div', '', item, 'material-name');
+  add('strong', `${m.material_sku} · ${m.category}`, name);
+  add('small', mode === 'need' ? 'Saved buyer-order requirement · unverified for purchasing' : `${m.procurement_owner} · proposed`, name);
+  const amounts = add('div', '', item, 'material-amounts');
+  if (mode === 'need') {
+    add('span', `Need: ${m.required} ${m.uom}`, amounts);
+    add('span', 'Available: not checked', amounts, 'muted');
+    add('span', 'Shortage: unknown', amounts, 'muted');
+  } else {
+    add('span', `Need: ${m.gross} ${m.uom}`, amounts);
+    add('span', `Potential stock: ${m.conditional_surplus} ${m.uom}`, amounts);
+    add('span', `Estimated gap: ${m.net_indent} ${m.uom}`, amounts, 'accent-value');
+    if (m.buyer_supply_gap && Number(m.buyer_supply_gap) > 0) add('small', `Buyer-supplied gap: ${m.buyer_supply_gap} ${m.uom}`, amounts, 'muted');
+  }
 }
-async function evaluate(action){const id=$('intake').value,stock=$('stock').files[0],prices=$('prices').files[0];if(!selected||!id||!stock||!prices){message('Select a staged order and both source CSV files.','error');return}
- const form=new FormData();form.append('intake_id',id);form.append('stock_file',stock);form.append('prices_file',prices);
- $('preview').disabled=true;$('stage').disabled=true;
- try{message(action==='preview'?'Evaluating six criteria and gross-to-net material economics…':'Saving immutable scenario sources, audit and calculation…');const result=await json(await fetch('/api/v1/material-scenario?action='+action,{method:'POST',credentials:'same-origin',body:form}));show(result);
-  if(action==='preview'){preview={intake:id,stock,prices,digest:result.scenario_sha256};$('stage').disabled=false;message('Evaluation completed. These are CONDITIONAL calculations from submitted CSV assertions; no inventory was reserved.','success')}
-  else{preview=null;message(`Saved immutable proposed scenario ${result.id}. All commitments remain on HOLD.`,'success');await refresh()}
- }catch(err){message(err.message,'error')}finally{$('preview').disabled=false}
+function showNeed(order) {
+  $('results').hidden = true;
+  $('gate').textContent = 'DRAFT · HOLD';
+  $('scenario-subtitle').textContent = 'Amounts come from the saved order. Confirm the material use before purchasing.';
+  const materials = Array.isArray(order.materials) ? order.materials : [];
+  $('need-state').textContent = `${materials.length} material${materials.length === 1 ? '' : 's'}`;
+  $('need-sub').textContent = `${Number(order.ordered_qty).toLocaleString()} ordered pieces`;
+  $('have-state').textContent = 'Not checked';
+  $('have-sub').textContent = 'No eligible stock verified';
+  $('short-state').textContent = 'Unknown';
+  $('short-sub').textContent = 'Cannot assume zero inventory';
+  const list = $('material-lines'); list.replaceChildren();
+  if (!materials.length) add('p', 'This order has no reviewed material amounts yet. Add them in Buyer Order before calculating.', list, 'empty');
+  else for (const material of materials) line(list, material, 'need');
 }
-async function refresh(){if(!$('intake').value){$('history').textContent='Select a staged order first.';return}try{const list=await fetchData('/api/v1/material-scenario?intake='+encodeURIComponent($('intake').value));const hist=$('history');hist.replaceChildren();if(!list.items.length){hist.textContent='No saved scenarios for this buyer order.';return}for(const item of list.items){const btn=add('button','',hist);btn.type='button';add('strong',item.id,btn);add('small',new Date(item.created_at).toLocaleString()+' · PROPOSED · HOLD',btn);btn.addEventListener('click',async()=>{try{const rep=await fetchData('/api/v1/material-scenario?id='+encodeURIComponent(item.id));show(rep);message(`Loaded immutable ${rep.id} from PostgreSQL.`, 'success')}catch(e){message(e.message,'error')}})}}catch(e){$('history').textContent='Cannot load scenario history: '+e.message}}
-$('scenario-form').addEventListener('submit',e=>{e.preventDefault();void evaluate('preview')});
-$('stage').addEventListener('click',()=>{if(!preview||preview.intake!==$('intake').value||preview.stock!==$('stock').files[0]||preview.prices!==$('prices').files[0]){message('Scenario inputs changed; preview again.','error');return}void evaluate('stage')});
-$('intake').addEventListener('change',()=>void chooseOrder());
-for(const name of ['stock','prices'])$(name).addEventListener('change',()=>{preview=null;$('stage').disabled=true;message('Inputs changed. Re-evaluate before saving.');});
-$('template-stock').addEventListener('click',stockTemplate);$('template-prices').addEventListener('click',priceTemplate);$('refresh').addEventListener('click',()=>void refresh());
-void loadOrders().catch(e=>message('Cannot load staged orders: '+e.message,'error'));
+function show(report) {
+  $('results').hidden = false;
+  $('scenario-title').textContent = `${report.po_number} · ${report.style_code}`;
+  $('scenario-subtitle').textContent = 'Calculated from the two supplied CSV files. All material use remains on hold.';
+  $('gate').textContent = 'DRAFT · HOLD';
+  $('need-state').textContent = `${(report.materials || []).length} material${(report.materials || []).length === 1 ? '' : 's'}`;
+  $('need-sub').textContent = `${Number(report.ordered_qty).toLocaleString()} ordered pieces`;
+  $('have-state').textContent = 'Checked claims';
+  $('have-sub').textContent = 'Conditional stock, not approved';
+  $('short-state').textContent = 'See gaps below';
+  $('short-sub').textContent = 'Not an approved purchase order';
+  $('gross-cost').textContent = report.gross_material_cost;
+  $('reuse-cost').textContent = report.conditional_reuse_value;
+  $('net-cost').textContent = report.net_purchase_exposure;
+  $('currency').textContent = report.currency;
+  $('hash').textContent = report.scenario_sha256;
+  const list = $('material-lines'); list.replaceChildren();
+  for (const material of report.materials || []) line(list, material, 'calculated');
+  const body = $('candidates'); body.replaceChildren();
+  for (const candidate of report.candidates || []) {
+    const tr = add('tr', '', body);
+    const lot = add('td', candidate.lot_id, tr); add('small', candidate.source_reference, lot, 'source');
+    add('td', candidate.material_sku, tr); add('td', candidate.submitted_qty, tr);
+    const used = add('td', candidate.suggested_qty, tr); add('small', candidate.verdict.replaceAll('_', ' ').toLowerCase(), used, 'source');
+    const checks = add('td', '', tr);
+    for (const check of candidate.checks || []) {
+      const badge = add('span', `${check.pass ? '✓' : '×'} ${check.criterion.replaceAll('_', ' ')}`, checks, check.pass ? 'check' : 'check fail');
+      badge.title = check.detail;
+    }
+  }
+  if (!body.children.length) { const row = add('tr', '', body); const td = add('td', 'No matching stock claims.', row); td.colSpan = 5; }
+  const holds = $('holds'); holds.replaceChildren();
+  for (const hold of report.holds || []) add('li', hold, holds);
+  if (!holds.children.length) add('li', 'Even matching stock still needs operational authorization.', holds);
+}
+async function loadOrders() {
+  const list = await fetchData('/api/v1/order-intake');
+  const options = $('intake'); options.replaceChildren();
+  const blank = add('option', 'Choose a saved buyer order', options); blank.value = '';
+  const items = Array.isArray(list.items) ? list.items : [];
+  for (const order of items) {
+    const option = add('option', `${order.po_number} · ${order.style_code} · ${Number(order.ordered_qty).toLocaleString()} pieces`, options);
+    option.value = order.id;
+  }
+  const requested = new URLSearchParams(location.search).get('intake');
+  if (requested && items.some(item => item.id === requested)) options.value = requested;
+  else if (items.length) options.value = items[0].id; // API returns latest staged intake first.
+  if (options.value) await chooseOrder();
+  else { $('order-summary').textContent = 'No saved buyer order yet. Start in Buyer Order.'; message('Save a buyer-order draft first.'); }
+}
+async function chooseOrder() {
+  preview = null; selected = null; $('stage').disabled = true;
+  $('results').hidden = true;
+  const id = $('intake').value;
+  if (!id) { $('order-summary').textContent = 'Choose a saved buyer order.'; $('material-lines').replaceChildren(); $('history').textContent = 'No order selected.'; return; }
+  try {
+    selected = await fetchData('/api/v1/order-intake?id=' + encodeURIComponent(id));
+    $('order-summary').textContent = `${selected.po_number} · ${selected.style_code} · ${Number(selected.ordered_qty).toLocaleString()} pieces`;
+    showNeed(selected);
+    message('Order loaded. Material demand is a draft; stock and shortage have not been checked.');
+    await refresh();
+  } catch (error) { message(error.message, 'error'); }
+}
+async function evaluate(action) {
+  const id = $('intake').value, stock = $('stock').files[0], prices = $('prices').files[0];
+  if (!selected || !id || !stock || !prices) { message('Choose a buyer order and both checked CSV files.', 'error'); return; }
+  const form = new FormData(); form.append('intake_id', id); form.append('stock_file', stock); form.append('prices_file', prices);
+  $('preview').disabled = true; $('stage').disabled = true;
+  try {
+    message(action === 'preview' ? 'Checking stock claims and material costs…' : 'Saving the draft calculation…');
+    const result = await json(await fetch('/api/v1/material-scenario?action=' + action, { method: 'POST', credentials: 'same-origin', body: form }));
+    show(result);
+    if (action === 'preview') {
+      preview = { intake: id, stock, prices };
+      $('stage').disabled = false;
+      message('Calculation ready. Check the gaps below, then save if appropriate. Nothing was reserved.', 'success');
+    } else {
+      preview = null;
+      message('Draft material plan saved. No buying or stock use has been approved.', 'success');
+      await refresh();
+    }
+  } catch (error) { message(error.message, 'error'); } finally { $('preview').disabled = false; }
+}
+async function refresh() {
+  if (!$('intake').value) { $('history').textContent = 'Choose a buyer order.'; return; }
+  try {
+    const list = await fetchData('/api/v1/material-scenario?intake=' + encodeURIComponent($('intake').value));
+    const history = $('history'); history.replaceChildren();
+    if (!(list.items || []).length) { history.textContent = 'No saved material plans yet.'; return; }
+    for (const item of list.items) {
+      const button = add('button', '', history, 'history-item'); button.type = 'button';
+      add('strong', item.id, button);
+      add('small', `${new Date(item.created_at).toLocaleString()} · Draft`, button);
+      button.addEventListener('click', async () => {
+        try { const report = await fetchData('/api/v1/material-scenario?id=' + encodeURIComponent(item.id)); show(report); message('Saved draft loaded. Stock and purchasing remain on hold.', 'success'); }
+        catch (error) { message(error.message, 'error'); }
+      });
+    }
+  } catch (error) { $('history').textContent = 'Could not load previous plans: ' + error.message; }
+}
+$('scenario-form').addEventListener('submit', event => { event.preventDefault(); void evaluate('preview'); });
+$('stage').addEventListener('click', () => {
+  if (!preview || preview.intake !== $('intake').value || preview.stock !== $('stock').files[0] || preview.prices !== $('prices').files[0]) {
+    message('The files changed. Check materials again before saving.', 'error'); return;
+  }
+  void evaluate('stage');
+});
+$('intake').addEventListener('change', () => { void chooseOrder(); });
+for (const id of ['stock', 'prices']) $(id).addEventListener('change', () => {
+  preview = null; $('stage').disabled = true;
+  if (selected) { showNeed(selected); message('Files changed. Check materials before saving.'); }
+});
+$('template-stock').addEventListener('click', stockTemplate);
+$('template-prices').addEventListener('click', priceTemplate);
+$('refresh').addEventListener('click', () => { void refresh(); });
+void loadOrders().catch(error => message('Could not load saved buyer orders: ' + error.message, 'error'));
 })();

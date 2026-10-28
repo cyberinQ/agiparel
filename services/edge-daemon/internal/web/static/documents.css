@@ -39,3 +39,11 @@
 @media(max-width:620px){.review-final-card button{width:100%}.review-check{align-self:flex-start}}
 
 .review-saved-select{min-height:46px;width:100%;border:1px solid #bfced4;border-radius:8px;padding:8px 12px;font-size:15px;background:#fff}
+
+/* Author: Sunil Jain, 2026-10-27 — Group upload errors without overwhelming the file picker. */
+.upload-issues{margin-top:9px;color:#6c3440}.upload-issues summary{cursor:pointer;font-weight:700;min-height:36px;padding:7px 0}.upload-issues ul{margin:4px 0 0;padding-left:20px;max-height:240px;overflow:auto}.upload-issues li{margin:6px 0;overflow-wrap:anywhere;line-height:1.45}
+
+/* Author: Sunil Jain, 2026-10-27 — Current-version library with accessible retained history. */
+.revision-toggle{display:inline-flex;align-items:center;gap:7px;margin-left:auto;font-size:13px;font-weight:650;color:#345b69;min-height:44px;cursor:pointer}
+.revision-toggle input{width:18px;height:18px;accent-color:#16869a}
+.revision-label{display:inline-block;margin-left:5px;color:#58717b;font-size:12px;font-weight:650;white-space:nowrap}

@@ -3,15 +3,15 @@
 <html lang="en">
 <head>
  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
- <meta name="color-scheme" content="light"><title>Agiparel · Upload records</title>
- <link rel="stylesheet" href="/static/ux_unified.css"><link rel="stylesheet" href="/static/documents.css">
+ <meta name="color-scheme" content="light"><meta name="agiparel-upload-version" content="20261027.v9"><title>Agiparel · Upload records</title>
+ <link rel="stylesheet" href="/static/ux_unified.css"><link rel="stylesheet" href="/static/documents.css?v=20261027.v9">
  <script src="/static/workspace_nav.js" defer></script><script src="/static/portal.js" defer></script>
- <script src="/static/documents.js" defer></script><script src="/static/document_triage.js" defer></script><script src="/static/review_submit.js" defer></script>
+ <script src="/static/documents.js?v=20261027.v9" defer></script><script src="/static/document_triage.js" defer></script><script src="/static/review_submit.js?v=20261027.v9" defer></script>
 </head>
 <body data-ag-phase="documents" data-ag-simple-header="true">
  <main class="upload-page">
   <header class="file-top"><a class="file-brand" href="/"><span class="file-mark" aria-hidden="true"></span>agiparel</a><nav aria-label="File navigation"><a href="/">← Home</a><button type="button" id="aggie-open" class="aggie-invite" aria-controls="aggie-chat" aria-expanded="false"><span class="aggie-face" aria-hidden="true">😄</span><span>Ask Aggie</span></button></nav></header>
-  <section class="upload-intro"><span class="file-kicker">UPLOAD RECORDS</span><h1>Upload records.</h1><p>Choose any files you have. We'll keep the originals.</p></section>
+  <section class="upload-intro"><span class="file-kicker">UPLOAD RECORDS</span><h1>Upload records.</h1><p>Choose any files you have. Revised files become the current version; earlier copies remain available.</p></section>
   <section class="panel upload" aria-labelledby="upload-heading"><h2 id="upload-heading">Choose files</h2>
    <div class="drop" id="drop" role="button" tabindex="0" aria-label="Select records for upload"><span class="drop-icon" aria-hidden="true">⇧</span><b>Drop files here or choose files</b><input id="files" type="file" multiple aria-label="Choose files to upload"><small>PDF, photos, spreadsheets or documents · up to 20 MB each</small></div>
    <div class="selection" id="selection" aria-live="polite">No files selected</div>
@@ -20,7 +20,7 @@
    <p class="privacy-note">Development system: don't upload private payroll or employee ID records until production access controls are enabled.</p>
   </section>
   <section class="panel library" aria-labelledby="library-title"><div class="panel-head"><div><h2 id="library-title">Uploaded files <span id="total" class="file-total">—</span></h2></div><button class="secondary" id="refresh" type="button">Refresh</button></div>
-   <div class="sort-controls"><label for="sort-by">Sort by</label><select id="sort-by"><option value="captured_at">Upload date</option><option value="filename">File name</option><option value="uploaded_by">Uploaded by</option><option value="format">File type</option></select><button type="button" id="sort-direction" class="secondary" aria-label="Reverse sort order">Newest first ↓</button></div>
+   <div class="sort-controls"><label for="sort-by">Sort by</label><select id="sort-by"><option value="captured_at">Upload date</option><option value="filename">File name</option><option value="uploaded_by">Uploaded by</option><option value="format">File type</option></select><button type="button" id="sort-direction" class="secondary" aria-label="Reverse sort order">Newest first ↓</button><label class="revision-toggle"><input type="checkbox" id="show-history"> Show earlier versions</label></div>
    <div class="file-table-wrap"><table class="file-table"><thead><tr><th scope="col">File name</th><th scope="col">Uploaded by</th><th scope="col">Date &amp; time</th><th scope="col">Type</th><th scope="col">Download</th></tr></thead><tbody id="doc-list" aria-live="polite"><tr><td colspan="5">Loading files…</td></tr></tbody></table></div>
    <p class="file-library-note">Uploaded by is not yet recorded by this development server. Existing files are kept without changing their history.</p>
   </section>

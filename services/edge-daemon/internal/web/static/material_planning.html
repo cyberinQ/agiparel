@@ -1,28 +1,66 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Agiparel · Plan material</title><link rel="stylesheet" href="/static/material_planning.css"><script src="/static/material_planning.js" defer></script>  <script src="/static/workspace_nav.js" defer></script>
+<!-- Author: Sunil Jain, 2026-10-27 — Minimal, evidence-aware Chapter 03 material planning. -->
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Agiparel · Plan material</title>
 <link rel="stylesheet" href="/static/ux_unified.css">
+<link rel="stylesheet" href="/static/material_planning.css">
+<script src="/static/workspace_nav.js" defer></script>
+<script src="/static/portal.js" defer></script>
+<script src="/static/material_planning.js" defer></script>
 </head>
-<body data-ag-phase="material">
-<header class="top"><a class="brand" href="/">agiparel <small>FACTORY OS</small></a><nav><a href="/order-intake">Order intake</a><a href="/stores">Fabric stores</a><a class="current" href="/material-planning">Material planning</a><a href="/planning">Factory planning</a></nav><span class="chip">DEVELOPMENT · RESTRICTED</span></header>
-<main class="layout">
- <section class="hero"><div class="eyebrow">CLOTH AND TRIM PLAN</div><h1>Use what you have.<br><em>Buy what is missing.</em></h1><p>Choose an order. Check fabric that may be used. Then see what still needs to be bought.</p></section>
- <div class="notice"><strong>Draft only · HOLD</strong><span>These figures are for planning. The store and prices must be checked before buying or using cloth.</span></div>
- <ol class="ag-steps" aria-label="Steps on this page"><li><b>1</b>Choose buyer order</li><li><b>2</b>Check matching stock</li><li><b>3</b>See what to buy</li></ol>
- <div class="columns">
-  <section class="panel inputs"><div class="eyebrow">CHECK MATERIAL</div><h2>Step 1 — Make a material plan</h2><p><a href="/documents">Upload original inventory, GRNs and price sheets centrally →</a> Use the sample CSV formats for the stock and prices you want to check.</p><label class="field">Staged order<select id="intake"><option value="">Loading staged orders…</option></select></label><p id="order-summary" class="minor">Choose a staged order to calculate material demand.</p>
-  <form id="scenario-form"><label class="field file">Fabric that may be available <small>19 source-backed columns with six policy checks, no trim stock borrowing</small><input type="file" id="stock" accept=".csv,text/csv" required></label><label class="field file">Prices from your files <small>Exactly one rate + FACTORY / BUYER_OWNED owner per BOM line; single currency</small><input type="file" id="prices" accept=".csv,text/csv" required></label>
-  <div class="templates"><button type="button" id="template-stock">Download sample surplus CSV</button><button type="button" id="template-prices">Download sample price CSV</button></div>
-  <div class="buttons"><button id="preview" class="primary" type="submit">Step 2 — Check material</button><button id="stage" class="secondary" type="button" disabled>Step 3 — Save draft</button></div></form>
-  <div id="message" class="message" role="status" aria-live="polite">Start by choosing an order. No stock is approved until the proper checks are complete.</div>
-  <div class="rules"><h3>Checks for usable fabric</h3><ol><li>Exact fabric specification + claimed GSM tolerance</li><li>Shade delta-E versus claimed limit</li><li>Usable inspected width ≥ claimed CAD marker width</li><li>Inspection status <code>ACCEPTED_PASS</code></li><li>Stock age within submitted policy limit</li><li>Buyer escrow/ownership compatibility and no other-PO hold</li></ol><p>Every limit and status is an <strong>input assertion</strong>, not proof of buyer approval. Unknown or failed checks cannot reduce the net indent.</p></div>
+<body data-ag-phase="material" data-ag-simple-header="true">
+<div class="material-app">
+<header class="material-top"><a class="material-brand" href="/"><span aria-hidden="true">▮</span> agiparel</a><nav aria-label="Material planning navigation"><a href="/">← Home</a><button type="button" id="aggie-open" class="aggie-invite" aria-controls="aggie-chat" aria-expanded="false"><span class="aggie-face" aria-hidden="true">😄</span><span>Ask Aggie</span></button></nav></header>
+<main>
+ <section class="intro"><span class="chapter-label">03 · PLAN MATERIAL</span><h1>Plan your materials.</h1><p>See what you need, what you have, and what's missing.</p></section>
+ <section class="panel order-panel" aria-labelledby="order-title">
+  <div class="section-heading"><h2 id="order-title">Buyer order</h2><a href="/buyer-review">Check buyer order ↗</a></div>
+  <label class="field" for="intake">Choose an order<select id="intake"><option value="">Loading saved orders…</option></select></label>
+  <p id="order-summary" class="support" role="status">Select an order to see its material needs.</p>
+ </section>
+ <section class="panel" aria-labelledby="plan-title">
+  <div class="section-heading"><h2 id="plan-title">Material plan</h2><span class="hold-label" id="gate">DRAFT · HOLD</span></div>
+  <p class="support" id="scenario-subtitle">Start with a buyer order. Stock and prices must be checked separately.</p>
+  <div class="plan-metrics" aria-label="Material planning status">
+   <div><small>Need</small><strong id="need-state">—</strong><span id="need-sub">From saved buyer order</span></div>
+   <div><small>Available</small><strong id="have-state">Not checked</strong><span id="have-sub">Only inspected, eligible stock counts</span></div>
+   <div><small>Shortage</small><strong id="short-state">Unknown</strong><span id="short-sub">Check stock before calculating</span></div>
+  </div>
+  <div id="message" class="message" role="status" aria-live="polite">Choose an order to begin.</div>
+  <h3>Materials in this order</h3>
+  <div id="material-lines" class="material-list" aria-live="polite"><p class="empty">Choose a saved buyer order above.</p></div>
+  <details class="review-details" id="evidence-inputs"><summary>Check stock and costs</summary>
+   <div class="details-body">
+    <p class="support">Upload the originals in <a href="/documents">Upload Records</a>. For this calculation, the current engine also needs two checked CSV files. It cannot yet calculate directly from PDFs or photos.</p>
+    <form id="scenario-form">
+     <div class="file-grid"><label class="field" for="stock">Stock check (CSV)<input type="file" id="stock" accept=".csv,text/csv" required></label><label class="field" for="prices">Material rates (CSV)<input type="file" id="prices" accept=".csv,text/csv" required></label></div>
+     <div class="templates"><button type="button" id="template-stock">Blank stock sheet ↓</button><button type="button" id="template-prices">Blank rate sheet ↓</button></div>
+     <p class="fine-print">Unknown inspection, shade, width, age, ownership, or reservation details cannot be counted as available stock. Blank sheets contain no example inventory or invented rates.</p>
+     <div class="actions"><button id="preview" class="primary" type="submit">Check materials</button><button id="stage" class="secondary" type="button" disabled>Save draft plan</button></div>
+    </form>
+   </div>
+  </details>
+  <section id="results" hidden aria-label="Calculated plan">
+   <div class="section-heading calc-heading"><h3 id="scenario-title">Plan details</h3><span class="hold-label">Not approved</span></div>
+   <p class="support">Potential stock and costs are based on the submitted files. They do not authorize use or purchase.</p>
+   <div class="cost-line"><div><small>Estimated material spend</small><strong id="net-cost">—</strong></div><div><small>Currency</small><strong id="currency">—</strong></div></div>
+   <details class="review-details"><summary>See stock checks, costs and reasons</summary><div class="details-body">
+    <div class="cost-line secondary-metrics"><div><small>Before possible stock reuse</small><strong id="gross-cost">—</strong></div><div><small>Potential savings</small><strong id="reuse-cost">—</strong></div></div>
+    <h4>Stock considered</h4><div class="table-scroll"><table><thead><tr><th>Lot / source</th><th>Material</th><th>Claimed</th><th>Potentially usable</th><th>Checks</th></tr></thead><tbody id="candidates"><tr><td colspan="5">No stock checked.</td></tr></tbody></table></div>
+    <h4>Still needs checking</h4><ul id="holds"><li>Original stock evidence has not been checked.</li></ul>
+    <p class="digest">Plan reference <code id="hash">—</code></p>
+   </div></details>
   </section>
-  <section class="panel results"><div class="head"><div class="eyebrow">YOUR MATERIAL PLAN</div><span id="gate" class="held">HOLD</span></div><h2 id="scenario-title">Choose an order to begin</h2><p class="minor" id="scenario-subtitle">Stock must be checked before use.</p>
-   <div class="metric-grid"><article><small>Material cost before reuse</small><strong id="gross-cost">—</strong></article><article><small>Possible stock savings</small><strong id="reuse-cost">—</strong></article><article class="accent"><small>Still to buy</small><strong id="net-cost">—</strong></article><article><small>Currency / source</small><strong id="currency">—</strong></article></div>
-   <h3>Material buy list</h3><div class="scroll"><table><thead><tr><th>Material</th><th>Gross need</th><th>Conditional surplus</th><th>Factory indent</th><th>Buyer gap</th><th>Unit rate</th><th>Net exposure</th></tr></thead><tbody id="material-lines"><tr><td colspan="7" class="empty">Select order and evaluate source files</td></tr></tbody></table></div>
-   <h3>Which stock can be used?</h3><div class="scroll"><table><thead><tr><th>Lot / source</th><th>Material</th><th>Qty claimed</th><th>Applied</th><th>Six checks</th></tr></thead><tbody id="candidates"><tr><td colspan="5" class="empty">No candidate decisions yet</td></tr></tbody></table></div>
-   <h3>What needs checking</h3><ul id="holds"><li>No authentic inventory snapshot, inspected GRN or buyer policies connected.</li></ul><div class="digest"><small>Saved plan check code</small><code id="hash">—</code></div>
-  </section>
- </div>
- <section class="panel history-panel"><div class="history-head"><div><div class="eyebrow">SAVED PLANS</div><h2>Saved material plans</h2></div><button type="button" id="refresh">Refresh</button></div><p class="minor">Each saved plan stays in history along with its files. It does not approve buying or stock use.</p><div class="history" id="history">Select an intake to view scenarios.</div></section>
- <footer>Agiparel Factory OS · STR-01 proposed sourcing workspace · Calculation does not establish stock, price or buyer approval · Next: check the fabric store.</footer>
-</main></body></html>
+ </section>
+ <details class="panel history-panel"><summary>Saved draft plans</summary><div class="details-body"><button type="button" id="refresh" class="secondary">Refresh list</button><p class="support">Old plans are kept for reference. They do not authorize buying, stock use, or production.</p><div class="history" id="history">Choose an order to see saved plans.</div></div></details>
+</main>
+</div>
+<section id="aggie-chat" class="aggie-chat" role="dialog" aria-label="Chat with Aggie" aria-modal="false" hidden>
+ <div class="aggie-top"><div class="aggie-identity"><span class="aggie-chat-face" aria-hidden="true">😄</span><strong>Aggie</strong><span class="aggie-bot-note">Factory helper</span></div><button id="aggie-close" class="aggie-close" type="button" aria-label="Close Aggie chat">×</button></div>
+ <div id="aggie-messages" class="aggie-messages" role="log" aria-live="polite" aria-relevant="additions text"><p class="aggie-msg aggie-msg-bot">Hi! I can help you understand your material plan.</p></div>
+ <div class="aggie-compose"><label class="aggie-label" for="aggie-input">Ask Aggie</label><div class="aggie-compose-row"><textarea id="aggie-input" rows="2" maxlength="1000" placeholder="Type your question…"></textarea><button id="aggie-send" class="aggie-send" type="button">Send</button></div><p id="aggie-status" class="aggie-status" role="status">Only checked records can authorize stock use.</p></div>
+</section>
+</body>
+</html>

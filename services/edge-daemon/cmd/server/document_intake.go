@@ -1,4 +1,4 @@
-// Author: Sunil Jain, 2026-10-27 — Preflight uploads before immutable source storage.
+// Author: Sunil Jain, 2026-10-27 — Preserve immutable revisions; identify duplicate bytes before repeated scanning.
 // Gate 06.5-A: tenant-pinned, review-only universal source intake gateway.
 // A separate document-intake worker consumes durable queued jobs.
 package main
@@ -23,16 +23,21 @@ import (
 )
 
 type docSummary struct {
-	ID         string    `json:"id"`
-	Filename   string    `json:"filename"`
-	Format     string    `json:"format"`
-	MediaType  string    `json:"media_type"`
-	Bytes      int       `json:"bytes"`
-	SHA256     string    `json:"sha256"`
-	Status     string    `json:"status"`
-	Outcome    string    `json:"outcome"`
-	Segments   int       `json:"segment_count"`
-	CapturedAt time.Time `json:"captured_at"`
+	ID             string    `json:"id"`
+	Filename       string    `json:"filename"`
+	Format         string    `json:"format"`
+	MediaType      string    `json:"media_type"`
+	Bytes          int       `json:"bytes"`
+	SHA256         string    `json:"sha256"`
+	Status         string    `json:"status"`
+	Outcome        string    `json:"outcome"`
+	Segments       int       `json:"segment_count"`
+	CapturedAt     time.Time `json:"captured_at"`
+	AlreadyPresent bool      `json:"already_present,omitempty"` // An identical SHA-256 is already stored for this tenant.
+	NewVersion     bool      `json:"new_version,omitempty"`     // New contents at an existing filename.
+	Version        int       `json:"version,omitempty"`
+	VersionCount   int       `json:"version_count,omitempty"`
+	CurrentVersion bool      `json:"current_version"`
 }
 type docUploadResult struct {
 	Items       []docSummary `json:"items"`
@@ -69,6 +74,39 @@ func (s *EdgeServer) docTransaction(ctx context.Context, tenant string) (*sql.Tx
 	}
 	return tx, nil
 }
+
+// existingDocument checks bytes already admitted under the same tenant. It does not
+// trust or write the new payload, so an exact retry needs no second security scan.
+func (s *EdgeServer) existingDocument(ctx context.Context, tenant string, data []byte) (docSummary, bool, error) {
+	var item docSummary
+	hash := sha256.Sum256(data)
+	tx, err := s.docTransaction(ctx, tenant)
+	if err != nil {
+		return item, false, err
+	}
+	defer tx.Rollback()
+	err = tx.QueryRowContext(ctx, `SELECT d.id,d.filename,d.format,d.media_type,d.byte_length,d.sha256,j.status,j.outcome,j.segment_count,d.captured_at
+ FROM document_sources_v65 d JOIN document_jobs_v65 j ON j.tenant_id=d.tenant_id AND j.document_id=d.id
+ WHERE d.tenant_id=$1 AND d.sha256=$2`, tenant, hex.EncodeToString(hash[:])).Scan(
+		&item.ID, &item.Filename, &item.Format, &item.MediaType, &item.Bytes, &item.SHA256, &item.Status, &item.Outcome, &item.Segments, &item.CapturedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return item, false, nil
+	}
+	if err != nil {
+		return item, false, err
+	}
+	if err = tx.QueryRowContext(ctx, `SELECT count(*), count(*) FILTER (WHERE captured_at < $3 OR (captured_at=$3 AND id <= $4))
+ FROM document_sources_v65 WHERE tenant_id=$1 AND lower(filename)=lower($2)`, tenant, item.Filename, item.CapturedAt, item.ID).Scan(&item.VersionCount, &item.Version); err != nil {
+		return item, false, err
+	}
+	item.CurrentVersion = item.Version == item.VersionCount
+	item.AlreadyPresent = true
+	if err = tx.Commit(); err != nil {
+		return item, false, err
+	}
+	return item, true, nil
+}
+
 func (s *EdgeServer) saveDocument(ctx context.Context, tenant, name string, data []byte) (docSummary, error) {
 	var item docSummary
 	format, media := extract.Detect(name, data)
@@ -83,6 +121,15 @@ func (s *EdgeServer) saveDocument(ctx context.Context, tenant, name string, data
 		return item, e
 	}
 	defer tx.Rollback()
+	// Filename determines the logical series; bytes determine immutable source identity.
+	// Advisory transaction lock serializes concurrent revisions for this tenant/file.
+	if _, e = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, tenant+"/"+strings.ToLower(name)); e != nil {
+		return item, e
+	}
+	var previous int
+	if e = tx.QueryRowContext(ctx, `SELECT count(*) FROM document_sources_v65 WHERE tenant_id=$1 AND lower(filename)=lower($2)`, tenant, name).Scan(&previous); e != nil {
+		return item, e
+	}
 	// Immutable source: ON CONFLICT returns the existing id via SELECT, never overwrites bytes.
 	result, e := tx.ExecContext(ctx, `INSERT INTO document_sources_v65(tenant_id,id,filename,media_type,format,byte_length,sha256,original)
   VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(tenant_id,sha256) DO NOTHING`, tenant, id, name, media, format, len(data), hash, data)
@@ -91,6 +138,7 @@ func (s *EdgeServer) saveDocument(ctx context.Context, tenant, name string, data
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
+		item.AlreadyPresent = true
 		if e = tx.QueryRowContext(ctx, `SELECT id FROM document_sources_v65 WHERE tenant_id=$1 AND sha256=$2`, tenant, hash).Scan(&id); e != nil {
 			return item, e
 		}
@@ -105,6 +153,17 @@ func (s *EdgeServer) saveDocument(ctx context.Context, tenant, name string, data
    WHERE d.tenant_id=$1 AND d.id=$2`, tenant, id).Scan(&item.ID, &item.Filename, &item.Format, &item.MediaType, &item.Bytes, &item.SHA256, &item.Status, &item.Outcome, &item.Segments, &item.CapturedAt); e != nil {
 		return item, e
 	}
+	if n == 0 {
+		// A byte-identical upload may race through preflight, so report it accurately.
+		if e = tx.QueryRowContext(ctx, `SELECT count(*), count(*) FILTER (WHERE captured_at < $3 OR (captured_at=$3 AND id <= $4)) FROM document_sources_v65 WHERE tenant_id=$1 AND lower(filename)=lower($2)`, tenant, item.Filename, item.CapturedAt, item.ID).Scan(&item.VersionCount, &item.Version); e != nil {
+			return item, e
+		}
+	} else {
+		item.Version = previous + 1
+		item.VersionCount = item.Version
+		item.NewVersion = previous > 0
+	}
+	item.CurrentVersion = item.Version == item.VersionCount
 	if e = tx.Commit(); e != nil {
 		return item, e
 	}
@@ -137,6 +196,7 @@ func (s *EdgeServer) handleDocumentUpload(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Upload 1–10 original documents in files field", 400)
 		return
 	}
+	w.Header().Set("X-Agiparel-Upload-Build", "20261027.v9")
 	response := docUploadResult{Items: []docSummary{}, Errors: []string{}, ReviewState: "UNREVIEWED"}
 	for _, h := range r.MultipartForm.File["files"] {
 		name := h.Filename
@@ -156,6 +216,19 @@ func (s *EdgeServer) handleDocumentUpload(w http.ResponseWriter, r *http.Request
 			continue
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+		// Idempotent retries do not introduce new bytes: check the admitted SHA-256
+		// before legacy-format/AV restrictions, but NEVER skip screening for changed bytes.
+		old, found, lookupErr := s.existingDocument(ctx, tenant, data)
+		if lookupErr != nil {
+			cancel()
+			response.Errors = append(response.Errors, fmt.Sprintf("%q: cannot check existing files; retry later", name))
+			continue
+		}
+		if found {
+			cancel()
+			response.Items = append(response.Items, old)
+			continue
+		}
 		if scanErr := checkDocumentSafety(ctx, name, data); scanErr != nil {
 			cancel()
 			response.Errors = append(response.Errors, fmt.Sprintf("%q: %s", name, scanErr.Error()))
@@ -199,9 +272,14 @@ func (s *EdgeServer) handleDocuments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	rows, e := tx.QueryContext(ctx, `SELECT d.id,d.filename,d.format,d.media_type,d.byte_length,d.sha256,j.status,j.outcome,j.segment_count,d.captured_at
- FROM document_sources_v65 d JOIN document_jobs_v65 j ON j.tenant_id=d.tenant_id AND j.document_id=d.id
- WHERE d.tenant_id=$1 ORDER BY d.captured_at DESC LIMIT 100`, tenant)
+	rows, e := tx.QueryContext(ctx, `WITH numbered AS (
+ SELECT d.*, ROW_NUMBER() OVER(PARTITION BY lower(d.filename) ORDER BY d.captured_at,d.id) AS version,
+ COUNT(*) OVER(PARTITION BY lower(d.filename)) AS version_count
+ FROM document_sources_v65 d WHERE d.tenant_id=$1
+ ) SELECT d.id,d.filename,d.format,d.media_type,d.byte_length,d.sha256,j.status,j.outcome,j.segment_count,d.captured_at,
+ d.version,d.version_count,(d.version=d.version_count) AS current_version
+ FROM numbered d JOIN document_jobs_v65 j ON j.tenant_id=d.tenant_id AND j.document_id=d.id
+ ORDER BY d.captured_at DESC,d.id DESC LIMIT 100`, tenant)
 	if e != nil {
 		http.Error(w, "Document list unavailable", 503)
 		return
@@ -209,7 +287,7 @@ func (s *EdgeServer) handleDocuments(w http.ResponseWriter, r *http.Request) {
 	items := []docSummary{}
 	for rows.Next() {
 		var item docSummary
-		if e = rows.Scan(&item.ID, &item.Filename, &item.Format, &item.MediaType, &item.Bytes, &item.SHA256, &item.Status, &item.Outcome, &item.Segments, &item.CapturedAt); e != nil {
+		if e = rows.Scan(&item.ID, &item.Filename, &item.Format, &item.MediaType, &item.Bytes, &item.SHA256, &item.Status, &item.Outcome, &item.Segments, &item.CapturedAt, &item.Version, &item.VersionCount, &item.CurrentVersion); e != nil {
 			break
 		}
 		items = append(items, item)

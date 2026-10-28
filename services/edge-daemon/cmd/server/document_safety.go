@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -30,8 +31,9 @@ const maxOfficeUnpacked = 96 << 20
 var pdfNameToken = regexp.MustCompile(`/[A-Za-z0-9#]+`)
 var pdfHexEscape = regexp.MustCompile(`#[0-9A-Fa-f]{2}`)
 var pdfDangerousNames = map[string]bool{
-	"JS": true, "JavaScript": true, "OpenAction": true, "AA": true,
-	"Launch": true, "EmbeddedFile": true, "RichMedia": true, "XFA": true,
+	"JS": true, "JavaScript": true, "Launch": true,
+	"EmbeddedFile": true, "EmbeddedFiles": true, "EF": true,
+	"RichMedia": true, "XFA": true, "SubmitForm": true, "ImportData": true,
 }
 
 func unsafePDF(raw []byte) bool {
@@ -52,8 +54,10 @@ func unsafePDF(raw []byte) bool {
 	return false
 }
 
-// XML-aware check avoids missing attributes with spaces around '=' or single quotes.
-func hasExternalOfficeRelation(content []byte) bool {
+// External HTTP(S) links in an Office source are inert to our XML-only extractor.
+// Reject local paths, protocol handlers and active relationship types that could
+// execute or disclose data if an original is later opened in desktop Office.
+func hasUnsafeExternalOfficeRelation(content []byte) bool {
 	dec := xml.NewDecoder(bytes.NewReader(content))
 	for {
 		token, err := dec.Token()
@@ -61,16 +65,39 @@ func hasExternalOfficeRelation(content []byte) bool {
 			return false
 		}
 		if err != nil {
-			return true
-		} // Malformed relationship XML is not trusted.
+			return true // Malformed relationship XML is not trusted.
+		}
 		el, ok := token.(xml.StartElement)
-		if !ok {
+		if !ok || !strings.EqualFold(el.Name.Local, "Relationship") {
 			continue
 		}
+		var mode, target, relationType string
 		for _, attr := range el.Attr {
-			if strings.EqualFold(attr.Name.Local, "TargetMode") && strings.EqualFold(strings.TrimSpace(attr.Value), "External") {
-				return true
+			switch strings.ToLower(attr.Name.Local) {
+			case "targetmode":
+				mode = strings.TrimSpace(attr.Value)
+			case "target":
+				target = strings.TrimSpace(attr.Value)
+			case "type":
+				relationType = strings.ToLower(attr.Value)
 			}
+		}
+		if !strings.EqualFold(mode, "External") {
+			continue
+		}
+		if strings.Contains(relationType, "attachedtemplate") || strings.Contains(relationType, "oleobject") || strings.Contains(relationType, "package") {
+			return true
+		}
+		u, err := url.Parse(target)
+		if err != nil || u == nil {
+			return true
+		}
+		scheme := strings.ToLower(u.Scheme)
+		if scheme != "http" && scheme != "https" && scheme != "mailto" {
+			return true
+		}
+		if (scheme == "http" || scheme == "https") && u.Hostname() == "" {
+			return true
 		}
 	}
 }
@@ -99,7 +126,7 @@ func unsafeOffice(raw []byte) error {
 		if entry.CompressedSize64 > 0 && entry.UncompressedSize64 > entry.CompressedSize64*250 && entry.UncompressedSize64 > 1<<20 {
 			return errors.New("Office file contains excessively compressed content")
 		}
-		if strings.Contains(path, "vbaproject") || strings.Contains(path, "macrosheet") || strings.Contains(path, "activex") || strings.Contains(path, "/embeddings/") || strings.Contains(path, "/externallinks/") || strings.Contains(path, "/connections") || strings.Contains(path, "/querytables/") || strings.Contains(path, "/customui/") || strings.HasSuffix(path, ".exe") || strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".vbs") {
+		if strings.Contains(path, "vbaproject") || strings.Contains(path, "macrosheet") || strings.Contains(path, "activex") || strings.Contains(path, "/embeddings/") || strings.Contains(path, "/customui/") || strings.HasSuffix(path, ".exe") || strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".vbs") {
 			return errors.New("Office file includes macros, embedded code, or linked content")
 		}
 		if strings.HasSuffix(path, ".rels") || path == "[content_types].xml" {
@@ -116,7 +143,7 @@ func unsafeOffice(raw []byte) error {
 				return errors.New("Cannot inspect Office relationships")
 			}
 			text := strings.ToLower(string(content))
-			if (strings.HasSuffix(path, ".rels") && hasExternalOfficeRelation(content)) || strings.Contains(text, "macroenabled") || strings.Contains(text, "vbaproject") || strings.Contains(text, "activex") {
+			if (strings.HasSuffix(path, ".rels") && hasUnsafeExternalOfficeRelation(content)) || strings.Contains(text, "macroenabled") || strings.Contains(text, "vbaproject") || strings.Contains(text, "activex") {
 				return errors.New("Office file contains active or external content")
 			}
 		}
@@ -135,6 +162,8 @@ func checkDocumentSafety(ctx context.Context, name string, raw []byte) error {
 		valid = format == "PDF"
 	case ".xlsx":
 		valid = format == "XLSX"
+	case ".xls":
+		valid = format == "XLS_LEGACY"
 	case ".docx":
 		valid = format == "DOCX"
 	case ".jpg", ".jpeg", ".png", ".webp", ".gif":
@@ -147,7 +176,7 @@ func checkDocumentSafety(ctx context.Context, name string, raw []byte) error {
 		valid = format == "TEXT"
 	}
 	if !valid {
-		return errors.New("unsupported or mismatched file type; use PDF, JPG, PNG, WebP, GIF, CSV, TSV, TXT, XLSX, or DOCX")
+		return errors.New("unsupported or mismatched file type; use PDF, images, CSV, XLSX, DOCX, or scanned legacy XLS")
 	}
 	if format == "PDF" && unsafePDF(raw) {
 		return errors.New("PDF contains active scripts or embedded content")
@@ -158,6 +187,9 @@ func checkDocumentSafety(ctx context.Context, name string, raw []byte) error {
 		}
 	}
 	address := strings.TrimSpace(os.Getenv("AGIPAREL_CLAMD_ADDR"))
+	if format == "XLS_LEGACY" && address == "" {
+		return errors.New("old .xls files need antivirus scanning; save a copy as .xlsx or enable ClamAV")
+	}
 	if address == "" {
 		if strings.EqualFold(os.Getenv("ENV"), "production") {
 			return errors.New("antivirus service is required before production uploads")
