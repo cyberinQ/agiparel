@@ -30,9 +30,9 @@ func TestChapter10FileNamesNeverInheritPrimaryButtonFill(t *testing.T) {
 	}
 	html := string(page)
 	for _, token := range []string{
-		`name="agiparel-upload-version" content="20261027.v9"`,
-		`/static/documents.js?v=20261027.v9`,
-		`/static/review_submit.js?v=20261027.v9`,
+		`name="agiparel-upload-version" content="20261028.v10"`,
+		`/static/documents.js?v=20261028.v10`,
+		`/static/review_submit.js?v=20261028.v10`,
 	} {
 		if !strings.Contains(html, token) {
 			t.Errorf("missing existing upload contract: %s", token)

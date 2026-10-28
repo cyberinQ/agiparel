@@ -10,6 +10,8 @@ import (
 )
 
 func TestDocumentIntakeWorkspace(t *testing.T) {
+	t.Setenv("ENV", "development")
+	t.Setenv("AGIPAREL_OPERATOR_TENANT", "test-tenant")
 	r := httptest.NewRequest(http.MethodGet, "/documents", nil)
 	w := httptest.NewRecorder()
 	(&EdgeServer{}).handleDocumentWorkspace(w, r)
@@ -67,7 +69,7 @@ func TestDocumentUploadV9Contract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, token := range []string{`name="agiparel-upload-version" content="20261027.v9"`, `/static/documents.js?v=20261027.v9`, `/static/review_submit.js?v=20261027.v9`} {
+	for _, token := range []string{`name="agiparel-upload-version" content="20261028.v10"`, `/static/documents.js?v=20261028.v10`, `/static/review_submit.js?v=20261028.v10`} {
 		if !strings.Contains(string(raw), token) {
 			t.Errorf("missing versioned asset %q", token)
 		}
@@ -79,5 +81,17 @@ func TestDocumentUploadV9Contract(t *testing.T) {
 	}
 	if !strings.Contains(string(b), `"version_count":3`) || !strings.Contains(string(b), `"already_present":true`) {
 		t.Errorf("duplicate upload result missing marker: %s", b)
+	}
+}
+
+// Author: Sunil Jain, 2026-10-28. Production must not expose an unusable
+// development identity-scoped document inbox.
+func TestDocumentInboxRequiresProductionIdentityV14(t *testing.T) {
+	t.Setenv("ENV", "production")
+	t.Setenv("AGIPAREL_OPERATOR_TENANT", "test-tenant")
+	w := httptest.NewRecorder()
+	(&EdgeServer{}).handleDocumentWorkspace(w, httptest.NewRequest("GET", "/documents", nil))
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("want fail-closed inbox, got %d", w.Code)
 	}
 }

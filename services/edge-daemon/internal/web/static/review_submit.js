@@ -199,5 +199,10 @@
     const id=event.detail?.id;
     if(id && files.some(f=>f.id===id)){$('review-file').value=id;void loadReview().catch(e=>message(e.message,true));}
   });
+  document.addEventListener('agiparel-documents-updated',event=>{
+    const incoming=event.detail?.items;
+    if(!Array.isArray(incoming))return;
+    files=incoming;renderFiles();
+  });
   void load();
 })();

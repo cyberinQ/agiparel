@@ -249,10 +249,11 @@ func (s *EdgeServer) handleDocumentUpload(w http.ResponseWriter, r *http.Request
 	docJSON(w, code, response)
 }
 
+// Author: Sunil Jain, 2026-10-28. Tenant-scoped keyset paging with explicit end-of-catalog evidence.
 func (s *EdgeServer) handleDocuments(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", "GET")
-		http.Error(w, "Method not allowed", 405)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	tenant, e := intakeTenant()
@@ -264,6 +265,16 @@ func (s *EdgeServer) handleDocuments(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "PostgreSQL unavailable", 503)
 		return
 	}
+	pageSize, e := docPageSize(r.URL.Query().Get("limit"))
+	if e != nil {
+		http.Error(w, e.Error(), http.StatusBadRequest)
+		return
+	}
+	cursor, e := docCursorDecode(r.URL.Query().Get("cursor"))
+	if e != nil {
+		http.Error(w, e.Error(), http.StatusBadRequest)
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 	tx, e := s.docTransaction(ctx, tenant)
@@ -272,19 +283,23 @@ func (s *EdgeServer) handleDocuments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	// Window functions calculate versions over the WHOLE tenant, never the page.
+	// The outer keyset filter does not corrupt current-version determination.
 	rows, e := tx.QueryContext(ctx, `WITH numbered AS (
- SELECT d.*, ROW_NUMBER() OVER(PARTITION BY lower(d.filename) ORDER BY d.captured_at,d.id) AS version,
- COUNT(*) OVER(PARTITION BY lower(d.filename)) AS version_count
- FROM document_sources_v65 d WHERE d.tenant_id=$1
+  SELECT d.tenant_id,d.id,d.filename,d.format,d.media_type,d.byte_length,d.sha256,d.captured_at,
+   ROW_NUMBER() OVER(PARTITION BY lower(d.filename) ORDER BY d.captured_at,d.id) AS version,
+   COUNT(*) OVER(PARTITION BY lower(d.filename)) AS version_count
+  FROM document_sources_v65 d WHERE d.tenant_id=$1
  ) SELECT d.id,d.filename,d.format,d.media_type,d.byte_length,d.sha256,j.status,j.outcome,j.segment_count,d.captured_at,
  d.version,d.version_count,(d.version=d.version_count) AS current_version
  FROM numbered d JOIN document_jobs_v65 j ON j.tenant_id=d.tenant_id AND j.document_id=d.id
- ORDER BY d.captured_at DESC,d.id DESC LIMIT 100`, tenant)
+ WHERE ($2::timestamptz IS NULL OR (d.captured_at,d.id) < ($2::timestamptz,$3::text))
+ ORDER BY d.captured_at DESC,d.id DESC LIMIT $4`, tenant, docNullableTime(cursor.CapturedAt), cursor.ID, pageSize+1)
 	if e != nil {
 		http.Error(w, "Document list unavailable", 503)
 		return
 	}
-	items := []docSummary{}
+	items := make([]docSummary, 0, pageSize+1)
 	for rows.Next() {
 		var item docSummary
 		if e = rows.Scan(&item.ID, &item.Filename, &item.Format, &item.MediaType, &item.Bytes, &item.SHA256, &item.Status, &item.Outcome, &item.Segments, &item.CapturedAt, &item.Version, &item.VersionCount, &item.CurrentVersion); e != nil {
@@ -300,12 +315,22 @@ func (s *EdgeServer) handleDocuments(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Cannot read documents", 503)
 		return
 	}
+	hasMore := len(items) > pageSize
+	if hasMore {
+		items = items[:pageSize]
+	}
+	next := ""
+	if hasMore && len(items) > 0 {
+		last := items[len(items)-1]
+		next = docCursorEncode(last.CapturedAt, last.ID)
+	}
 	if e = tx.Commit(); e != nil {
 		http.Error(w, "Database unavailable", 503)
 		return
 	}
-	docJSON(w, 200, map[string]any{"items": items, "tenant": tenant, "review_state": "UNREVIEWED"})
+	docJSON(w, 200, map[string]any{"items": items, "tenant": tenant, "review_state": "UNREVIEWED", "next_cursor": next, "has_more": hasMore, "page_limit": pageSize})
 }
+
 func (s *EdgeServer) handleDocumentDetail(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", "GET")
@@ -386,7 +411,12 @@ func (s *EdgeServer) handleDocumentDetail(w http.ResponseWriter, r *http.Request
 		Content string          `json:"content"`
 	}
 	segments := []seg{}
-	rows, e := tx.QueryContext(ctx, `SELECT ordinal,kind,locator,content FROM document_segments_v65 WHERE tenant_id=$1 AND document_id=$2 ORDER BY ordinal LIMIT 200`, tenant, id)
+	after, err := docSegmentAfter(r.URL.Query().Get("after_ordinal"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	rows, e := tx.QueryContext(ctx, `SELECT ordinal,kind,locator,content FROM document_segments_v65 WHERE tenant_id=$1 AND document_id=$2 AND ordinal > $3 ORDER BY ordinal LIMIT $4`, tenant, id, after, docSegmentsPageMax+1)
 	if e != nil {
 		http.Error(w, "Segments unavailable", 503)
 		return
@@ -412,12 +442,27 @@ func (s *EdgeServer) handleDocumentDetail(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Database unavailable", 503)
 		return
 	}
-	docJSON(w, 200, map[string]any{"document": item, "segments": segments, "segment_limit": 200, "evidence_state": "UNREVIEWED", "ready_for_order_intake": false})
+	hasMore := len(segments) > docSegmentsPageMax
+	if hasMore {
+		segments = segments[:docSegmentsPageMax]
+	}
+	nextOrdinal := 0
+	if hasMore && len(segments) > 0 {
+		nextOrdinal = segments[len(segments)-1].Ordinal
+	}
+	docJSON(w, 200, map[string]any{"document": item, "segments": segments, "segment_limit": docSegmentsPageMax, "has_more_segments": hasMore, "next_ordinal": nextOrdinal, "evidence_state": "UNREVIEWED", "ready_for_order_intake": false})
 }
 func (s *EdgeServer) handleDocumentWorkspace(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", "GET")
 		http.Error(w, "Method not allowed", 405)
+		return
+	}
+	// Development uses a fixed operator tenant. Production has no approved
+	// browser actor/plant identity for this document inbox yet: do not display
+	// an operable form that inevitably fails, or imply static Basic Auth is SSO.
+	if _, err := intakeTenant(); err != nil {
+		http.Error(w, "Document inbox is unavailable until workforce identity and tenant-scoped authorization are provisioned", http.StatusServiceUnavailable)
 		return
 	}
 	data, e := web.GetDocumentsHTML()

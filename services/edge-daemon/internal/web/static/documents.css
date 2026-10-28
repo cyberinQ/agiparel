@@ -92,3 +92,7 @@ body[data-ag-workflow="simple"][data-ag-phase="documents"] main .file-table butt
   color:#174b64;
   text-decoration:underline;
 }
+
+/* Author: Sunil Jain, 2026-10-28. Quiet evidence paging within existing Chapter 10 design. */
+body[data-ag-phase="documents"] .library-progress {color:var(--muted);font-size:12px;margin:6px 0 9px}
+body[data-ag-phase="documents"] :is(#library-more,#source-more) {margin-top:12px;min-height:43px}
