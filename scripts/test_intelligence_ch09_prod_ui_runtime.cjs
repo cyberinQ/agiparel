@@ -4,7 +4,7 @@
 const vm=require('node:vm');
 const fs=require('node:fs');
 const assert=require('node:assert/strict');
-const ids=['since','until','token','refresh','clear','status','scope','measures','notes','sew','qc','held','stage'];
+const ids=['since','until','token','authmode','oidcscope','tenant','plant','refresh','clear','status','scope','measures','notes','sew','qc','held','stage'];
 const nodes=Object.fromEntries(ids.map(id=>[id,{
  value:'',textContent:'',children:[],events:{},
  addEventListener(type,fn){this.events[type]=fn;},
@@ -24,7 +24,7 @@ const valid={authority:'AUTHENTICATED_GROUP_EVENTS_NOT_GARMENT_RELEASE',producti
  value('sewing_completion_groups',4),value('qc_current_reviewed_groups',2),value('qc_current_hold_groups',1),value('packing_current_staging_holds',0),missing('verified_garments')
  ]};
 async function main(){
- nodes.since.value='2026-10-27T00:00';nodes.until.value='2026-10-28T00:00';nodes.token.value='signed-short-lived-access';payload=valid;
+ nodes.authmode.value='pilot';nodes.since.value='2026-10-27T00:00';nodes.until.value='2026-10-28T00:00';nodes.token.value='signed-short-lived-access';payload=valid;
  await nodes.refresh.events.click();
  assert.equal(nodes.sew.textContent,'4');assert.equal(nodes.stage.textContent,'0');
  assert(nodes.measures.children.some(row=>row.children[1].textContent==='Not measured'));
@@ -37,6 +37,13 @@ async function main(){
  assert.match(nodes.status.textContent,/Unable to load/);
  payload={...valid,production_release:true};
  await nodes.refresh.events.click();assert.equal(nodes.stage.textContent,'—');
+ nodes.authmode.value='oidc';nodes.authmode.events.change();
+ assert.equal(nodes.oidcscope.hidden,false);
+ nodes.tenant.value='tenant_A';nodes.plant.value='factory_A';
+ payload=valid;await nodes.refresh.events.click();
+ assert(request.url.includes('tenant_id=tenant_A') && request.url.includes('plant_id=factory_A'));
+ assert.equal(nodes.sew.textContent,'4');
+ nodes.plant.value='';await nodes.refresh.events.click();assert.match(nodes.status.textContent,/authorized tenant and plant/);
  nodes.clear.events.click();assert.equal(nodes.token.value,'');
  console.log('PASS Chapter 09 UI: auth scope, zero vs unknown, fail-closed authority, ephemeral token');
 }

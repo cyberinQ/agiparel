@@ -23,7 +23,12 @@
 <details class="ag-work-extra"><summary>Authenticated manager access</summary><div class="ag-report-detail">
 <p>The identity provider must issue a short-lived, strong-authentication assertion with action <code>intelligence.read</code>, role <code>factory_manager</code>, and challenge <code>INTELLIGENCE_PROD_REPORT_V1</code>. A separately provisioned plant assignment is also required.</p>
 <label for="token">Short-lived identity assertion (never stored in browser storage)<input id="token" type="password" autocomplete="off" spellcheck="false"></label>
-<p>Manual token entry is for an access-controlled pilot; integrated enterprise SSO remains a release prerequisite.</p>
+<label for="authmode">Authentication mode<select id="authmode"><option value="pilot">Challenge-bound pilot assertion</option><option value="oidc">Enterprise IdP access token (read-only)</option></select></label>
+<div id="oidcscope" hidden class="ag-report-controls">
+<label for="tenant">Authorized tenant code<input id="tenant" type="text" maxlength="64" autocomplete="off"></label>
+<label for="plant">Authorized plant code<input id="plant" type="text" maxlength="64" autocomplete="off"></label>
+</div>
+<p>Enterprise tokens must be issued by the configured IdP with MFA, and provisioned for the chosen tenant and plant. Token entry remains a pilot workflow; interactive SSO login is not implemented yet.</p>
 </div></details>
 <div class="ag-report-controls"><button id="refresh" type="button">Show production evidence</button><button id="clear" type="button">Clear session view</button></div>
 <p id="status" role="status" aria-live="polite" class="ag-report-status">Choose the period, provide an authorized assertion, then load the report.</p>

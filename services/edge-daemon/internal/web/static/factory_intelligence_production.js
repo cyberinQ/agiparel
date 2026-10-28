@@ -79,20 +79,30 @@
      return status('Provide valid ordered start and end times.');
    }
    if (!token) return status('An identity-provider assertion is required.');
+   const mode=$('authmode').value;
+   const tenant=$('tenant').value.trim(),plant=$('plant').value.trim();
+   if (mode==='oidc' && (!/^[A-Za-z0-9_-]{2,64}$/.test(tenant) || !/^[A-Za-z0-9_-]{2,64}$/.test(plant))) {
+     return status('Enter an authorized tenant and plant code.');
+   }
    const query=new URLSearchParams({since:a.toISOString(),until:b.toISOString()});
+   if (mode==='oidc') {query.set('tenant_id',tenant);query.set('plant_id',plant);}
    status('Reading tenant- and plant-scoped evidence…');
    try {
      const response=await fetch('/api/v1/intelligence/production/report?'+query.toString(),{
        headers:{Authorization:'Bearer '+token},cache:'no-store',credentials:'omit'
      });
      const result=await response.json();
-     if (thisVersion!==version || $('since').value!==from || $('until').value!==to || $('token').value.trim()!==token) return;
+     if (thisVersion!==version || $('since').value!==from || $('until').value!==to || $('token').value.trim()!==token || $('authmode').value!==mode || (mode==='oidc' && ($('tenant').value.trim()!==tenant || $('plant').value.trim()!==plant))) return;
      if (!response.ok) throw new Error(result.error||'Read failed');
      show(result);status('Source-backed group report loaded. Individual garment and financial KPIs remain unmeasured.');
    } catch (err) {if (thisVersion===version) {clearView();status('Unable to load: '+err.message);}}
  }
  $('refresh').addEventListener('click',load);
  $('clear').addEventListener('click',()=>{clearView();$('token').value='';status('View and identity assertion cleared.');});
- ['since','until','token'].forEach(id=>$(id).addEventListener('change',()=>{clearView();status('Inputs changed; reload evidence.');}));
+ $('authmode').addEventListener('change',()=>{
+   $('oidcscope').hidden=$('authmode').value!=='oidc';
+   clearView();status('Authentication mode changed; reload with an IdP-issued token.');
+ });
+ ['since','until','token','tenant','plant'].forEach(id=>$(id).addEventListener('change',()=>{clearView();status('Inputs changed; reload evidence.');}));
  clearView();
 })();

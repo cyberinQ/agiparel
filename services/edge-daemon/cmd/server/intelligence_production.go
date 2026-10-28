@@ -5,21 +5,26 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/attestation"
+	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/workforceauth"
 )
 
 const intelProdAuthority = "AUTHENTICATED_GROUP_EVENTS_NOT_GARMENT_RELEASE"
 const intelProdChallenge = "INTELLIGENCE_PROD_REPORT_V1"
 
 type intelProdAPI struct {
-	server  *EdgeServer
-	sewing  *sewProdAPI
-	enabled bool
-	reason  string
+	server    *EdgeServer
+	sewing    *sewProdAPI
+	workforce *workforceauth.Verifier
+	enabled   bool
+	reason    string
 }
 
 type intelProdMetric struct {
@@ -57,6 +62,15 @@ func newIntelProdAPI(s *EdgeServer) *intelProdAPI {
 	if !p.sewing.enabled {
 		p.reason = "ERR_INTEL_PROD_SEWING_PREREQUISITE"
 		return p
+	}
+	if os.Getenv("AGIPAREL_WORKFORCE_OIDC_ENABLED") == "true" {
+		var err error
+		p.workforce, err = workforceauth.New(os.Getenv("AGIPAREL_WORKFORCE_OIDC_ISSUER"),
+			os.Getenv("AGIPAREL_WORKFORCE_OIDC_AUDIENCE"), os.Getenv("AGIPAREL_WORKFORCE_OIDC_JWKS_FILE"))
+		if err != nil {
+			p.reason = "ERR_INTEL_PROD_WORKFORCE_CONFIG"
+			return p // No pilot-token fallback when OIDC mode is enabled but misconfigured.
+		}
 	}
 	p.enabled = true
 	return p
@@ -123,6 +137,37 @@ func intelProdMetrics(total, reviewed, hold, reinspect, pending, staged, stale i
 	}
 }
 
+// identifyReporter never accepts browser-supplied roles or unsigned proxy identity.
+// Standard OIDC access tokens are allowed only for read-only reporting.
+// All production mutations continue to require challenge-bound attestations.
+func (p *intelProdAPI) identifyReporter(token string, r *http.Request) (attestation.Claims, bool, error) {
+	if p.workforce == nil {
+		c, err := p.sewing.verifier.Verify(token, "intelligence.read", intelProdChallenge, "factory_manager", true)
+		return c, false, err
+	}
+	identity, err := p.workforce.Verify(token)
+	if err != nil {
+		return attestation.Claims{}, true, err
+	}
+	tenant := r.URL.Query()["tenant_id"]
+	plant := r.URL.Query()["plant_id"]
+	if len(tenant) != 1 || len(plant) != 1 || !sewFields(tenant[0], plant[0]) {
+		return attestation.Claims{}, true, sewProdInvalid("ERR_WORKFORCE_SCOPE_REQUIRED")
+	}
+	return attestation.Claims{Issuer: identity.Issuer, Subject: identity.Subject, TenantID: tenant[0], PlantID: plant[0]}, true, nil
+}
+
+// This check runs inside the SAME RLS-scoped report transaction as all metrics.
+// The preexisting reader assignment remains an independent, mandatory second gate.
+func workforceReportGrant(ctx context.Context, tx *sql.Tx, actor attestation.Claims) (bool, error) {
+	var granted bool
+	err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM workforce_identity_grants_v15
+       WHERE tenant_id=$1 AND plant_id=$2 AND idp_issuer=$3 AND idp_subject=$4
+       AND permission='intelligence.read' AND enabled)`,
+		actor.TenantID, actor.PlantID, actor.Issuer, actor.Subject).Scan(&granted)
+	return granted, err
+}
+
 func (p *intelProdAPI) report(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "GET required", 405)
@@ -142,7 +187,7 @@ func (p *intelProdAPI) report(w http.ResponseWriter, r *http.Request) {
 		docJSON(w, 401, map[string]string{"error": "ERR_INTEL_PROD_BEARER_REQUIRED"})
 		return
 	}
-	actor, e := p.sewing.verifier.Verify(token, "intelligence.read", intelProdChallenge, "factory_manager", true)
+	actor, enterprise, e := p.identifyReporter(token, r)
 	if e != nil {
 		docJSON(w, 401, map[string]string{"error": "ERR_INTEL_PROD_ASSERTION"})
 		return
@@ -159,6 +204,17 @@ func (p *intelProdAPI) report(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	if enterprise {
+		granted, err := workforceReportGrant(ctx, tx, actor)
+		if err != nil {
+			sewProdReply(w, err)
+			return
+		}
+		if !granted {
+			docJSON(w, 403, map[string]string{"error": "ERR_WORKFORCE_GRANT_REQUIRED"})
+			return
+		}
+	}
 	var allowed bool
 	e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM intelligence_prod_readers_v13
        WHERE tenant_id=$1 AND plant_id=$2 AND worker_subject=$3 AND enabled)`, actor.TenantID, actor.PlantID, actor.Subject).Scan(&allowed)

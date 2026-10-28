@@ -5,6 +5,8 @@ body[data-ag-phase="reports"] .ag-report-main {max-width:1110px}
 .ag-report-main .card>h2 {margin:0 0 10px}
 .ag-report-main .ag-report-controls {display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin-top:16px}
 .ag-report-main .ag-report-controls label {flex:1 1 290px;font-size:14px;font-weight:700}
+/* F1.1: the optional IdP scope fields must stay hidden until selected. */
+.ag-report-main #oidcscope[hidden] {display:none}
 .ag-report-main :is(select,input) {display:block;margin-top:7px;padding:10px 12px;min-height:44px;border:1px solid #b6c6d0;border-radius:8px;width:100%;background:#fff;color:#243746}
 .ag-report-main button {border:0;background:var(--ag-accent);color:#fff;font-weight:700;padding:10px 17px;cursor:pointer;min-height:44px}
 .ag-report-main button:disabled {opacity:.58;cursor:not-allowed}

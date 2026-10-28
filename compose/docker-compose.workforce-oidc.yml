@@ -1,0 +1,12 @@
+# Author: Sunil Jain, 2026-10-28.
+# Opt-in production reporting auth: approved JWKS snapshot, read-only mount.
+# Combine with docker-compose.production.yml; do not enable in DEV.
+services:
+  plant-edge-os:
+    environment:
+      AGIPAREL_WORKFORCE_OIDC_ENABLED: "true"
+      AGIPAREL_WORKFORCE_OIDC_ISSUER: ${AGIPAREL_WORKFORCE_OIDC_ISSUER:?Required HTTPS IdP issuer}
+      AGIPAREL_WORKFORCE_OIDC_AUDIENCE: ${AGIPAREL_WORKFORCE_OIDC_AUDIENCE:?Required API audience}
+      AGIPAREL_WORKFORCE_OIDC_JWKS_FILE: /run/agiparel-oidc-jwks.json
+    volumes:
+      - ${AGIPAREL_WORKFORCE_OIDC_JWKS_HOST_FILE:?Required absolute JWKS snapshot path}:/run/agiparel-oidc-jwks.json:ro
