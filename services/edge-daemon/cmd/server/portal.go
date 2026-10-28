@@ -138,7 +138,8 @@ func configuredOperatorGate(next http.Handler) http.Handler {
 	secureIngress := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/sewing/production/observations", "/api/v1/sewing/production/completions", "/api/v1/sewing/production/completions/challenge",
-			"/api/v1/quality/production/events/challenge", "/api/v1/quality/production/events", "/api/v1/quality/production/catalog":
+			"/api/v1/quality/production/events/challenge", "/api/v1/quality/production/events", "/api/v1/quality/production/catalog",
+            "/api/v1/packing/production/holds/challenge", "/api/v1/packing/production/holds", "/api/v1/packing/production/readiness":
 			next.ServeHTTP(w, r)
 		default:
 			operatorAccessGate(next, "", "").ServeHTTP(w, r)

@@ -336,6 +336,8 @@ func main() {
 	if modules.IsEnabled("mod_sewing") {
 		registerSewProdRoutes(mux, server)
 		registerQCProdRoutes(mux, server)
+        // Packing staging reads Chapter 06/07 evidence, and never enables legacy carton actions.
+        registerPackProdRoutes(mux, server)
 	}
 	if modules.IsEnabled("mod_sewing") {
 		mux.HandleFunc("/api/v1/sewing/sim/catalog", server.handleSewSimCatalog)
@@ -809,6 +811,7 @@ type StartPackingRequest struct {
 }
 
 func (s *EdgeServer) handlePackingStart(w http.ResponseWriter, r *http.Request) {
+    if os.Getenv("ENV") != "development" { http.Error(w, "ERR_LEGACY_PACKING_DEV_ONLY", http.StatusGone); return }
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -834,6 +837,7 @@ type ScanUPCRequest struct {
 }
 
 func (s *EdgeServer) handlePackingScan(w http.ResponseWriter, r *http.Request) {
+    if os.Getenv("ENV") != "development" { http.Error(w, "ERR_LEGACY_PACKING_DEV_ONLY", http.StatusGone); return }
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -867,6 +871,7 @@ type SealBoxRequest struct {
 }
 
 func (s *EdgeServer) handlePackingSeal(w http.ResponseWriter, r *http.Request) {
+    if os.Getenv("ENV") != "development" { http.Error(w, "ERR_LEGACY_PACKING_DEV_ONLY", http.StatusGone); return }
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return

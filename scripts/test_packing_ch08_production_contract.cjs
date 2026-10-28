@@ -1,0 +1,35 @@
+// Author: Sunil Jain, 2026-10-28.
+// Chapter 08 production-only HOLD contract: source, database, and ingress remain fail-closed.
+'use strict';
+const fs=require('node:fs');const assert=require('node:assert/strict');
+const read=f=>fs.readFileSync(f,'utf8');
+const sql=read('services/core-api/migrations/0031_packing_production_holds_v12.sql');
+const api=read('services/edge-daemon/cmd/server/packing_production.go');
+const gate=read('services/edge-daemon/cmd/server/portal.go');
+const main=read('services/edge-daemon/cmd/server/main.go');
+const compose=read('compose/docker-compose.production.yml');
+const html=read('services/edge-daemon/internal/web/static/packing_execution.html');
+assert.match(sql,/UNIQUE\(tenant_id,completion_id,qc_revision\)/);
+assert.match(sql,/qc\.next_state<>'REVIEWED'/);
+assert.match(sql,/qc\.revision<>NEW\.qc_revision/);
+assert.match(sql,/qc_prod_group_events_v11/);
+assert.match(sql,/pack_prod_hold_immutable_v12/);
+assert.match(sql,/GRANT INSERT ON pack_prod_holds_v12/);
+assert.match(sql,/FORCE ROW LEVEL SECURITY/);
+assert.match(sql,/packing_operator' AND a\.enabled/);
+assert.doesNotMatch(sql,/GRANT (UPDATE|DELETE|ALL) ON pack_prod_holds/);
+assert.match(api,/AGIPAREL_PACKING_PRODUCTION_ENABLED/);
+assert.match(api,/qcProdParseCursor/);
+assert.match(api,/packing\.stage/);
+assert.match(api,/packing\.read/);
+assert.match(api,/"carton_release":\s*false/);
+assert.match(api,/"dispatch_release":\s*false/);
+assert.match(api,/"QC_CHANGED_AFTER_STAGING"/);
+assert.match(api,/"INDIVIDUAL_UNIT_TRACEABILITY_MISSING"/);
+assert.match(main,/registerPackProdRoutes\(mux, server\)/);
+for(const path of ['/api/v1/packing/production/holds/challenge','/api/v1/packing/production/holds','/api/v1/packing/production/readiness'])assert.ok(gate.includes('"'+path+'"'));
+assert.match(main,/ERR_LEGACY_PACKING_DEV_ONLY/);
+for(const id of ['actor','station','reader']) assert.doesNotMatch(html,new RegExp('id=\"'+id+'\" value='));
+assert.match(html,/Demo mode:/);
+assert.match(compose,/AGIPAREL_PACKING_PRODUCTION_ENABLED: \$\{AGIPAREL_PACKING_PRODUCTION_ENABLED:-false\}/);
+console.log('PASS Chapter 08: QC current-review staging, scoped IdP, immutable HOLD, paged blockers and no dispatch');
