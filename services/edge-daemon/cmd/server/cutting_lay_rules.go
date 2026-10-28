@@ -111,7 +111,13 @@ func validateCutDraft(v cutDraftInput) error {
 		return errors.New("1–80 positions, 1–24 parts, maximum 640 sub-bundles")
 	}
 	seenPos := make(map[int]bool)
+	// A physical lay spreads one fabric color/shade at a time. Mixing buyer
+	// garment colors into one marker creates phantom cutting quantities.
+	layColor := v.Positions[0].ColorCode
 	for _, p := range v.Positions {
+		if p.ColorCode != layColor {
+			return errors.New("positions: one buyer color per physical lay; create a separate cut")
+		}
 		if p.Position < 1 || p.Position > 80 || seenPos[p.Position] || !passportCode.MatchString(p.ColorCode) || len(p.ColorCode) > 64 || !passportCode.MatchString(p.SizeCode) || len(p.SizeCode) > 32 {
 			return errors.New("positions: unique marker positions, known color and size codes required")
 		}
@@ -183,6 +189,15 @@ func cutCounts(positions []cutPosition, plies int) map[string]int64 {
 func checkCutQuantities(allowed, other, proposed map[string]int64) error {
 	if len(allowed) == 0 {
 		return errors.New("SKU_MATRIX_MISSING")
+	}
+	// Reject preexisting overallocations and unknown SKUs even when they are
+	// absent from this cut. Checking only proposed keys can hide an earlier
+	// inconsistency in the same buyer-order plan.
+	for key, qty := range other {
+		max, ok := allowed[key]
+		if !ok || qty < 0 || qty > max {
+			return errors.New("OVERPLANNED_BUYER_SKU")
+		}
 	}
 	for key, q := range proposed {
 		max, ok := allowed[key]

@@ -65,6 +65,7 @@ func TestCutDraftFailClosedInputs(t *testing.T) {
 		{"bad ply", func(v *cutDraftInput) { v.ReportedPlies = 211 }},
 		{"zero mm", func(v *cutDraftInput) { v.MarkerLengthMM = 0 }},
 		{"duplicate positions", func(v *cutDraftInput) { v.Positions[1].Position = 1 }},
+		{"mixed lay fabric colors", func(v *cutDraftInput) { v.Positions[1].ColorCode = "RED" }},
 		{"missing position", func(v *cutDraftInput) { v.Positions[1].Position = 3 }},
 		{"duplicate parts", func(v *cutDraftInput) { v.Parts[1].PartCode = "FRONT" }},
 		{"invalid pieces", func(v *cutDraftInput) { v.Parts[0].PiecesPerGarment = 0 }},
@@ -96,6 +97,12 @@ func TestCutQuantitiesNeverExceedBuyerSKU(t *testing.T) {
 	}
 	if e := checkCutQuantities(nil, nil, wanted); e == nil {
 		t.Fatal("missing matrix allowed")
+	}
+	if e := checkCutQuantities(allowed, map[string]int64{"BLUE\x00M": 1}, wanted); e == nil {
+		t.Fatal("unrecognized previously planned SKU should fail closed")
+	}
+	if e := checkCutQuantities(allowed, map[string]int64{"BLACK\x0032": 41}, map[string]int64{"BLACK\x0034": 1}); e == nil {
+		t.Fatal("preexisting overplanned SKU hidden by different proposed SKU")
 	}
 }
 func TestCutSnapshotTamperAndSourceBinding(t *testing.T) {

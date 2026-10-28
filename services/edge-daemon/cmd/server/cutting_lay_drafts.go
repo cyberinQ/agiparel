@@ -67,7 +67,13 @@ func (s *EdgeServer) handleCuttingLayDrafts(w http.ResponseWriter, r *http.Reque
 			http.Error(w, "Unable to load cutting draft ledger", 503)
 			return
 		}
-		docJSON(w, 200, map[string]any{"orders": orders, "drafts": drafts, "authority": "DRAFT_ONLY", "rfid": "NO_PHYSICAL_BIND"})
+		// Return a capped recent register explicitly; do not present the first 60
+		// drafts as the complete plant-wide production or capacity position.
+		hasMore := len(drafts) > 60
+		if hasMore {
+			drafts = drafts[:60]
+		}
+		docJSON(w, 200, map[string]any{"orders": orders, "drafts": drafts, "has_more": hasMore, "authority": "DRAFT_ONLY", "rfid": "NO_PHYSICAL_BIND"})
 	case http.MethodPost:
 		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 			http.Error(w, "Expected application/json", 415)
@@ -115,9 +121,11 @@ func (s *EdgeServer) handleCuttingLayDrafts(w http.ResponseWriter, r *http.Reque
 
 // Source facts displayed beside the worksheet; not an approval or release.
 type cutSourceSKU struct {
-	ColorCode string `json:"color_code"`
-	SizeCode  string `json:"size_code"`
-	Quantity  int64  `json:"ordered_qty"`
+	ColorCode    string `json:"color_code"`
+	SizeCode     string `json:"size_code"`
+	Quantity     int64  `json:"ordered_qty"`
+	PlannedQty   int64  `json:"planned_qty"`
+	RemainingQty int64  `json:"remaining_qty"`
 }
 
 func (s *EdgeServer) readCutOrderSource(ctx context.Context, tenant, id string) (map[string]any, error) {
@@ -152,6 +160,36 @@ func (s *EdgeServer) readCutOrderSource(ctx context.Context, tenant, id string) 
 	}
 	if len(skus) > 500 {
 		return nil, errors.New("SOURCE_SKU_MATRIX_TOO_LARGE")
+	}
+	// The balance is read-only, sourced from current latest revisions of all
+	// cut numbers; it is planned capacity, NOT sewn/accepted production.
+	rows, e = tx.QueryContext(ctx, `SELECT p.color_code,p.size_code,COALESCE(SUM(d.reported_plies),0)::bigint
+ FROM cut_lay_positions_v8 p JOIN cut_lay_drafts_v8 d ON d.tenant_id=p.tenant_id AND d.id=p.lay_draft_id
+ WHERE d.tenant_id=$1 AND d.intake_id=$2 AND
+ d.revision=(SELECT MAX(x.revision) FROM cut_lay_drafts_v8 x WHERE x.tenant_id=d.tenant_id AND x.intake_id=d.intake_id AND x.cut_no=d.cut_no)
+ GROUP BY p.color_code,p.size_code`, tenant, id)
+	if e != nil {
+		return nil, e
+	}
+	planned := make(map[string]int64)
+	for rows.Next() {
+		var color, size string
+		var qty int64
+		if e = rows.Scan(&color, &size, &qty); e != nil {
+			break
+		}
+		planned[color+"\x00"+size] = qty
+	}
+	if x := rows.Err(); e == nil {
+		e = x
+	}
+	rows.Close()
+	if e != nil {
+		return nil, e
+	}
+	for i := range skus {
+		skus[i].PlannedQty = planned[skus[i].ColorCode+"\x00"+skus[i].SizeCode]
+		skus[i].RemainingQty = skus[i].Quantity - skus[i].PlannedQty
 	}
 	rows, e = tx.QueryContext(ctx, `SELECT DISTINCT material_sku FROM order_intake_bom_v5 WHERE tenant_id=$1 AND intake_id=$2 AND category='FABRIC' ORDER BY material_sku LIMIT 101`, tenant, id)
 	if e != nil {
@@ -211,7 +249,7 @@ func (s *EdgeServer) readCutDrafts(ctx context.Context, tenant, id string) ([]cu
 	defer tx.Rollback()
 	orders := []cutOrderOption{}
 	if id == "" {
-		rows, e := tx.QueryContext(ctx, `SELECT id,po_number,style_code,ordered_qty,status FROM order_intakes_v5 WHERE tenant_id=$1 ORDER BY captured_at DESC,id DESC LIMIT 100`, tenant)
+		rows, e := tx.QueryContext(ctx, `SELECT id,po_number,style_code,ordered_qty,status FROM order_intakes_v5 WHERE tenant_id=$1 AND status='PROPOSED' ORDER BY captured_at DESC,id DESC LIMIT 100`, tenant)
 		if e != nil {
 			return nil, nil, e
 		}
@@ -238,7 +276,7 @@ func (s *EdgeServer) readCutDrafts(ctx context.Context, tenant, id string) ([]cu
    JOIN cut_lay_snapshots_v8 snap ON snap.tenant_id=d.tenant_id AND snap.lay_draft_id=d.id
    WHERE d.tenant_id=$1 AND d.revision=(SELECT MAX(x.revision) FROM cut_lay_drafts_v8 x
     WHERE x.tenant_id=d.tenant_id AND x.intake_id=d.intake_id AND x.cut_no=d.cut_no)
-   ORDER BY d.created_at DESC,d.id DESC LIMIT 60`, tenant)
+   ORDER BY d.created_at DESC,d.id DESC LIMIT 61`, tenant)
 	}
 	if e != nil {
 		return nil, nil, e

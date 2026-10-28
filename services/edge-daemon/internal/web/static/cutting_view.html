@@ -22,9 +22,9 @@
  </header>
  <div class="ag-note" role="note"><strong>PROPOSED / HOLD · NOT RELEASED.</strong> This is a cutting plan. Bundles cannot move to real sewing without the required checks.</div><details class="ag-details"><summary>Why is cutting on hold?</summary><p>Draft labels are not RFID EPCs or reader scans. Entered ply counts are reports, not proven cuts. Cutting needs signed issue and reader checks before real release.</p></details>
  <details class="ag-work-extra" id="cut-summary-details"><summary>See cutting totals and release status</summary><section class="stats" aria-label="Cutting overview">
-  <article><span>Saved lay plans</span><strong id="metric-lays">—</strong></article>
-  <article><span>Pieces in latest plan</span><strong id="metric-garments">—</strong></article>
-  <article><span>Planned bundles</span><strong id="metric-bundles">—</strong></article>
+  <article><span>Recent lay plans shown</span><strong id="metric-lays">—</strong></article>
+  <article><span>Planned garments (shown)</span><strong id="metric-garments">—</strong></article>
+  <article><span>Draft bundles (shown)</span><strong id="metric-bundles">—</strong></article>
   <article><span>Production release</span><strong class="hold" id="metric-cut-release">NOT RELEASED</strong></article>
  </section></details>
  <ol class="ag-steps" aria-label="Steps on this page"><li><b>1</b>Plan the cut</li><li><b>2</b>Check the fabric spread</li><li><b>3</b>Check bundles before sewing</li></ol><div class="columns">
@@ -37,11 +37,12 @@
     <div class="two"><label>Marker code<input name="marker_code" maxlength="64" placeholder="MARK-001" required></label>
       <label>Fabric SKU<input name="fabric_sku" maxlength="128" placeholder="Match buyer BOM" required></label></div>
     <div class="two"><label>Shade band<input name="shade_band" maxlength="32" placeholder="SHADE-A" required></label>
-      <label>Reported plies<input name="reported_plies" type="number" min="1" max="210" placeholder="30" required></label></div>
+      <label>Planned plies (draft)<input name="reported_plies" type="number" min="1" max="210" placeholder="30" required></label></div>
     <label>Plies per bundle group <small>Usually 20. The last group may be smaller.</small><input name="bundle_ply_group_size" type="number" min="1" max="210" value="20" required></label>
     <div class="two"><label>Marker length (mm)<input name="marker_length_mm" type="number" min="100" max="100000000" placeholder="6500" required></label>
       <label>Usable fabric width (mm)<input name="usable_width_mm" type="number" min="100" max="4000" placeholder="1450" required></label></div>
-    <label>Marker positions <small>Use a spreadsheet or enter rows below. <a href="/static/agiparel_marker_positions_template.xlsx" download>Blank Excel sheet</a></small>
+    <p class="hint" id="cut-planned-consumption" aria-live="polite">Planned minimum fabric: enter marker length and plies. Not measured consumption or available stock.</p>
+    <label>Marker positions <small>One fabric color/shade per lay, multiple sizes allowed. Use a spreadsheet or enter rows below. <a href="/static/agiparel_marker_positions_template.xlsx" download>Blank Excel sheet</a></small>
       <input type="file" data-cut-sheet="marker_positions" data-cut-target="positions" accept=".xlsx,.csv" aria-label="Marker positions Excel file">
       <textarea name="positions" rows="5" spellcheck="false" placeholder="1,BLACK,32\n2,BLACK,34" required></textarea></label>
     <label>Pattern pieces <small>Use a spreadsheet or enter rows below. <a href="/static/agiparel_pattern_parts_template.xlsx" download>Blank Excel sheet</a></small>
@@ -55,11 +56,12 @@
   <section class="panel"><h2>Your saved cut plans</h2>
    <p class="hint">Choose a plan to see its cut parts and bundles.</p>
    <button class="secondary" id="refresh-cut" type="button">Refresh register</button>
+   <p id="cut-register-scope" class="hint" role="status">Recent latest-revision plans only; not factory-wide production.</p>
    <div id="cut-register" class="register" aria-live="polite"></div>
   </section>
  </div>
  <section class="panel detail"><div class="detail-head"><div><h2>Bundles in this plan</h2><p class="hint" id="cut-title">Choose or save a lay to inspect its labels.</p></div>
-    <button class="secondary" id="print-cut" type="button" disabled>Print draft labels</button></div>
+    <div><button class="secondary" id="revise-cut" type="button" disabled>Prepare next revision</button> <button class="secondary" id="print-cut" type="button" disabled>Print draft labels</button></div></div>
    <div class="chips" id="cut-summary"></div>
    <div class="table-wrap"><table><thead><tr><th>Draft label code</th><th>Marker position</th><th>Color / size</th><th>Part</th><th>Ply group</th><th>Plies</th><th>Pieces</th><th>RFID status</th></tr></thead><tbody id="cut-bundles"><tr><td colspan="8">No lay selected.</td></tr></tbody></table></div>
    <details class="ag-details"><summary>How are bundle counts worked out?</summary><p>Each pattern position, part and ply group makes one bundle. The number of pieces depends on its plies and the pieces required per garment. Printed draft labels are not physical RFID scans.</p></details>
@@ -75,6 +77,7 @@
     <label>Actual number of plies <small>Must equal this lay revision or revise the lay first</small><input name="actual_plies" type="number" min="1" max="210" required></label>
     <label>Measured marker length (mm)<input name="measured_marker_length_mm" type="number" min="100" max="100000000" required></label>
     <label>Fabric used (mm) <small>Must cover measured marker × plies; all mm must be attributed to signed issues</small><input name="reported_consumption_mm" type="number" min="1" required></label>
+    <p class="hint" id="spread-check" aria-live="polite">Enter the measured figures and attribute the exact amount to signed issues.</p>
     <label>Fabric issue amounts <small>Use a spreadsheet or enter signed issue IDs and amounts below. <a href="/static/agiparel_issue_allocations_template.xlsx" download>Blank Excel sheet</a></small>
       <input type="file" data-cut-sheet="issue_allocations" data-cut-target="issue_allocations" accept=".xlsx,.csv" aria-label="Fabric issue allocations Excel file"><textarea name="issue_allocations" rows="4" spellcheck="false" placeholder="00000000-0000-0000-0000-000000000000,125000" required></textarea></label>
     <label>Spread check note <small>12–1000 characters, actual operator observations; not a physical scanner credential</small><textarea name="evidence_note" rows="3" minlength="12" maxlength="1000" required></textarea></label>
