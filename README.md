@@ -40,3 +40,8 @@ No migration: existing migrations 0041–0057 contain the relevant packing uniqu
 ### F3.27 v40 signed dock admission hardening
 
 The v40 release adds database-side 2-second lock and 12-second statement limits to signed gateway and external-acknowledgement writes, an adversarial Go envelope/signature suite, and a scratch-only 12-worker PostgreSQL concurrency/replay/crash drill. It does not change migrations or authorize stock/shipment postings. See `docs/F3_27_SIGNED_DOCK_RACE_RECOVERY_v40.md` for evidence boundaries and commissioning gaps.
+
+
+### F3.28 v41 — Production trust isolation
+
+Sewing production is opt-in (disabled by default). See `docs/F3_28_V41_PRODUCTION_TRUST_ISOLATION.md` for forced-RLS privilege checks, parallel app-role tenant isolation, key revocation and release limits. No migration or shipment posting.
