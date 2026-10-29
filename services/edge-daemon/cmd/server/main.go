@@ -199,6 +199,7 @@ func main() {
 	registerPieceHoldRoutes(mux, server)
 	registerSewPieceRoutes(mux, server)
 	registerJobworkRoutes(mux, server)
+	registerJobworkReconciliationRoutes(mux, server)
 	// Public routes are isolated; every other route requires operator access.
 	registerPublicPortal(mux)
 
