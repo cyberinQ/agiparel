@@ -1,5 +1,5 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
-const fs=require('node:fs'), assert=require('node:assert/strict');
+const fs=require('./legacy_contract_source.cjs'), assert=require('node:assert/strict');
 const root=process.cwd();
 const read=(p)=>fs.readFileSync(root+'/'+p,'utf8');
 const db=read('services/core-api/migrations/0045_piece_holds_and_partial_wip_v26.sql');

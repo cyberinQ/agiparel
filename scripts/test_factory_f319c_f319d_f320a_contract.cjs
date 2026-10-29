@@ -1,5 +1,5 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
-const assert=require('node:assert/strict'); const fs=require('node:fs');
+const assert=require('node:assert/strict'); const fs=require('./legacy_contract_source.cjs');
 const read=p=>fs.readFileSync(p,'utf8');
 const sql=read('services/core-api/migrations/0052_factory_safety_aql_and_dock_readiness_v33.sql');
 const go=read('services/edge-daemon/cmd/server/factory_release_v33.go');

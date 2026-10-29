@@ -1,5 +1,5 @@
 // Author: Sunil Jain, 2026-10-28. F3.4 structural release gates.
-const fs=require('fs'),assert=require('assert');
+const fs=require('./legacy_contract_source.cjs'),assert=require('assert');
 const sql=fs.readFileSync('services/core-api/migrations/0040_garment_quality_specs_and_release_v21.sql','utf8');
 const go=fs.readFileSync('services/edge-daemon/cmd/server/garment_quality_production.go','utf8');
 const ingress=fs.readFileSync('services/edge-daemon/cmd/server/portal.go','utf8');

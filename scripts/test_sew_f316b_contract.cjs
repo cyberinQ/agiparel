@@ -1,5 +1,5 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
-const fs=require('fs'), assert=require('assert');
+const fs=require('./legacy_contract_source.cjs'), assert=require('assert');
 const root='services/edge-daemon/cmd/server/';
 const api=fs.readFileSync(root+'sewing_piece_completions_v27.go','utf8');
 const policy=fs.readFileSync(root+'workforce_chapters.go','utf8');

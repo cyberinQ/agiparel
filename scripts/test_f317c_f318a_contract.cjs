@@ -1,7 +1,7 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
 // Source contract; no invented vendor acknowledgements or laboratory readings.
 'use strict';
-const fs=require('fs');const assert=require('node:assert/strict');
+const fs=require('./legacy_contract_source.cjs');const assert=require('node:assert/strict');
 const load=p=>fs.readFileSync(p,'utf8');
 const mig=load('services/core-api/migrations/0049_vendor_ack_and_fabric_shrinkage_evidence_v30.sql');
 const j=load('services/edge-daemon/cmd/server/jobwork_vendor_ack_v30.go');

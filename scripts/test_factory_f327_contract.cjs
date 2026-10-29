@@ -1,7 +1,7 @@
 // Author: Sunil Jain, 2026-10-29.
 // V40 contract: admission time bounds, separate replay keys, scratch-only load.
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
+const fs = require('./legacy_contract_source.cjs');
 const read = p => fs.readFileSync(p, 'utf8');
 for (const filename of [
   'services/edge-daemon/cmd/server/dock_handover_v34.go',

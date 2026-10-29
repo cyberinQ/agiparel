@@ -1,6 +1,6 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
 'use strict';
-const fs=require('node:fs');const assert=require('node:assert/strict');
+const fs=require('./legacy_contract_source.cjs');const assert=require('node:assert/strict');
 const read=p=>fs.readFileSync(p,'utf8');
 const sql=read('services/core-api/migrations/0043_trims_atomic_signed_issuance_v24.sql');
 const impl=read('services/edge-daemon/pkg/stores/trim_issuance_v24.go');

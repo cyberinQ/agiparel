@@ -1,7 +1,7 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
 // V41: production default-off safety and disposable-RLS load contract.
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
+const fs = require('./legacy_contract_source.cjs');
 const read = p => fs.readFileSync(p, 'utf8');
 const prod = read('compose/docker-compose.production.yml');
 for (const flag of [

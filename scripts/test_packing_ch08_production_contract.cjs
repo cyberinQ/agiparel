@@ -1,7 +1,7 @@
 // Author: Sunil Jain, 2026-10-28.
 // Chapter 08 production-only HOLD contract: source, database, and ingress remain fail-closed.
 'use strict';
-const fs=require('node:fs');const assert=require('node:assert/strict');
+const fs=require('./legacy_contract_source.cjs');const assert=require('node:assert/strict');
 const read=f=>fs.readFileSync(f,'utf8');
 const sql=read('services/core-api/migrations/0031_packing_production_holds_v12.sql');
 const api=read('services/edge-daemon/cmd/server/packing_production.go');

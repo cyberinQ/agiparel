@@ -1,7 +1,7 @@
 // Author: Sunil Jain, 2026-10-28.
 // Production-quality boundaries: signed IdP, SQL lineage, scoped authority, zero simulation credit.
 'use strict';
-const fs=require('fs'),assert=require('assert');
+const fs=require('./legacy_contract_source.cjs'),assert=require('assert');
 const read=p=>fs.readFileSync(p,'utf8');
 const base='services/edge-daemon/cmd/server/';
 const prod=read(base+'quality_production.go');

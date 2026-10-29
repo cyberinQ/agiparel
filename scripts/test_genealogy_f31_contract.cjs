@@ -1,7 +1,7 @@
 // Author: Sunil Jain, 2026-10-28.
 // Source contracts: production identity is not a fabricated accepted garment.
 const assert=require('node:assert/strict');
-const fs=require('node:fs');
+const fs=require('./legacy_contract_source.cjs');
 const base='services/edge-daemon/cmd/server/';
 const src=fs.readFileSync(base+'genealogy_production.go','utf8');
 const sql=fs.readFileSync('services/core-api/migrations/0037_physical_identity_genealogy_v18.sql','utf8');

@@ -1,6 +1,6 @@
 // Author: Sunil Jain, 2026-10-28.
 // F3.3: check source-level authority and isolation boundaries.
-const fs=require('fs');const assert=require('assert');
+const fs=require('./legacy_contract_source.cjs');const assert=require('assert');
 const sql=fs.readFileSync('services/core-api/migrations/0039_sewing_wip_custody_and_timing_v20.sql','utf8');
 const go=fs.readFileSync('services/edge-daemon/cmd/server/wip_production.go','utf8');
 const ingress=fs.readFileSync('services/edge-daemon/cmd/server/portal.go','utf8');

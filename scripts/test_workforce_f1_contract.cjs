@@ -1,7 +1,7 @@
 // Author: Sunil Jain, 2026-10-28.
 // F1: fail-closed workforce permissions and backwards compatible read-only reporting.
 'use strict';
-const fs=require('node:fs');
+const fs=require('./legacy_contract_source.cjs');
 const assert=require('node:assert/strict');
 const root='services/edge-daemon/';
 const api=fs.readFileSync(root+'cmd/server/intelligence_production.go','utf8');

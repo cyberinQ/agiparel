@@ -1,7 +1,7 @@
 // Author: Sunil Jain, 2026-10-28.
 // F1.2 invariant regression: secure sessions, no implicit authority, existing styles.
 'use strict';
-const fs=require('node:fs');const assert=require('node:assert/strict');
+const fs=require('./legacy_contract_source.cjs');const assert=require('node:assert/strict');
 const api=fs.readFileSync('services/edge-daemon/cmd/server/workforce_browser.go','utf8');
 const report=fs.readFileSync('services/edge-daemon/cmd/server/intelligence_production.go','utf8');
 const page=fs.readFileSync('services/edge-daemon/internal/web/static/factory_intelligence_production.html','utf8');

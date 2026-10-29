@@ -1,7 +1,7 @@
 // Author: Sunil Jain, 2026-10-28.
 // F1.3: enforce a central, unprivileged policy catalog without opening legacy APIs.
 'use strict';
-const fs=require('node:fs');const assert=require('node:assert/strict');
+const fs=require('./legacy_contract_source.cjs');const assert=require('node:assert/strict');
 const base='services/edge-daemon/cmd/server/';
 const acl=fs.readFileSync(base+'workforce_chapters.go','utf8');
 const migration=fs.readFileSync('services/core-api/migrations/0036_workforce_chapter_policy_v17.sql','utf8');

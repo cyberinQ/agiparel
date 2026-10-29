@@ -1,6 +1,6 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
 // F3.17A bounded static contract checks; live Postgres tests are separate.
-const fs = require('fs');
+const fs = require('./legacy_contract_source.cjs');
 const assert = require('assert');
 const read = p=>fs.readFileSync(p,'utf8');
 const sql=read('services/core-api/migrations/0047_jobwork_scanned_custody_v28.sql');

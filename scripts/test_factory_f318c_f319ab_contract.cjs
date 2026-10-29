@@ -1,6 +1,6 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
+const fs = require('./legacy_contract_source.cjs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root,file),'utf8');

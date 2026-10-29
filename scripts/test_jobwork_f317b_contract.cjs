@@ -1,5 +1,5 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
-const fs=require('fs'),assert=require('assert');
+const fs=require('./legacy_contract_source.cjs'),assert=require('assert');
 const read=p=>fs.readFileSync(p,'utf8');
 const sql=read('services/core-api/migrations/0048_jobwork_discrepancy_reconciliation_v29.sql');
 const api=read('services/edge-daemon/cmd/server/jobwork_reconciliation_v29.go');

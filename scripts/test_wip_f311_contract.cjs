@@ -1,7 +1,7 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
 // F3.11 does not introduce a new WIP authority or relax server admission.
 'use strict';
-const fs = require('node:fs');
+const fs = require('./legacy_contract_source.cjs');
 const assert = require('node:assert/strict');
 const r = p => fs.readFileSync(p,'utf8');
 const relay = r('services/edge-daemon/cmd/scanrelay/main.go');

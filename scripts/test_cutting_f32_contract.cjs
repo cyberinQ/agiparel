@@ -1,6 +1,6 @@
 // Author: Sunil Jain, 2026-10-28.
 // F3.2: production-only integrity, no cross-tenant fabrication or output credit.
-const fs = require('fs');
+const fs = require('./legacy_contract_source.cjs');
 const assert = require('assert');
 const read = x => fs.readFileSync(x,'utf8');
 const sql=read('services/core-api/migrations/0038_cutting_part_reconciliation_v19.sql');

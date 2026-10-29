@@ -2,7 +2,7 @@
 // F3.20B-D fail-closed schema, route, proof and authority regression contract.
 'use strict';
 const assert=require('node:assert/strict');
-const fs=require('node:fs');
+const fs=require('./legacy_contract_source.cjs');
 const read=p=>fs.readFileSync(p,'utf8');
 const sql=read('services/core-api/migrations/0053_dock_scans_custody_asn_drafts_v34.sql');
 const api=read('services/edge-daemon/cmd/server/dock_handover_v34.go');

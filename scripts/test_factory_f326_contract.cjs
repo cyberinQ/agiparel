@@ -1,7 +1,7 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
 // Regression contract: v39 security test isolation and production gates.
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
+const fs = require('./legacy_contract_source.cjs');
 const prod = fs.readFileSync('compose/docker-compose.production.yml', 'utf8');
 const script = fs.readFileSync('scripts/test_factory_v39_concurrency.sh', 'utf8');
 const ci = fs.readFileSync('.github/workflows/ci.yml', 'utf8');

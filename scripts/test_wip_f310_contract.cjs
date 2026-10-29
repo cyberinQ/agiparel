@@ -1,6 +1,6 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
 'use strict';
-const fs=require('node:fs'),assert=require('node:assert/strict');
+const fs=require('./legacy_contract_source.cjs'),assert=require('node:assert/strict');
 const r=p=>fs.readFileSync(p,'utf8');
 const sql=r('services/core-api/migrations/0042_wip_exceptions_and_recovery_v23.sql');
 const go=r('services/edge-daemon/cmd/server/wip_exceptions_production.go');

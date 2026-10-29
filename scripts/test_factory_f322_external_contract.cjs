@@ -1,6 +1,6 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
 // Verify external signatures, current-proof guards and deny-shipment boundary.
-const fs = require('node:fs');
+const fs = require('./legacy_contract_source.cjs');
 const assert = require('node:assert/strict');
 const read = file => fs.readFileSync(file, 'utf8');
 const go = read('services/edge-daemon/cmd/server/dock_external_v35.go');

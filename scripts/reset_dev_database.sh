@@ -1,73 +1,29 @@
 #!/usr/bin/env bash
-# Agiparel *development-only* database reset, without Docker volume removal.
-# Destructively recreates ONLY database agiparel_dev inside agiparel-postgres.
-# Does NOT reset any other databases, Redis, models, containers or applications.
+# Author: Sunil Jain, 2026-10-29.
+# Explicitly rebuild ONLY the Agiparel dev DB from v42 canonical schema.
 set -euo pipefail
-[[ "${1:-}" == '--reset-agiparel-dev' && "$#" == 1 ]] || {
-  echo 'Usage: bash scripts/reset_dev_database.sh --reset-agiparel-dev';
-  echo 'DESTROYS all data in PostgreSQL database agiparel_dev; rebuilds schema 0001-0025.';
-  exit 2;
+[[ "${1:-}" == '--reset-agiparel-dev' && "${2:-}" == '--confirm-data-loss' && "$#" == 2 ]] || {
+ echo 'Usage: bash scripts/reset_dev_database.sh --reset-agiparel-dev --confirm-data-loss'; exit 2;
 }
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-[[ -n "$ROOT" && "$(pwd -P)" == "$(cd "$ROOT" && pwd -P)" ]] || {
-  echo 'ERROR: run from the Agiparel repository root'; exit 1;
-}
-[[ -f compose/docker-compose.dev.yml && -f services/core-api/migrations/0025_factory_intelligence_snapshots_v12.sql ]] || {
-  echo 'ERROR: wrong repo or incomplete migrations'; exit 1;
-}
-command -v docker >/dev/null || { echo 'ERROR: docker unavailable'; exit 1; }
-# Enforce expected dev database identity; never interpolate a user-supplied DB.
-ACTUAL_DB="$(docker inspect agiparel-postgres --format '{{range .Config.Env}}{{println .}}{{end}}' | sed -n 's/^POSTGRES_DB=//p' | head -1)"
-[[ "$ACTUAL_DB" == 'agiparel_dev' ]] || {
-  echo "ERROR: agiparel-postgres reports POSTGRES_DB=$ACTUAL_DB; refusing to reset"; exit 1;
-}
-# If an override is configured for Compose, reject rather than change targets.
-if [[ -n "${POSTGRES_DB:-}" && "$POSTGRES_DB" != 'agiparel_dev' ]]; then
-  echo 'ERROR: current POSTGRES_DB differs from agiparel_dev'; exit 1
-fi
-if [[ -f .env ]] && grep -Eq '^POSTGRES_DB=' .env; then
-  ENV_DB="$(sed -n 's/^POSTGRES_DB=//p' .env | tail -1 | tr -d '\r\"\047')"
-  [[ "$ENV_DB" == 'agiparel_dev' ]] || { echo 'ERROR: .env POSTGRES_DB mismatch'; exit 1; }
-fi
-
-PSQL=(docker exec -i agiparel-postgres psql -X -U agiparel_admin -v ON_ERROR_STOP=1)
-echo 'Stopping ONLY Agiparel application processes (PostgreSQL container remains running).'
-docker compose -f compose/docker-compose.dev.yml stop plant-edge-os document-intake
-
-echo 'Dropping and recreating ONLY agiparel_dev; no pgdata volume is removed.'
-"${PSQL[@]}" -d postgres -c 'DROP DATABASE IF EXISTS agiparel_dev WITH (FORCE);'
-"${PSQL[@]}" -d postgres -c 'CREATE DATABASE agiparel_dev OWNER agiparel_admin TEMPLATE template0;'
-
-echo 'Reapplying ALL migrations 0001 through 0025 in numerical order.'
-count=0
-for f in services/core-api/migrations/[0-9][0-9][0-9][0-9]_*.sql; do
-  [[ -f "$f" ]] || { echo 'ERROR: missing migrations'; exit 1; }
-  v="$(basename "$f" | cut -c1-4)"
-  expected="$(printf '%04d' "$((count+1))")"
-  [[ "$v" == "$expected" ]] || {
-    echo "ERROR: migration sequence gap: expected $expected but found $f"; exit 1;
-  }
-  echo "  [$v] $f"
-  "${PSQL[@]}" -d agiparel_dev < "$f" >/dev/null || {
-    echo "ERROR: migration $f failed. Services remain stopped. Fix and repeat reset."; exit 1;
-  }
-  count=$((count+1))
-done
-expected=$(ls services/core-api/migrations/0*.sql | wc -l | tr -d ' ')
-[[ "$count" -eq "$expected" ]] || { echo "ERROR: expected $expected migrations, got $count"; exit 1; }
-
-# A clean database has zero application rows. Raise an error if migrations seed data.
-"${PSQL[@]}" -d agiparel_dev <<'SQL'
-DO $$
-DECLARE r record; n bigint;
-BEGIN
-  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP
-    EXECUTE format('SELECT count(*) FROM public.%I', r.tablename) INTO n;
-    IF n <> 0 THEN RAISE EXCEPTION 'Unexpected seeded rows in %: %', r.tablename, n; END IF;
-  END LOOP;
-END $$;
-SQL
-
-echo 'Empty Agiparel schema verified. Starting only the Agiparel services.'
-docker compose -f compose/docker-compose.dev.yml up -d --no-deps plant-edge-os document-intake
-echo 'RESET COMPLETE: database agiparel_dev has migrations 0001-0025 and zero app rows.'
+[[ "$(git rev-parse --show-toplevel)" == "$(pwd -P)" ]] || { echo 'ERROR: wrong working directory'; exit 1; }
+[[ -s services/core-api/migrations/0001_v42_baseline.sql ]] || { echo 'ERROR: baseline is missing'; exit 1; }
+DC=(docker compose -f compose/docker-compose.dev.yml)
+ACTUAL="$(docker inspect agiparel-postgres --format '{{range .Config.Env}}{{println .}}{{end}}' | sed -n 's/^POSTGRES_DB=//p' | head -1)"
+[[ "$ACTUAL" == agiparel_dev ]] || { echo 'ERROR: only agiparel_dev may be reset'; exit 1; }
+[[ "${POSTGRES_DB:-agiparel_dev}" == agiparel_dev ]] || { echo 'ERROR: DB override is unsafe'; exit 1; }
+[[ -f .env ]] || { echo 'ERROR: .env credentials missing'; exit 1; }
+APP_PASS="$(sed -n 's/^AGIPAREL_APP_DB_PASSWORD=//p' .env | tail -1)"
+DOC_PASS="$(sed -n 's/^AGIPAREL_DOC_DB_PASSWORD=//p' .env | tail -1)"
+[[ "$APP_PASS" =~ ^[a-f0-9]{48}$ && "$DOC_PASS" =~ ^[a-f0-9]{48}$ ]] || { echo 'ERROR: invalid dev credentials'; exit 1; }
+export AGIPAREL_APP_DB_PASSWORD="$APP_PASS" AGIPAREL_DOC_DB_PASSWORD="$DOC_PASS"
+umask 077; mkdir -p "$HOME/agiparel-db-backups"
+BACKUP="$HOME/agiparel-db-backups/pre_v42_manual_reset_$(date +%Y%m%d_%H%M%S).dump"
+"${DC[@]}" exec -T postgres sh -c 'pg_dump -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$BACKUP"
+[[ -s "$BACKUP" ]] || { echo 'ERROR: backup failed'; exit 1; }
+"${DC[@]}" stop plant-edge-os document-intake
+"${DC[@]}" exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres -c "DROP DATABASE IF EXISTS agiparel_dev WITH (FORCE)"'
+"${DC[@]}" exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE agiparel_dev OWNER agiparel_admin TEMPLATE template0"'
+"${DC[@]}" exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d agiparel_dev -v app_password="$1" -v doc_password="$2"' sh "$APP_PASS" "$DOC_PASS" < scripts/bootstrap_roles_v42.sql
+"${DC[@]}" exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d agiparel_dev' < services/core-api/migrations/0001_v42_baseline.sql > /dev/null
+# Existing WAL files are not cleared: only use reset on a disposable dev environment.
+echo "v42 dev database rebuilt; backup at $BACKUP. Review WAL continuity before restarting services."

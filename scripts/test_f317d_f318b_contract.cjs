@@ -1,7 +1,7 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
 // Source contract: fail closed for unsigned disposition and unsupported buyer approvals.
 const assert=require('node:assert/strict');
-const fs=require('node:fs');
+const fs=require('./legacy_contract_source.cjs');
 const read=f=>fs.readFileSync(f,'utf8');
 const sql=read('services/core-api/migrations/0050_jobwork_resolutions_and_shrinkage_specs_v31.sql');
 const job=read('services/edge-daemon/cmd/server/jobwork_disposition_v31.go');

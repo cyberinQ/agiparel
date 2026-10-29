@@ -1,7 +1,7 @@
 // Author: Sunil Jain, 2026-10-28.
 // Verify Chapter 09 doesn't confuse rehearsal evidence, production groups and finished garments.
 'use strict';
-const fs=require('node:fs');
+const fs=require('./legacy_contract_source.cjs');
 const assert=require('node:assert/strict');
 const base='services/edge-daemon/';
 const api=fs.readFileSync(base+'cmd/server/intelligence_production.go','utf8');

@@ -1,5 +1,5 @@
 // Author: Sunil Jain, 2026-10-29. Static fail-closed material/operator-contract regression.
-const fs = require('node:fs');
+const fs = require('./legacy_contract_source.cjs');
 const assert = require('node:assert/strict');
 const sql = fs.readFileSync('services/core-api/migrations/0057_material_attribution_integrity_v38.sql','utf8');
 const go = fs.readFileSync('services/edge-daemon/cmd/server/dock_external_v35.go','utf8');

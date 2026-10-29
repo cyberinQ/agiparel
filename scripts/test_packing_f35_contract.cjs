@@ -1,5 +1,5 @@
 // Author: Sunil Jain, 2026-10-28. F3.5 production proof and schema contract.
-const fs=require('fs'),assert=require('assert');
+const fs=require('./legacy_contract_source.cjs'),assert=require('assert');
 const sql=fs.readFileSync('services/core-api/migrations/0041_carton_packing_and_dispatch_staging_v22.sql','utf8');
 const go=fs.readFileSync('services/edge-daemon/cmd/server/carton_genealogy_production.go','utf8');
 const ingress=fs.readFileSync('services/edge-daemon/cmd/server/portal.go','utf8');

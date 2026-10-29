@@ -1,5 +1,5 @@
 // Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
-const fs=require('node:fs'), assert=require('node:assert/strict');
+const fs=require('./legacy_contract_source.cjs'), assert=require('node:assert/strict');
 const read=p=>fs.readFileSync(p,'utf8');
 const m=read('services/core-api/migrations/0044_signed_trim_stock_admission_v25.sql');
 const app=read('services/edge-daemon/cmd/server/material_api.go');

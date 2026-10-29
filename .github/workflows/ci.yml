@@ -63,17 +63,11 @@ jobs:
       - name: Install PostgreSQL client
         run: |
           command -v psql || { sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client; }
-      - name: Apply all ordered migrations on empty PostgreSQL 16
+      - name: Bootstrap roles and apply canonical v42 baseline
         run: |
           set -euo pipefail
-          n=0
-          for migration in services/core-api/migrations/[0-9][0-9][0-9][0-9]_*.sql; do
-            n=$((n+1))
-            expected=$(printf '%04d' "$n")
-            [[ "$(basename "$migration" | cut -c1-4)" == "$expected" ]] || exit 2
-            psql -X -v ON_ERROR_STOP=1 -f "$migration" > /dev/null
-          done
-          printf 'Successfully applied %d ordered migrations\n' "$n"
+          psql -X -v ON_ERROR_STOP=1 -v app_password=ci_app_dev_only -v doc_password=ci_worker_dev_only -f scripts/bootstrap_roles_v42.sql
+          psql -X -v ON_ERROR_STOP=1 -f services/core-api/migrations/0001_v42_baseline.sql
       - name: Verify dock and safety schema authorization
         run: |
           psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_f319c_f319d_f320a_schema_pg.sql

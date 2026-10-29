@@ -45,3 +45,7 @@ The v40 release adds database-side 2-second lock and 12-second statement limits 
 ### F3.28 v41 — Production trust isolation
 
 Sewing production is opt-in (disabled by default). See `docs/F3_28_V41_PRODUCTION_TRUST_ISOLATION.md` for forced-RLS privilege checks, parallel app-role tenant isolation, key revocation and release limits. No migration or shipment posting.
+
+## v42 database baseline (development only)
+
+The canonical PostgreSQL 16 schema is `services/core-api/migrations/0001_v42_baseline.sql` (generated and equivalence-tested on the development host at v42 cutover). Bootstrap credentials live in ignored `.env`; the app/worker role SQL is `scripts/bootstrap_roles_v42.sql`. Historical migrations and release notes are compressed source fixtures, **not** execution inputs. The automated v42 cutover requires explicit destructive-reset consent. See `docs/V42_CANONICAL_DATABASE_AND_REPO_CLEANUP.md`.

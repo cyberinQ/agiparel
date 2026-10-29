@@ -1,7 +1,7 @@
 // Author: Sunil Jain, 2026-10-28.
 // Static, fast contract checks for real production sewing boundary and migration.
 'use strict';
-const fs = require('fs');
+const fs = require('./legacy_contract_source.cjs');
 const assert = require('assert');
 const src = file => fs.readFileSync(file,'utf8');
 const base = 'services/edge-daemon/cmd/server/';
