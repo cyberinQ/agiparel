@@ -4,6 +4,7 @@ package planning
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -126,70 +127,95 @@ func AssessWorkbook(wb *onboarding.FactoryWorkbook, poNumber string) PlanAssessm
 	}
 }
 
+// evaluateCloth compares only explicit style-specific material quantities and
+// workbook-reported stock. A workbook is not an approved marker or a live WMS;
+// sufficiency is therefore provisional, never an authoritative GREEN release.
 func evaluateCloth(wb *onboarding.FactoryWorkbook, po, styleCode string, targetCut int) ReadinessCard {
-	primarySKU := ""
+	expected := make(map[string]float64)
+	uomBySKU := make(map[string]string)
+	for _, b := range wb.BOMRows {
+		if !strings.EqualFold(strings.TrimSpace(b.StyleCode), strings.TrimSpace(styleCode)) || !strings.EqualFold(b.Category, "FABRIC") {
+			continue
+		}
+		sku := strings.ToUpper(strings.TrimSpace(b.MaterialSKU))
+		unit := strings.ToUpper(strings.TrimSpace(b.UOM))
+		if sku == "" || math.IsNaN(b.QtyPerGarment) || math.IsInf(b.QtyPerGarment, 0) || b.QtyPerGarment <= 0 ||
+			(unit != "M" && unit != "METER" && unit != "METRE") {
+			return ReadinessCard{Category: "CLOTH", Status: LightYellow, Headline: "UNKNOWN — fabric BOM needs review",
+				Details:      []string{"Fabric BOM has missing, invalid or non-meter quantities. Do not infer meters from cut-part counts."},
+				SuggestedFix: "Provide a validated fabric BOM or approved marker yield with explicit meter units."}
+		}
+		if old, ok := uomBySKU[sku]; ok && old != unit && (old != "M" && old != "METER" && old != "METRE") {
+			return ReadinessCard{Category: "CLOTH", Status: LightYellow, Headline: "UNKNOWN — conflicting BOM units", SuggestedFix: "Resolve material units."}
+		}
+		uomBySKU[sku] = unit
+		expected[sku] += b.QtyPerGarment * float64(targetCut)
+	}
+	// A partial fabric BOM must not silently omit the style's declared shell SKU.
+	primary := ""
 	for _, st := range wb.Styles {
-		if st.StyleCode == styleCode && st.FabricSKU != "" {
-			primarySKU = strings.ToUpper(strings.TrimSpace(st.FabricSKU))
+		if strings.EqualFold(strings.TrimSpace(st.StyleCode), strings.TrimSpace(styleCode)) {
+			primary = strings.ToUpper(strings.TrimSpace(st.FabricSKU))
 			break
 		}
 	}
-
-	// Dynamically calculate consumption from style parts/BOM; fallback to 1.25 only if unspecified
-	consumptionPerGarment := 0.0
-	for _, p := range wb.StyleParts {
-		if p.StyleCode != styleCode {
-			continue
-		}
-		partSKU := strings.ToUpper(strings.TrimSpace(p.MaterialSKU))
-		if primarySKU != "" {
-			if partSKU == primarySKU {
-				consumptionPerGarment += 0.35
-			}
-		} else if partSKU != "" && !strings.Contains(partSKU, "POCKET") {
-			consumptionPerGarment += 0.35
+	if primary != "" && len(expected) > 0 {
+		if _, ok := expected[primary]; !ok {
+			return ReadinessCard{Category: "CLOTH", Status: LightYellow,
+				Headline:     "UNKNOWN — shell fabric missing from BOM",
+				Details:      []string{fmt.Sprintf("Style declares shell SKU %s, but the BOM omits its consumption.", primary)},
+				SuggestedFix: "Reconcile the style shell SKU with an approved BOM/marker."}
 		}
 	}
-	if consumptionPerGarment <= 0.1 {
-		consumptionPerGarment = 1.25
+	if len(expected) == 0 {
+		return ReadinessCard{Category: "CLOTH", Status: LightYellow, Headline: "UNKNOWN — fabric requirement not measured",
+			Details:      []string{"No explicit fabric BOM or approved marker yield for this style. Style part counts do not determine fabric length."},
+			SuggestedFix: "Load the style's fabric BOM or approved marker consumption; do not procure from fixed estimates."}
 	}
-	neededMeters := float64(targetCut) * consumptionPerGarment
-
-	availMeters := 0.0
+	// Stock lengths are reported by the workbook, not physically remeasured or reserved here.
+	available := make(map[string]float64)
 	for _, r := range wb.StoreRolls {
-		skuUpper := strings.ToUpper(strings.TrimSpace(r.FactorySKU))
-		// Exclude secondary trim/pocketing rolls from main body shell fabric calculation
-		if strings.Contains(skuUpper, "POCKET") {
+		sku := strings.ToUpper(strings.TrimSpace(r.FactorySKU))
+		if _, wanted := expected[sku]; !wanted {
 			continue
 		}
-		if primarySKU != "" && skuUpper != primarySKU {
+		state := strings.ToUpper(strings.TrimSpace(r.Status))
+		if state != "AVAILABLE" && state != "RESERVED" {
 			continue
 		}
-		if (r.Status == "AVAILABLE" || r.Status == "RESERVED") && (r.ReservedOrder == "" || r.ReservedOrder == po) {
-			availMeters += r.LengthM
+		owner := strings.TrimSpace(r.ReservedOrder)
+		if owner != "" && owner != po {
+			continue
+		}
+		if state == "RESERVED" && owner == "" {
+			continue
+		} // ambiguous reservation
+		if math.IsNaN(r.LengthM) || math.IsInf(r.LengthM, 0) || r.LengthM <= 0 {
+			return ReadinessCard{Category: "CLOTH", Status: LightYellow, Headline: "UNKNOWN — invalid reported roll balance",
+				SuggestedFix: "Reconcile the roll's remaining length and owner before planning."}
+		}
+		available[sku] += r.LengthM
+	}
+	keys := make([]string, 0, len(expected))
+	for k := range expected {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	details := []string{"WORKBOOK-DECLARED ONLY: quantities are not approved marker yields or live verified stock."}
+	deficit := false
+	for _, sku := range keys {
+		required, have := expected[sku], available[sku]
+		details = append(details, fmt.Sprintf("%s: declared need %.3f m for %d pieces; reported eligible stock %.3f m.", sku, required, targetCut, have))
+		if have+1e-9 < required {
+			deficit = true
 		}
 	}
-
-	if availMeters >= neededMeters {
-		return ReadinessCard{
-			Category: "CLOTH",
-			Status:   LightGreen,
-			Headline: "Enough Cloth in Store",
-			Details: []string{
-				fmt.Sprintf("We need %.0f meters of main shell cloth for %d pieces.", neededMeters, targetCut),
-				fmt.Sprintf("We have %.1f meters ready in the store.", availMeters),
-			},
-		}
+	if deficit {
+		return ReadinessCard{Category: "CLOTH", Status: LightRed, Headline: "Reported fabric deficit — verify before ordering",
+			Details: details, SuggestedFix: "Validate approved marker consumption and reconcile actual roll balances; only then reserve or procure."}
 	}
-
-	shortfall := neededMeters - availMeters
-	return ReadinessCard{
-		Category:     "CLOTH",
-		Status:       LightRed,
-		Headline:     fmt.Sprintf("Need %.1f More Meters of Main Shell Cloth", shortfall),
-		Details:      []string{fmt.Sprintf("Have %.1f m of main shell fabric (excluding pocketing), but order needs %.0f m.", availMeters, neededMeters)},
-		SuggestedFix: fmt.Sprintf("Order %.1f meters of shell cloth from supplier or allocate unreserved rolls.", shortfall),
-	}
+	return ReadinessCard{Category: "CLOTH", Status: LightYellow, Headline: "Reported stock covers declared BOM — confirmation required",
+		Details: details, SuggestedFix: "Approve marker/consumption and reconcile live roll reservations before granting cutting release."}
 }
 
 func evaluateMachines(wb *onboarding.FactoryWorkbook, styleCode string) ReadinessCard {

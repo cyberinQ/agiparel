@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -24,6 +25,7 @@ type FactoryWorkbook struct {
 	Workers        []WorkerRow       `json:"workers"`
 	Styles         []StyleRow        `json:"styles"`
 	StyleParts     []StylePartRow    `json:"style_parts"`
+	BOMRows        []BOMRow          `json:"bom_rows,omitempty"`
 	OperationsDAG  []OperationDAGRow `json:"operations_dag"`
 	StoreRolls     []StoreRollRow    `json:"store_rolls"`
 	WorkOrders     []WorkOrderRow    `json:"work_orders"`
@@ -75,6 +77,17 @@ type StylePartRow struct {
 	PartName       string `json:"part_name"`
 	SubBundleOrder int    `json:"sub_bundle_order"`
 	MaterialSKU    string `json:"material_sku"`
+}
+
+// BOMRow is supplied by the factory workbook; source references are declarations,
+// not independent approval or a verified marker yield.
+type BOMRow struct {
+	StyleCode     string  `json:"style_code"`
+	MaterialSKU   string  `json:"material_sku"`
+	Category      string  `json:"category"`
+	QtyPerGarment float64 `json:"qty_per_garment"`
+	UOM           string  `json:"uom"`
+	SourceRef     string  `json:"source_ref,omitempty"`
 }
 
 type OperationDAGRow struct {
@@ -136,6 +149,7 @@ STYLE_PARTS,KK524867,101,Left Pocket,1,POCKETING-TWILL-WHITE
 STYLE_PARTS,KK524867,102,Front Panel,2,DENIM-STRETCH-12OZ
 STYLE_PARTS,KK524867,103,Back Panel,3,DENIM-STRETCH-12OZ
 STYLE_PARTS,KK524867,104,Waistband,4,DENIM-STRETCH-12OZ
+# STYLE_BOM,KK524867,DENIM-STRETCH-12OZ,FABRIC,1.85,M,MARKER-APPROVAL-REFERENCE
 OPERATION_DAG,KK524867,OP-101,Attach Left Pocket to Front Panel,0.50,SNLS_LOCKSTITCH,101,102
 OPERATION_DAG,KK524867,OP-102,Back Rise & Panel Join,0.60,4-OL_SERGING,103,102
 OPERATION_DAG,KK524867,OP-103,Waistband Attach,0.65,KANSAI_FLATLOCK,104,102
@@ -166,14 +180,14 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 	}
 	positiveDecimal := func(raw, field string, line int) (float64, error) {
 		v, e := strconv.ParseFloat(strings.TrimSpace(raw), 64)
-		if e != nil || v <= 0 || v > 1e12 {
+		if e != nil || math.IsNaN(v) || math.IsInf(v, 0) || v <= 0 || v > 1e12 {
 			return 0, fmt.Errorf("ERR_INVALID_FIELD row %d %s: expected positive finite number; received %q", line, field, raw)
 		}
 		return v, nil
 	}
 	nonnegativeDecimal := func(raw, field string, line int) (float64, error) {
 		v, e := strconv.ParseFloat(strings.TrimSpace(raw), 64)
-		if e != nil || v < 0 || v > 1e12 {
+		if e != nil || math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1e12 {
 			return 0, fmt.Errorf("ERR_INVALID_FIELD row %d %s: expected nonnegative finite number; received %q", line, field, raw)
 		}
 		return v, nil
@@ -302,6 +316,19 @@ func ParseWorkbookCSV(r io.Reader) (*FactoryWorkbook, error) {
 				PartName:       getCol(3),
 				SubBundleOrder: order,
 				MaterialSKU:    getCol(5),
+			})
+		case "STYLE_BOM":
+			qty, err := positiveDecimal(getCol(4), "qty_per_garment", lineNum+1)
+			if err != nil {
+				return nil, err
+			}
+			category, unit := strings.ToUpper(getCol(3)), strings.ToUpper(getCol(5))
+			if getCol(1) == "" || getCol(2) == "" || (category != "FABRIC" && category != "TRIM") || unit == "" {
+				return nil, fmt.Errorf("ERR_INVALID_FIELD row %d: style, material, category and UOM required", lineNum+1)
+			}
+			wb.BOMRows = append(wb.BOMRows, BOMRow{
+				StyleCode: getCol(1), MaterialSKU: getCol(2), Category: category,
+				QtyPerGarment: qty, UOM: unit, SourceRef: getCol(6),
 			})
 		case "OPERATION_DAG":
 			sam, err := positiveDecimal(getCol(4), "sam_minutes", lineNum+1)
