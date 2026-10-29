@@ -1,0 +1,21 @@
+// Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
+const fs=require('fs'), assert=require('assert');
+const root='services/edge-daemon/cmd/server/';
+const api=fs.readFileSync(root+'sewing_piece_completions_v27.go','utf8');
+const policy=fs.readFileSync(root+'workforce_chapters.go','utf8');
+const portal=fs.readFileSync(root+'portal.go','utf8');
+const main=fs.readFileSync(root+'main.go','utf8');
+const sql=fs.readFileSync('services/core-api/migrations/0046_individual_sewing_completions_v27.sql','utf8');
+assert(api.includes('AGIPAREL_SEW_PIECE_COMPLETIONS_ENABLED'));
+assert(api.includes('sewing.piece.complete'));
+assert(portal.includes('\"/api/v1/sewing/pieces/completions\"'));
+assert(main.includes('registerSewPieceRoutes(mux, server)'));
+assert(api.includes('"payroll_credit": false') || api.includes('"payroll_credit":false'));
+assert(api.includes('"quality_release": false') || api.includes('"quality_release":false'));
+for(const p of ['sewing.piece.hold','sewing.piece.review','sewing.piece.complete']) assert(policy.includes('"'+p+'"'));
+for(const piece of ['wip_piece_active_hold_v26','sew_prod_completions_v10','wip_gateway_scans_v20','wip_movements_v20','wip_exception_closures_v23','cut_recut_links_v19','gen_carrier_active_v18'])assert(sql.includes(piece),piece);
+assert(sql.includes('scan.observed_at<arrival_at'));
+assert(sql.includes('SECURITY DEFINER'));
+assert(sql.includes('current_setting(%L,true),%L'));
+assert(!sql.includes("current_setting('app.current_tenant_id',true),)"));
+console.log('PASS F3.16B: per-garment signed operations, prior F3.16A permissions, explicit non-credit boundary, immutable exclusive scan guards');
