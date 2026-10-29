@@ -41,6 +41,7 @@ var chapterPermissions = map[string]chapterPermission{
 	"jobwork.inward":                 {6, "SIGNED_WRITE"},
 	"jobwork.discrepancy.report":     {6, "SIGNED_WRITE"},
 	"jobwork.vendor.ack.record":      {6, "SIGNED_WRITE"},
+	"jobwork.discrepancy.resolve":    {6, "SIGNED_WRITE"},
 	"stores.fabric.shrinkage.record": {4, "SIGNED_WRITE"},
 	"sewing.piece.hold":              {6, "SIGNED_WRITE"},
 	"sewing.piece.review":            {6, "SIGNED_WRITE"},

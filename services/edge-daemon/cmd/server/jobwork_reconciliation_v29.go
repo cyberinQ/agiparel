@@ -188,6 +188,7 @@ type jobworkRegisterRow struct {
 	InwardID          *string   `json:"inward_id"`
 	Discrepancy       *string   `json:"discrepancy"`
 	VendorAckRecorded bool      `json:"vendor_ack_recorded"`
+	Disposition       *string   `json:"disposition,omitempty"`
 	Status            string    `json:"status"`
 }
 
@@ -247,6 +248,15 @@ func (p *jobworkAPI) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Vendor-signed acknowledgements are a separate, non-credit evidence layer.
+	var dispositions int64
+	err = tx.QueryRowContext(ctx, `SELECT count(*)::bigint FROM jobwork_discrepancy_resolutions_v31 x
+       JOIN jobwork_outwards_v28 o ON o.tenant_id=x.tenant_id AND o.id=x.outward_id
+       WHERE o.tenant_id=$1 AND o.plant_id=$2 AND o.vendor_id=$3 AND o.job_reference=$4 AND o.process_code=$5`,
+		tenant, plant, vendor, job, process).Scan(&dispositions)
+	if err != nil {
+		sewProdReply(w, err)
+		return
+	}
 	var vendorAcks int64
 	err = tx.QueryRowContext(ctx, `SELECT count(*)::bigint FROM jobwork_vendor_acks_v30 a
      JOIN jobwork_outwards_v28 o ON o.tenant_id=a.tenant_id AND o.id=a.outward_id
@@ -260,11 +270,12 @@ func (p *jobworkAPI) register(w http.ResponseWriter, r *http.Request) {
 	if vv := q.Get("after"); vv != "" {
 		after = vv
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT o.id::text,o.part_id::text,o.recorded_at,i.id::text,d.category,(a.id IS NOT NULL)
+	rows, err := tx.QueryContext(ctx, `SELECT o.id::text,o.part_id::text,o.recorded_at,i.id::text,d.category,(a.id IS NOT NULL),res.resolution_kind
   FROM jobwork_outwards_v28 o
   LEFT JOIN jobwork_inwards_v28 i ON i.tenant_id=o.tenant_id AND i.outward_id=o.id
   LEFT JOIN jobwork_discrepancies_v29 d ON d.tenant_id=o.tenant_id AND d.outward_id=o.id
   LEFT JOIN jobwork_vendor_acks_v30 a ON a.tenant_id=o.tenant_id AND a.outward_id=o.id
+  LEFT JOIN jobwork_discrepancy_resolutions_v31 res ON res.tenant_id=d.tenant_id AND res.discrepancy_id=d.id
   WHERE o.tenant_id=$1 AND o.plant_id=$2 AND o.vendor_id=$3 AND o.job_reference=$4 AND o.process_code=$5
    AND (NULLIF($6,'') IS NULL OR o.id>NULLIF($6,'')::uuid)
   ORDER BY o.id LIMIT $7`, tenant, plant, vendor, job, process, after, limit+1)
@@ -275,18 +286,29 @@ func (p *jobworkAPI) register(w http.ResponseWriter, r *http.Request) {
 	items := make([]jobworkRegisterRow, 0, limit+1)
 	for rows.Next() {
 		var r jobworkRegisterRow
-		var inward, category sql.NullString
-		if err = rows.Scan(&r.OutwardID, &r.PartID, &r.OutwardAt, &inward, &category, &r.VendorAckRecorded); err != nil {
+		var inward, category, disposition sql.NullString
+		if err = rows.Scan(&r.OutwardID, &r.PartID, &r.OutwardAt, &inward, &category, &r.VendorAckRecorded, &disposition); err != nil {
 			break
 		}
 		if inward.Valid {
 			v := inward.String
 			r.InwardID = &v
 		}
+		if disposition.Valid {
+			v := disposition.String
+			r.Disposition = &v
+		}
 		if category.Valid {
 			v := category.String
 			r.Discrepancy = &v
 			r.Status = "DISCREPANCY_REPORTED_UNRESOLVED"
+			if disposition.Valid {
+				if disposition.String == "RETURNED_TO_PIECE_HOLD" {
+					r.Status = "RETURNED_TO_SEPARATE_PIECE_HOLD"
+				} else {
+					r.Status = "DISPOSITION_DOCUMENTED_REMAINS_BLOCKED"
+				}
+			}
 		} else if inward.Valid {
 			r.Status = "RETURN_ATTESTED_PENDING_INTERNAL_QC"
 		} else {
@@ -317,7 +339,7 @@ func (p *jobworkAPI) register(w http.ResponseWriter, r *http.Request) {
 	docJSON(w, 200, map[string]any{"tenant_id": tenant, "plant_id": plant, "vendor_id": vendor,
 		"job_reference": job, "process": process, "authority": "LIVE_LEDGER_RECONCILIATION_NOT_SIGNED_GATE_PASS_OR_VENDOR_ACK",
 		"outward_count": outward, "distinct_part_count": uniqueParts, "repeated_part_outward_count": outward - uniqueParts, "inward_count": returned, "not_returned_count": unreturned,
-		"disputed_count": disputed, "damaged_return_count": damaged, "vendor_ack_evidence_count": vendorAcks,
+		"disputed_count": disputed, "disposition_record_count": dispositions, "damaged_return_count": damaged, "vendor_ack_evidence_count": vendorAcks,
 		"items": items, "next_after": next, "has_more": more,
 		"snapshot_scope": "single_repeatable_read_database_transaction", "vendor_ack_is_not_physical_receipt_or_qc": true,
 		"financial_settlement": false, "quality_release": false})

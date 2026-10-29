@@ -202,6 +202,8 @@ func main() {
 	registerJobworkReconciliationRoutes(mux, server)
 	registerVendorAckRoutesV30(mux, server)
 	registerFabricShrinkageRoutesV30(mux, server)
+	registerJobworkDispositionRoutesV31(mux, server)
+	registerFabricShrinkageReadinessRoutesV31(mux, server)
 	// Public routes are isolated; every other route requires operator access.
 	registerPublicPortal(mux)
 

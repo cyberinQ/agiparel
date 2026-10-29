@@ -1,0 +1,35 @@
+// Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
+// Source contract: fail closed for unsigned disposition and unsupported buyer approvals.
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const read=f=>fs.readFileSync(f,'utf8');
+const sql=read('services/core-api/migrations/0050_jobwork_resolutions_and_shrinkage_specs_v31.sql');
+const job=read('services/edge-daemon/cmd/server/jobwork_disposition_v31.go');
+const shrink=read('services/edge-daemon/cmd/server/fabric_shrinkage_readiness_v31.go');
+const gate=read('services/edge-daemon/cmd/server/portal.go');
+const main=read('services/edge-daemon/cmd/server/main.go');
+const perms=read('services/edge-daemon/cmd/server/workforce_chapters.go');
+const reg=read('services/edge-daemon/cmd/server/jobwork_reconciliation_v29.go');
+assert(sql.includes('BEGIN;')&&sql.trimEnd().endsWith('COMMIT;'));
+assert(sql.includes('jobwork_discrepancy_resolutions_v31'));
+assert(sql.includes('fabric_shrinkage_specs_v31'));
+assert(sql.includes('RETURNED_TO_PIECE_HOLD'));
+assert(sql.includes('ret.recorded_at<=d.reported_at'));
+assert(sql.includes('wip_piece_holds_v26'));
+assert(sql.includes('guard_jobwork_disputed_progress_v29'));
+assert(sql.includes('jobwork_part_disputed_v29(d.tenant_id,d.part_id)'));
+assert(sql.includes('REVOKE ALL ON public.%I FROM PUBLIC,agiparel_app'));
+assert(sql.includes('GRANT INSERT ON jobwork_discrepancy_resolutions_v31 TO agiparel_app'));
+assert(!sql.includes('GRANT INSERT ON fabric_shrinkage_specs_v31 TO agiparel_app'));
+assert(sql.includes("src.status<>'APPROVED'")&&sql.includes("upper(src.issuer)<>'CUSTOMER'"));
+assert(sql.includes('revision DESC'));
+assert(job.includes('jobwork.discrepancy.resolve')&&job.includes('sewing_supervisor'));
+assert(job.includes('jobworkDispositionChallengeV31')&&job.includes('p.persistDispositionV31'));
+assert(shrink.includes('commissionTx')&&shrink.includes('workforceChapterPermit')&&shrink.includes('stores.read'));
+assert(shrink.includes('instrument_calibration_verified')&&shrink.includes('"cut_release": false'));
+assert(shrink.includes('ORDER BY s.revision DESC LIMIT 1'));
+for(const p of ['/api/v1/jobwork/dispositions/challenge','/api/v1/jobwork/dispositions','/api/v1/fabric/shrinkage/readiness']) assert(gate.includes('"'+p+'"'),p);
+assert(main.includes('registerJobworkDispositionRoutesV31')&&main.includes('registerFabricShrinkageReadinessRoutesV31'));
+assert(perms.includes('"jobwork.discrepancy.resolve"'));
+assert(reg.includes('disposition_record_count')&&reg.includes('RETURNED_TO_SEPARATE_PIECE_HOLD'));
+console.log('PASS F3.17D/F3.18B: signed dispositions, evidence-gated recovery, immutable customer-spec revision and read-only non-credit readiness');
