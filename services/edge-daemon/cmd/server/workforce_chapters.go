@@ -37,6 +37,8 @@ var chapterPermissions = map[string]chapterPermission{
 	"sewing.read":              {6, "SIGNED_READ"},
 	"sewing.complete":          {6, "SIGNED_WRITE"},
 	"sewing.transfer":          {6, "SIGNED_WRITE"},
+	"jobwork.outward":         {6, "SIGNED_WRITE"},
+	"jobwork.inward":          {6, "SIGNED_WRITE"},
 	"sewing.piece.hold":        {6, "SIGNED_WRITE"},
 	"sewing.piece.review":      {6, "SIGNED_WRITE"},
 	"sewing.piece.complete":    {6, "SIGNED_WRITE"},
