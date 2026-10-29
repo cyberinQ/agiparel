@@ -26,3 +26,13 @@ F3.23 v36: spec-bound buyer authorization, exact dock carton reconciliation and 
 ### F3.24 v37 — live cut/WIP lineage audit (read-only)
 
 New `GET /api/v1/packing/dock/lineage-audit` reuses the existing tenant/plant-scoped workforce `packing.read` grant and repeatable-read transaction. Requires both v35 external gate and `AGIPAREL_DOCK_LINEAGE_AUDIT_V37_ENABLED=true`. It conservatively checks packed identities, signed cut reconciliation, latest effective-part/QC evidence, piece holds and jobwork states, with bounded manifest size and named blockers. It is **not** global material/trim/financial conservation, ASN delivery, shipment posting or physical acceptance. See `docs/F3_24_LINEAGE_AUDIT_v37.md`.
+
+
+### F3.25 v38 material and integrity diagnostics (2026-10-29)
+
+After migration `0057`, the opt-in `GET /api/v1/packing/dock/integrity-report` combines current dock evidence, garment-cut/WIP lineage and per-release human-classified fabric issue attribution. Set `AGIPAREL_DOCK_INTEGRITY_V38_ENABLED=true` only after upstream identity/external-gate provisioning. The report is **read only**; inventory, trim and financial conservation, physical RF, actual ASN delivery and shipment posting remain unverified. See `docs/F3_25_MATERIAL_ATTRIBUTION_OPERATOR_INTEGRITY_v38.md`.
+
+
+### F3.25 v38 material and integrity diagnostics (2026-10-29)
+
+After migration `0057`, the opt-in `GET /api/v1/packing/dock/integrity-report` combines current dock evidence, garment-cut/WIP lineage and per-release human-classified fabric issue attribution. Set `AGIPAREL_DOCK_INTEGRITY_V38_ENABLED=true` only after upstream identity/external-gate provisioning. The report is **read only**; inventory, trim and financial conservation, physical RF, actual ASN delivery and shipment posting remain unverified. See `docs/F3_25_MATERIAL_ATTRIBUTION_OPERATOR_INTEGRITY_v38.md`.

@@ -189,6 +189,10 @@ func (p *dockExternalAPIv35) status(w http.ResponseWriter, r *http.Request) {
 	if !p.ready(w) {
 		return
 	}
+	if r.URL.Path == "/api/v1/packing/dock/integrity-report" && !dockIntegrityReportV38Enabled() {
+		docJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "ERR_F38_INTEGRITY_REPORT_DISABLED"})
+		return
+	}
 	if r.URL.Path == "/api/v1/packing/dock/lineage-audit" && !dockLineageAuditV37Enabled() {
 		docJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "ERR_F37_LINEAGE_AUDIT_DISABLED"})
 		return
@@ -283,8 +287,21 @@ func (p *dockExternalAPIv35) status(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// v38 combines material, lineage and dock evidence under this same
+	// authenticated tenant-scoped repeatable-read transaction.
+	var integrity []byte
+	if r.URL.Path == "/api/v1/packing/dock/integrity-report" {
+		if err = tx.QueryRowContext(ctx, `SELECT dock_integrity_report_v38($1,$2,$3::uuid)`, tenant, plant, manifest).Scan(&integrity); err != nil {
+			sewProdReply(w, err)
+			return
+		}
+	}
 	if err = tx.Commit(); err != nil {
 		sewProdReply(w, err)
+		return
+	}
+	if r.URL.Path == "/api/v1/packing/dock/integrity-report" {
+		docJSON(w, http.StatusOK, json.RawMessage(integrity))
 		return
 	}
 	if r.URL.Path == "/api/v1/packing/dock/lineage-audit" {
@@ -308,6 +325,7 @@ func registerDockExternalRoutesV35(mux *http.ServeMux, s *EdgeServer) {
 	mux.HandleFunc("/api/v1/packing/dock/external-verification", p.status)
 	mux.HandleFunc("/api/v1/packing/dock/diagnostics", p.status)
 	mux.HandleFunc("/api/v1/packing/dock/lineage-audit", p.status)
+	mux.HandleFunc("/api/v1/packing/dock/integrity-report", p.status)
 }
 
 // Author: Sunil Jain, 2026-10-29. v36 diagnostics are opt-in and read-only.
@@ -318,4 +336,9 @@ func dockDiagnosticsV36Enabled() bool {
 // Author: Sunil Jain, 2026-10-29. v37 audit is opt-in and read-only.
 func dockLineageAuditV37Enabled() bool {
 	return os.Getenv("AGIPAREL_DOCK_LINEAGE_AUDIT_V37_ENABLED") == "true"
+}
+
+// Author: Sunil Jain, 2026-10-29. Explicit opt-in; never grants shipment credit.
+func dockIntegrityReportV38Enabled() bool {
+	return os.Getenv("AGIPAREL_DOCK_INTEGRITY_V38_ENABLED") == "true"
 }
