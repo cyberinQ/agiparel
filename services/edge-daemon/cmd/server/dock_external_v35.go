@@ -189,6 +189,10 @@ func (p *dockExternalAPIv35) status(w http.ResponseWriter, r *http.Request) {
 	if !p.ready(w) {
 		return
 	}
+	if r.URL.Path == "/api/v1/packing/dock/diagnostics" && !dockDiagnosticsV36Enabled() {
+		docJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "ERR_F36_DIAGNOSTICS_DISABLED"})
+		return
+	}
 	q := r.URL.Query()
 	for k, v := range q {
 		if (k != "tenant_id" && k != "plant_id" && k != "manifest_id") || len(v) != 1 {
@@ -259,8 +263,21 @@ func (p *dockExternalAPIv35) status(w http.ResponseWriter, r *http.Request) {
 		sewProdReply(w, err)
 		return
 	}
+	// Reuse the same authenticated, repeatable-read, tenant-scoped snapshot for
+	// v36 diagnostics. No mutation or shipment posting is permitted.
+	var diagnostics []byte
+	if r.URL.Path == "/api/v1/packing/dock/diagnostics" {
+		if err = tx.QueryRowContext(ctx, `SELECT dock_diagnostics_v36($1,$2,$3::uuid)`, tenant, plant, manifest).Scan(&diagnostics); err != nil {
+			sewProdReply(w, err)
+			return
+		}
+	}
 	if err = tx.Commit(); err != nil {
 		sewProdReply(w, err)
+		return
+	}
+	if r.URL.Path == "/api/v1/packing/dock/diagnostics" {
+		docJSON(w, http.StatusOK, json.RawMessage(diagnostics))
 		return
 	}
 	docJSON(w, 200, map[string]any{"manifest_id": manifest, "internal_chain_current": internal, "carton_scan_qc_conserved": cartonReconciled,
@@ -274,4 +291,10 @@ func registerDockExternalRoutesV35(mux *http.ServeMux, s *EdgeServer) {
 	p := newDockExternalAPIv35(s)
 	mux.HandleFunc("/api/v1/packing/dock/external-assertions", p.receive)
 	mux.HandleFunc("/api/v1/packing/dock/external-verification", p.status)
+	mux.HandleFunc("/api/v1/packing/dock/diagnostics", p.status)
+}
+
+// Author: Sunil Jain, 2026-10-29. v36 diagnostics are opt-in and read-only.
+func dockDiagnosticsV36Enabled() bool {
+	return os.Getenv("AGIPAREL_DOCK_DIAGNOSTICS_V36_ENABLED") == "true"
 }

@@ -109,3 +109,27 @@ func TestExternalV35DisabledByDefault(t *testing.T) {
 		}
 	}
 }
+
+// Author: Sunil Jain, 2026-10-29. Read-only diagnostic gate must fail closed.
+func TestDockDiagnosticsV36OptIn(t *testing.T) {
+	t.Setenv("AGIPAREL_DOCK_DIAGNOSTICS_V36_ENABLED", "")
+	if dockDiagnosticsV36Enabled() {
+		t.Fatal("diagnostics enabled by default")
+	}
+	t.Setenv("AGIPAREL_DOCK_DIAGNOSTICS_V36_ENABLED", "TRUE")
+	if dockDiagnosticsV36Enabled() {
+		t.Fatal("noncanonical toggle accepted")
+	}
+	t.Setenv("AGIPAREL_DOCK_DIAGNOSTICS_V36_ENABLED", "true")
+	if !dockDiagnosticsV36Enabled() {
+		t.Fatal("explicit opt-in refused")
+	}
+	t.Setenv("AGIPAREL_DOCK_EXTERNAL_V35_ENABLED", "false")
+	p := newDockExternalAPIv35(&EdgeServer{})
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/packing/dock/diagnostics", nil)
+	p.status(w, req)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("disabled upstream gate: %d", w.Code)
+	}
+}
