@@ -146,7 +146,7 @@ func configuredOperatorGate(next http.Handler) http.Handler {
 			"/api/v1/genealogy/units/challenge", "/api/v1/genealogy/units",
 			"/api/v1/genealogy/carriers/challenge", "/api/v1/genealogy/carriers/events", "/api/v1/genealogy/carriers/history",
 			"/api/v1/cutting/production/reconciliation/challenge", "/api/v1/cutting/production/reconciliation/events", "/api/v1/cutting/production/reconciliation/balance", "/api/v1/cutting/production/reconciliation/defects",
-			"/api/v1/jobwork/parts/outward/challenge", "/api/v1/jobwork/parts/outward", "/api/v1/jobwork/parts/inward/challenge", "/api/v1/jobwork/parts/inward", "/api/v1/jobwork/parts/status", "/api/v1/jobwork/reconciliation", "/api/v1/jobwork/discrepancies/challenge", "/api/v1/jobwork/discrepancies",
+			"/api/v1/jobwork/parts/outward/challenge", "/api/v1/jobwork/parts/outward", "/api/v1/jobwork/parts/inward/challenge", "/api/v1/jobwork/parts/inward", "/api/v1/jobwork/parts/status", "/api/v1/jobwork/reconciliation", "/api/v1/jobwork/discrepancies/challenge", "/api/v1/jobwork/discrepancies", "/api/v1/jobwork/vendor-ack/challenge", "/api/v1/jobwork/vendor-ack", "/api/v1/fabric/shrinkage/challenge", "/api/v1/fabric/shrinkage/observations",
 			"/api/v1/wip/pieces/challenge", "/api/v1/wip/pieces/events", "/api/v1/wip/pieces/groups",
 			"/api/v1/sewing/pieces/completions/challenge", "/api/v1/sewing/pieces/completions",
 			"/api/v1/wip/exceptions/challenge", "/api/v1/wip/exceptions/events", "/api/v1/wip/exceptions/cases",

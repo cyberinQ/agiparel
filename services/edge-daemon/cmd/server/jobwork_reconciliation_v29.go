@@ -182,12 +182,13 @@ func validJobworkRegister(q map[string][]string) (string, string, string, string
 }
 
 type jobworkRegisterRow struct {
-	OutwardID   string    `json:"outward_id"`
-	PartID      string    `json:"part_id"`
-	OutwardAt   time.Time `json:"outward_at"`
-	InwardID    *string   `json:"inward_id"`
-	Discrepancy *string   `json:"discrepancy"`
-	Status      string    `json:"status"`
+	OutwardID         string    `json:"outward_id"`
+	PartID            string    `json:"part_id"`
+	OutwardAt         time.Time `json:"outward_at"`
+	InwardID          *string   `json:"inward_id"`
+	Discrepancy       *string   `json:"discrepancy"`
+	VendorAckRecorded bool      `json:"vendor_ack_recorded"`
+	Status            string    `json:"status"`
 }
 
 func (p *jobworkAPI) register(w http.ResponseWriter, r *http.Request) {
@@ -245,14 +246,25 @@ func (p *jobworkAPI) register(w http.ResponseWriter, r *http.Request) {
 		sewProdReply(w, err)
 		return
 	}
+	// Vendor-signed acknowledgements are a separate, non-credit evidence layer.
+	var vendorAcks int64
+	err = tx.QueryRowContext(ctx, `SELECT count(*)::bigint FROM jobwork_vendor_acks_v30 a
+     JOIN jobwork_outwards_v28 o ON o.tenant_id=a.tenant_id AND o.id=a.outward_id
+     WHERE o.tenant_id=$1 AND o.plant_id=$2 AND o.vendor_id=$3 AND o.job_reference=$4 AND o.process_code=$5`,
+		tenant, plant, vendor, job, process).Scan(&vendorAcks)
+	if err != nil {
+		sewProdReply(w, err)
+		return
+	}
 	after := ""
 	if vv := q.Get("after"); vv != "" {
 		after = vv
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT o.id::text,o.part_id::text,o.recorded_at,i.id::text,d.category
+	rows, err := tx.QueryContext(ctx, `SELECT o.id::text,o.part_id::text,o.recorded_at,i.id::text,d.category,(a.id IS NOT NULL)
   FROM jobwork_outwards_v28 o
   LEFT JOIN jobwork_inwards_v28 i ON i.tenant_id=o.tenant_id AND i.outward_id=o.id
   LEFT JOIN jobwork_discrepancies_v29 d ON d.tenant_id=o.tenant_id AND d.outward_id=o.id
+  LEFT JOIN jobwork_vendor_acks_v30 a ON a.tenant_id=o.tenant_id AND a.outward_id=o.id
   WHERE o.tenant_id=$1 AND o.plant_id=$2 AND o.vendor_id=$3 AND o.job_reference=$4 AND o.process_code=$5
    AND (NULLIF($6,'') IS NULL OR o.id>NULLIF($6,'')::uuid)
   ORDER BY o.id LIMIT $7`, tenant, plant, vendor, job, process, after, limit+1)
@@ -264,7 +276,7 @@ func (p *jobworkAPI) register(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var r jobworkRegisterRow
 		var inward, category sql.NullString
-		if err = rows.Scan(&r.OutwardID, &r.PartID, &r.OutwardAt, &inward, &category); err != nil {
+		if err = rows.Scan(&r.OutwardID, &r.PartID, &r.OutwardAt, &inward, &category, &r.VendorAckRecorded); err != nil {
 			break
 		}
 		if inward.Valid {
@@ -305,9 +317,9 @@ func (p *jobworkAPI) register(w http.ResponseWriter, r *http.Request) {
 	docJSON(w, 200, map[string]any{"tenant_id": tenant, "plant_id": plant, "vendor_id": vendor,
 		"job_reference": job, "process": process, "authority": "LIVE_LEDGER_RECONCILIATION_NOT_SIGNED_GATE_PASS_OR_VENDOR_ACK",
 		"outward_count": outward, "distinct_part_count": uniqueParts, "repeated_part_outward_count": outward - uniqueParts, "inward_count": returned, "not_returned_count": unreturned,
-		"disputed_count": disputed, "damaged_return_count": damaged,
+		"disputed_count": disputed, "damaged_return_count": damaged, "vendor_ack_evidence_count": vendorAcks,
 		"items": items, "next_after": next, "has_more": more,
-		"snapshot_scope": "single_repeatable_read_database_transaction", "vendor_acknowledged": false,
+		"snapshot_scope": "single_repeatable_read_database_transaction", "vendor_ack_is_not_physical_receipt_or_qc": true,
 		"financial_settlement": false, "quality_release": false})
 }
 func registerJobworkReconciliationRoutes(mux *http.ServeMux, s *EdgeServer) {
