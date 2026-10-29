@@ -90,3 +90,5 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_f319c_f319d_f320a_schema_pg.sql
           psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_f320b_f320d_schema_pg.sql
           psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_v34_tenant_isolation_pg.sql
+          psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_v35_schema_pg.sql
+          psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_v35_tenant_isolation_pg.sql

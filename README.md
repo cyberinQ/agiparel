@@ -19,4 +19,4 @@ for script in scripts/test_*.cjs; do node "$script"; done
 
 ## Production acceptance
 
-Start with [Production Readiness Plan](docs/Production_Readiness_Plan.md), then [F3.20B–D dock and F3.21 engineering controls](docs/F3_20BCD_F3_21_DOCK_AND_OPERATIONS_20261029.md). New production controls are disabled by default. Migration 0053 follows 0052. Complete identity/tenant, physical evidence, concurrency, recovery and onsite acceptance gates before authorizing real shipments.
+Start with [Production Readiness Plan](docs/Production_Readiness_Plan.md), then [F3.20B–D dock and F3.21 engineering controls](docs/F3_20BCD_F3_21_DOCK_AND_OPERATIONS_20261029.md). New production controls are disabled by default. Migration 0054 follows 0053. See [F3.22 external counterparty assertions and carton reconciliation](docs/F3_22_EXTERNAL_ACK_CARTON_RECONCILIATION_20261029.md). Complete identity/tenant, physical evidence, concurrency, recovery and onsite acceptance gates before authorizing real shipments.
