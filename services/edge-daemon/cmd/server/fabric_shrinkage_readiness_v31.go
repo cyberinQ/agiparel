@@ -36,16 +36,17 @@ func validShrinkageReadinessV31(q map[string][]string) (string, string, string, 
 }
 
 type shrinkageReadinessEvidenceV31 struct {
-	Revision         int    `json:"spec_revision"`
-	MinimumSamples   int    `json:"minimum_samples"`
-	TotalSamples     int64  `json:"recorded_samples"`
-	OutsideSamples   int64  `json:"outside_spec_samples"`
-	WarpMinBP        int    `json:"warp_min_bp"`
-	WarpMaxBP        int    `json:"warp_max_bp"`
-	WeftMinBP        int    `json:"weft_min_bp"`
-	WeftMaxBP        int    `json:"weft_max_bp"`
-	SourceDocumentID string `json:"spec_source_document_id"`
-	SourceSHA256     string `json:"spec_source_sha256"`
+	Revision                 int    `json:"spec_revision"`
+	MinimumSamples           int    `json:"minimum_samples"`
+	TotalSamples             int64  `json:"recorded_samples"`
+	OutsideSamples           int64  `json:"outside_spec_samples"`
+	CalibrationLinkedSamples int64  `json:"human_linked_calibration_samples"`
+	WarpMinBP                int    `json:"warp_min_bp"`
+	WarpMaxBP                int    `json:"warp_max_bp"`
+	WeftMinBP                int    `json:"weft_min_bp"`
+	WeftMaxBP                int    `json:"weft_max_bp"`
+	SourceDocumentID         string `json:"spec_source_document_id"`
+	SourceSHA256             string `json:"spec_source_sha256"`
 }
 
 func evaluateShrinkageReadinessV31(e shrinkageReadinessEvidenceV31) string {
@@ -136,6 +137,14 @@ func (p *fabricShrinkageAPIv30) readinessV31(w http.ResponseWriter, r *http.Requ
         WHERE tenant_id=$1 AND plant_id=$2 AND roll_id=$3 AND treatment_code=$4
           AND material_sku=$9`, tenant, plant, roll, treatment, e.WarpMinBP, e.WarpMaxBP, e.WeftMinBP, e.WeftMaxBP, sku).
 			Scan(&e.TotalSamples, &e.OutsideSamples)
+		if err != nil {
+			sewProdReply(w, err)
+			return
+		}
+		err = tx.QueryRowContext(ctx, `SELECT count(*) FROM fabric_calibration_links_v32 l
+		 JOIN fabric_shrinkage_observations_v30 o ON o.tenant_id=l.tenant_id AND o.id=l.observation_id
+		 WHERE o.tenant_id=$1 AND o.plant_id=$2 AND o.roll_id=$3
+		   AND o.treatment_code=$4 AND o.material_sku=$5`, tenant, plant, roll, treatment, sku).Scan(&e.CalibrationLinkedSamples)
 		if err != nil {
 			sewProdReply(w, err)
 			return
