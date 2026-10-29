@@ -41,6 +41,19 @@ func (a signedMaterialVerifier) VerifyMaterialWitness(_ context.Context, p store
 	}
 	return nil
 }
+func (a signedMaterialVerifier) VerifyTrimAdmissionWitness(_ context.Context, p stores.WitnessProof, challenge string) error {
+	if p.Role != "stores_manager" && p.Role != "stores_inspector" {
+		return errors.New("ERR_F314B_ROLE")
+	}
+	c, err := a.v.Verify(p.Assertion, "material.trims.admit.witness", challenge, p.Role, true)
+	if err != nil {
+		return err
+	}
+	if c.Subject != p.Subject || c.TenantID != p.TenantID || c.PlantID != p.PlantID || c.JWTID != p.ProofID || c.Issuer != p.IDPIssuer {
+		return errors.New("ERR_F314B_WITNESS_MISMATCH")
+	}
+	return nil
+}
 func (a signedMaterialVerifier) VerifyCEOApproval(_ context.Context, tenant, subject, proofID, assertion, challenge string) error {
 	c, err := a.v.Verify(assertion, "material.variance.approve", challenge, "ceo", true)
 	if err != nil {
@@ -75,7 +88,7 @@ func newMaterialAPI(db *sql.DB) *materialAPI {
 	}
 	a.verifier = &attestation.Verifier{PublicKeys: map[string]ed25519.PublicKey{kid: key}, Issuer: issuer, Audience: audience, MaxLifetime: 5 * time.Minute}
 	auth := signedMaterialVerifier{v: a.verifier}
-	a.repository = stores.MaterialRepository{DB: db, WitnessVerifier: auth, CEOApprovalVerifier: auth, AuthorityHolder: holder}
+	a.repository = stores.MaterialRepository{DB: db, WitnessVerifier: auth, TrimAdmissionVerifier: auth, CEOApprovalVerifier: auth, AuthorityHolder: holder}
 	return a
 }
 
@@ -84,6 +97,9 @@ func registerMaterialRoutes(mux *http.ServeMux, db *sql.DB) {
 	if a.initErr != nil {
 		log.Printf("[material-v5] disabled (fail closed): %v", a.initErr)
 	}
+	mux.HandleFunc("/api/v1/material/trims/admissions/challenge", a.trimAdmissionChallenge)
+	mux.HandleFunc("/api/v1/material/trims/admissions", a.trimAdmission)
+	mux.HandleFunc("/api/v1/material/readiness/source", a.materialSourceReadiness)
 	mux.HandleFunc("/api/v1/material/trims/issues/challenge", a.trimIssueChallenge)
 	mux.HandleFunc("/api/v1/material/trims/issues", a.trimIssue)
 	mux.HandleFunc("/api/v1/material/reservations", a.reserve)
@@ -145,11 +161,11 @@ func materialError(w http.ResponseWriter, err error) {
 	code := err.Error()
 	status := http.StatusUnprocessableEntity
 	switch {
-	case strings.HasPrefix(code, "ERR_F314_WORKFORCE_GRANT"), strings.HasPrefix(code, "ERR_F314_INDEPENDENT"):
+	case strings.HasPrefix(code, "ERR_F314B_GRANT"), strings.HasPrefix(code, "ERR_F314B_INDEPENDENT"), strings.HasPrefix(code, "ERR_F314_WORKFORCE_GRANT"), strings.HasPrefix(code, "ERR_F314_INDEPENDENT"):
 		status = http.StatusForbidden
-	case strings.HasPrefix(code, "ERR_F314_STOCK_OR_PROOF_CONFLICT"), strings.HasPrefix(code, "ERR_F314_COMMAND_CONFLICT"):
+	case strings.HasPrefix(code, "ERR_F314B_STOCK_SOURCE_OR_PROOF_CONFLICT"), strings.HasPrefix(code, "ERR_F314B_COMMAND_CONFLICT"), strings.HasPrefix(code, "ERR_F314_STOCK_OR_PROOF_CONFLICT"), strings.HasPrefix(code, "ERR_F314_COMMAND_CONFLICT"):
 		status = http.StatusConflict
-	case strings.HasPrefix(code, "ERR_F314_ISSUER_PROOF"), strings.HasPrefix(code, "ERR_F314_RECIPIENT_PROOF"), strings.HasPrefix(code, "ERR_F314_VERIFIER"):
+	case strings.HasPrefix(code, "ERR_F314B_MANAGER_PROOF"), strings.HasPrefix(code, "ERR_F314B_INSPECTOR_PROOF"), strings.HasPrefix(code, "ERR_F314B_VERIFIER"), strings.HasPrefix(code, "ERR_F314_ISSUER_PROOF"), strings.HasPrefix(code, "ERR_F314_RECIPIENT_PROOF"), strings.HasPrefix(code, "ERR_F314_VERIFIER"):
 		status = http.StatusUnauthorized
 	case strings.HasPrefix(code, "ERR_IDP"), strings.HasPrefix(code, "ERR_BEARER"), strings.HasPrefix(code, "ERR_JWS"), strings.HasPrefix(code, "ERR_ASSERTION"), strings.HasPrefix(code, "ERR_INVALID_ASSERTION"), strings.HasPrefix(code, "ERR_STRONG_AUTH"), strings.HasPrefix(code, "ERR_CEO_ATTESTATION"):
 		status = http.StatusUnauthorized

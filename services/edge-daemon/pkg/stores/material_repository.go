@@ -16,10 +16,11 @@ import (
 // Caller identity MUST come from an authenticated server-side context. Never
 // construct WitnessProof from a request's issuer_id / recipient_id strings.
 type MaterialRepository struct {
-	DB                  *sql.DB
-	WitnessVerifier     MaterialWitnessVerifier
-	CEOApprovalVerifier CEOApprovalVerifier
-	AuthorityHolder     string // server-configured lease holder, NEVER from HTTP request
+	DB                    *sql.DB
+	WitnessVerifier       MaterialWitnessVerifier
+	TrimAdmissionVerifier TrimAdmissionVerifier
+	CEOApprovalVerifier   CEOApprovalVerifier
+	AuthorityHolder       string // server-configured lease holder, NEVER from HTTP request
 }
 
 // CEOApprovalVerifier verifies fresh IdP-issued signed approvals bound to the

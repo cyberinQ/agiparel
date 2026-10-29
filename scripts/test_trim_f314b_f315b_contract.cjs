@@ -1,0 +1,27 @@
+// Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
+const fs=require('node:fs'), assert=require('node:assert/strict');
+const read=p=>fs.readFileSync(p,'utf8');
+const m=read('services/core-api/migrations/0044_signed_trim_stock_admission_v25.sql');
+const app=read('services/edge-daemon/cmd/server/material_api.go');
+const repo=read('services/edge-daemon/pkg/stores/trim_admission_v25.go');
+const src=read('services/edge-daemon/cmd/server/material_source_readiness_v25.go');
+assert.match(m,/CREATE TABLE public\.trim_stock_admissions_v25/);
+assert.match(m,/source_type NOT IN .*TRIM_RECEIPT/);
+assert.match(m,/SECURITY DEFINER/);
+assert.match(m,/FOREIGN KEY\(tenant_id,stock_id\)/);
+assert.match(m,/REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON public\.store_trims_v13 FROM agiparel_app/);
+assert.match(m,/CREATE TRIGGER trim_issuance_cross_ledger_guard_v25/);
+assert.match(m,/CREATE TRIGGER trim_admission_cross_ledger_guard_v25/);
+assert.match(m,/ERR_F314B_APPROVED_SOURCE_REQUIRED/);
+assert.match(repo,/VerifyTrimAdmissionWitnesses/);
+assert.match(repo,/MaterialRepository\) AdmitTrim/);
+assert.match(repo,/ERR_F314B_COMMAND_CONFLICT/);
+assert.match(app,/\/api\/v1\/material\/trims\/admissions/);
+assert.match(app,/\/api\/v1\/material\/readiness\/source/);
+assert.match(src,/LevelRepeatableRead,\s*ReadOnly:\s*true/);
+assert.match(src,/PROPOSED_BUYER_BOM_NOT_APPROVED/);
+assert.match(src,/sourceCount\s*>\s*1/);
+assert.match(src,/SIGNED_CUT_RELEASE_REPORTED_LENGTH_NOT_INDEPENDENT_CALIBRATION/);
+assert.match(src,/ProductionRelease:\s*false/);
+assert.doesNotMatch(src,/FROM (sew_sim_|qc_sim_|pack_sim_)/);
+console.log('PASS F3.14B/F3.15B: approved-document dual-proof admission, immutable stock, scoped proposed BOM and signed release evidence');
