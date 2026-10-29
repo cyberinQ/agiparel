@@ -1,0 +1,21 @@
+// Author: Sunil Jain, CyberinQ LLC, 2026-10-28.
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const root='services/edge-daemon/';const read=p=>fs.readFileSync(p,'utf8');
+const go=read(root+'cmd/server/operator_station_production.go');
+const js=read(root+'internal/web/static/factory_operator_station.js');
+const html=read(root+'internal/web/static/factory_operator_station.html');
+const main=read(root+'cmd/server/main.go'),portal=read(root+'cmd/server/portal.go');
+assert(go.includes('AGIPAREL_OPERATOR_STATION_ENABLED')&&go.includes('AGIPAREL_WIP_PRODUCTION_ENABLED'));
+assert(go.includes('commissionTx')&&go.includes('workforceChapterPermit')&&go.includes('sew_prod_worker_stations_v10'));
+for(const name of ['wip_gateway_scans_v20','wip_movements_v20','gen_carrier_active_v18','cut_part_outcomes_v19','cut_recut_links_v19','wip_transfer_routes_v20']) assert(go.includes(name),name);
+assert(go.includes('SCAN_ALREADY_USED_FOR_CUSTODY')&&go.includes('INDEPENDENT_RECEIVER_REQUIRED'));
+assert(!/INSERT\s+INTO|UPDATE\s+[A-Za-z_]+\s+SET|DELETE\s+FROM/i.test(go),'operator read API must not write');
+assert(main.includes('registerOperatorStationRoutes')&&portal.includes('"/api/v1/operator-station/inbox"'));
+assert(portal.includes('"/operator-station"')&&portal.includes('"/static/factory_operator_station.js"'));
+assert(html.includes('factory_operator_station.js')&&html.includes('signed handoff'));
+for(const unsafe of ['innerHTML','localStorage','sessionStorage','document.cookie']) assert(!js.includes(unsafe),unsafe);
+assert(js.includes("credentials:'same-origin'")&&js.includes("credentials:'omit'"));
+assert(js.includes("'/api/v1/wip/production/movements/challenge'")&&js.includes("'/api/v1/wip/production/movements'"));
+assert(js.includes("data.production_credit!==false")&&js.includes("data.shipping_release!==false"));
+console.log('PASS F3.9: assigned station, signed scan, current binding, guarded next route, existing F3.3 writer only');

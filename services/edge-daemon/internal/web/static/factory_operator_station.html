@@ -1,0 +1,34 @@
+<!doctype html>
+<!-- Author: Sunil Jain, CyberinQ LLC, 2026-10-28. F3.9 operator station. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agiparel · Operator station</title>
+<link rel="stylesheet" href="/static/ux_unified.css"><link rel="stylesheet" href="/static/chapter_workflow.css"><link rel="stylesheet" href="/static/factory_intelligence.css">
+<script src="/static/factory_operator_station.js" defer></script></head>
+<body data-ag-phase="reports" data-ag-workflow="simple"><main class="ag-report-main">
+<p class="ag-work-kicker">FACTORY OPERATIONS · STATION EXECUTION</p><h1>What's at my station?</h1>
+<p class="ag-report-lead">A bounded inbox of signed RFID/barcode gateway observations. Choose an observed cut part to inspect its genealogy, custody, and permitted next handoff.</p>
+<p class="ag-note"><strong>Production evidence:</strong> A gateway scan reports an observation. It does not independently establish physical presence, operation completion, QC acceptance or shipment.</p>
+<section class="card"><h2>Choose your assigned station</h2>
+<p>Enterprise identity and an enabled worker-station assignment are required. No shared operator password is accepted for production commands.</p>
+<div class="ag-report-controls"><label for="tenant">Tenant ID<input id="tenant" maxlength="64" autocomplete="off" spellcheck="false"></label>
+<label for="plant">Plant ID<input id="plant" maxlength="64" autocomplete="off" spellcheck="false"></label>
+<label for="station">Station ID<input id="station" maxlength="64" autocomplete="off" spellcheck="false"></label></div>
+<div class="ag-report-controls"><button id="refresh" type="button">Load signed scan inbox</button><a href="/auth/login">Enterprise sign-in</a><a href="/commissioning">Station configuration</a></div>
+<p id="status" role="status" aria-live="polite">Sign in, enter your assigned plant and station, then load the scan inbox.</p></section>
+<section class="card"><h2>Recently received signed scans</h2>
+<p class="ag-report-note">Latest 30 scan reports only; no scan does not imply no WIP. Refresh to receive newer events.</p>
+<div class="ag-report-detail ag-report-scroll"><table><thead><tr><th>Received (UTC)</th><th>Part ID</th><th>Signed scan</th><th>Action</th></tr></thead><tbody id="inbox"></tbody></table></div></section>
+<section class="card"><h2>Selected cut part and handoff readiness</h2>
+<p id="detail-status" role="status" aria-live="polite">Select a signed scan above.</p>
+<div class="ag-report-detail ag-report-scroll"><table><tbody id="detail"></tbody></table></div>
+<p id="blockers" class="ag-report-note">No part selected.</p>
+<div class="ag-report-controls"><label for="route">Permitted next route<select id="route" disabled><option value="">Select a signed scan</option></select></label>
+<button id="prepare" type="button" disabled>Prepare signed handoff</button></div></section>
+<section class="card"><h2>Authorize handoff</h2>
+<p>A handoff requires a <strong>new transaction-bound WebAuthn/FIDO2 IdP assertion</strong> issued for the challenge below. Your browser SSO session alone cannot perform a production write. The F3.3 server independently checks the worker, scan, route, current binding and custody sequence.</p>
+<p id="challenge" class="ag-report-note">No transaction prepared.</p>
+<label for="signed-token">Short-lived, transaction-bound worker assertion (JWT)<input id="signed-token" type="password" autocomplete="off" spellcheck="false" placeholder="No token is saved by this page"></label>
+<div class="ag-report-controls"><button id="submit" type="button" disabled>Record signed handoff</button><button id="cancel" type="button">Clear transaction</button></div>
+<p id="result" role="status" aria-live="polite">No handoff attempted.</p>
+<p class="ag-report-note">Tokens are never placed in browser storage. Submission uses the existing signed F3.3 movement API, not a new mutation pathway. Site hardware and IdP commissioning remain mandatory.</p></section>
+</main></body></html>

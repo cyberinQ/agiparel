@@ -82,3 +82,8 @@ func GetIntelProductionHTML() ([]byte, error) {
 func GetCommissioningHTML() ([]byte, error) {
 	return staticFS.ReadFile("static/factory_commissioning.html")
 }
+
+// Author: Sunil Jain, CyberinQ LLC, 2026-10-28. F3.9 operator station.
+func GetOperatorStationHTML() ([]byte, error) {
+ return staticFS.ReadFile("static/factory_operator_station.html")
+}
