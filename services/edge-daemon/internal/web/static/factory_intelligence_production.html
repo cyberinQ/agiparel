@@ -12,7 +12,7 @@
 <p class="ag-work-kicker">09 · FACTORY REPORT</p>
 <h1>How is work moving?</h1>
 <p class="ag-report-lead">Verified source records, limited to the plant your identity is authorized to inspect.</p>
-<p class="ag-note"><strong>Production evidence groups, not released garments.</strong> These counts do not establish worker efficiency, inventory, shipping or profit.</p>
+<p class="ag-note"><strong>Two evidence layers.</strong> Legacy group counts are not released garments. Individual garment, cut-part, WIP and packing indicators below use separate signed transaction records, never simulated output.</p>
 <ol class="ag-steps" aria-label="Report steps"><li><b>1</b>Choose period</li><li><b>2</b>See evidence</li><li><b>3</b>Check gaps</li></ol>
 <section class="card" aria-labelledby="choose-title">
 <h2 id="choose-title">Step 1 — Choose period</h2>
@@ -43,6 +43,13 @@
 <div class="ag-report-metric"><span>Current staging holds</span><strong id="stage">—</strong><small>Hold only; no carton or dispatch</small></div>
 </div>
 <details class="ag-work-extra"><summary>See all measured and missing indicators</summary><div class="ag-report-detail ag-report-scroll"><table><thead><tr><th>Indicator</th><th>Value</th><th>Evidence state</th><th>Source</th><th>Meaning</th></tr></thead><tbody id="measures"></tbody></table></div></details>
+</section>
+<section class="card" aria-labelledby="factory-title">
+<h2 id="factory-title">Source-backed factory performance</h2>
+<p class="ag-report-note">Individual cut-part and garment attestations, recorded handoffs and carton events. Each indicator shows its own source and evidence status. Percentages with no denominator are unavailable, not zero. No calibrated physical verification is implied.</p>
+<div class="ag-report-detail ag-report-scroll"><table><thead><tr><th>Indicator</th><th>Value</th><th>Evidence status</th><th>Source</th><th>Meaning</th></tr></thead><tbody id="factorymeasures"></tbody></table></div>
+<details class="ag-work-extra"><summary>Show up to 10 slowest handoff routes</summary><div class="ag-report-detail ag-report-scroll"><table><thead><tr><th>From station</th><th>To station</th><th>Pairs</th><th>P50</th><th>P95</th></tr></thead><tbody id="factoryroutes"></tbody></table></div></details>
+<p id="factorybasis" class="ag-report-note">Load authenticated evidence for unit-level indicators.</p>
 </section>
 <section class="card" aria-labelledby="attention-title"><h2 id="attention-title">Step 3 — What needs checking?</h2>
 <ul id="notes" class="ag-report-findings"><li>Load evidence to see its limits.</li></ul>

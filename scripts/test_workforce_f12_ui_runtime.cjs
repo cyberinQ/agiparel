@@ -2,7 +2,7 @@
 // Verify SSO session reads never transmit pasted identity assertions or save tokens.
 'use strict';
 const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');
-const ids=['since','until','token','authmode','oidcscope','tenant','plant','refresh','clear','status','scope','measures','notes','sew','qc','held','stage','signin','signout','session-status'];
+const ids=['since','until','token','authmode','oidcscope','tenant','plant','refresh','clear','status','scope','measures','factorymeasures','factoryroutes','factorybasis','notes','sew','qc','held','stage','signin','signout','session-status'];
 const nodes=Object.fromEntries(ids.map(id=>[id,{value:'',textContent:'',hidden:false,children:[],events:{},addEventListener(t,f){this.events[t]=f;},replaceChildren(){this.children=[];},append(x){this.children.push(x);}}]));
 const calls=[];
 const ctx={document:{getElementById:id=>nodes[id],createElement:t=>({tag:t,children:[],append(x){this.children.push(x)}})},Number,Object,Date,URLSearchParams,Error,console,window:{location:{assign:()=>{}}},fetch:async(u,opts)=>{

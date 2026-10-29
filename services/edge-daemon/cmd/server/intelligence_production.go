@@ -38,16 +38,17 @@ type intelProdMetric struct {
 }
 
 type intelProdReport struct {
-	Authority         string            `json:"authority"`
-	TenantID          string            `json:"tenant_id"`
-	PlantID           string            `json:"plant_id"`
-	Since             time.Time         `json:"since"`
-	Until             time.Time         `json:"until_exclusive"`
-	AsOf              time.Time         `json:"as_of"`
-	Basis             string            `json:"basis"`
-	Metrics           []intelProdMetric `json:"metrics"`
-	Limitations       []string          `json:"limitations"`
-	ProductionRelease bool              `json:"production_release"`
+	Authority         string                 `json:"authority"`
+	TenantID          string                 `json:"tenant_id"`
+	PlantID           string                 `json:"plant_id"`
+	Since             time.Time              `json:"since"`
+	Until             time.Time              `json:"until_exclusive"`
+	AsOf              time.Time              `json:"as_of"`
+	Basis             string                 `json:"basis"`
+	Metrics           []intelProdMetric      `json:"metrics"`
+	Limitations       []string               `json:"limitations"`
+	ProductionRelease bool                   `json:"production_release"`
+	FactoryEvidence   *factoryEvidenceReport `json:"factory_evidence"`
 }
 
 func newIntelProdAPI(s *EdgeServer) *intelProdAPI {
@@ -133,7 +134,7 @@ func intelProdMetrics(total, reviewed, hold, reinspect, pending, staged, stale i
 		intelProdMetricOf("qc_unreviewed_groups", "qc_prod_group_events_v11", "Groups with no QC event yet", known(pending)),
 		intelProdMetricOf("packing_current_staging_holds", "pack_prod_holds_v12", "Latest QC-reviewed revision has a staging HOLD; no cartons released", known(staged)),
 		intelProdMetricOf("packing_stale_staging_holds", "pack_prod_holds_v12", "Earlier staging HOLD no longer matches the latest QC review", known(stale)),
-		intelProdMetricOf("verified_garments", "individual_garment_genealogy", "No authoritative individual garment identities exist", nil),
+		intelProdMetricOf("verified_garments", "individual_garment_genealogy", "Group cohorts cannot establish independently physically verified finished garments; see signed unit-event section", nil),
 		intelProdMetricOf("dispatched_garments", "verified_carrier_handoff", "No approved production dispatch evidence exists", nil),
 		intelProdMetricOf("first_pass_yield", "immutable_unit_first_inspection", "Group reviews do not establish garment-level first-pass yield", nil),
 		intelProdMetricOf("labor_efficiency", "approved_sam_and_paid_time", "No verified comparable labor time and earned minutes", nil),
@@ -273,6 +274,13 @@ func (p *intelProdAPI) report(w http.ResponseWriter, r *http.Request) {
 		sewProdReply(w, e)
 		return
 	}
+	// F3.6: all independently sourced unit metrics are read under the same
+	// repeatable-read, tenant-bound report transaction and permission check.
+	factory, e := loadFactoryEvidence(ctx, tx, actor.TenantID, actor.PlantID, from, to)
+	if e != nil {
+		sewProdReply(w, e)
+		return
+	}
 	var asOf time.Time
 	if e = tx.QueryRowContext(ctx, `SELECT transaction_timestamp()`).Scan(&asOf); e != nil {
 		sewProdReply(w, e)
@@ -285,12 +293,13 @@ func (p *intelProdAPI) report(w http.ResponseWriter, r *http.Request) {
 	report := intelProdReport{
 		Authority: intelProdAuthority, TenantID: actor.TenantID, PlantID: actor.PlantID,
 		Since: from, Until: to, AsOf: asOf, Basis: "Completion groups created during [since,until); latest QC and staging state as of database snapshot",
-		Metrics: intelProdMetrics(total, reviewed, hold, reinspect, pending, staged, stale),
+		Metrics:         intelProdMetrics(total, reviewed, hold, reinspect, pending, staged, stale),
+		FactoryEvidence: &factory,
 		Limitations: []string{
 			"A sewing completion records a worker-attested operation GROUP, not finished garment units or actual hourly output.",
 			"Reader gateway signatures attest an enrolled gateway's report, not independent proof of physical RFID observation.",
 			"QC state and staging holds are latest current states at the report snapshot, not historical period-end balances.",
-			"Missing individual garment genealogy prevents verified garment, first-pass yield, carton and dispatch metrics.",
+			"The legacy group metric block does not measure individual garments; see separate F3.6 signed unit-event metrics for QC, packing and first-pass yield.",
 			"No labor efficiency, cost, margin or buyer OTIF is computed without authorized source systems.",
 		}, ProductionRelease: false,
 	}

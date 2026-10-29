@@ -4,7 +4,7 @@
 const vm=require('node:vm');
 const fs=require('node:fs');
 const assert=require('node:assert/strict');
-const ids=['since','until','token','authmode','oidcscope','tenant','plant','refresh','clear','status','scope','measures','notes','sew','qc','held','stage','signin','signout','session-status'];
+const ids=['since','until','token','authmode','oidcscope','tenant','plant','refresh','clear','status','scope','measures','factorymeasures','factoryroutes','factorybasis','notes','sew','qc','held','stage','signin','signout','session-status'];
 const nodes=Object.fromEntries(ids.map(id=>[id,{
  value:'',textContent:'',children:[],events:{},
  addEventListener(type,fn){this.events[type]=fn;},
