@@ -140,6 +140,7 @@ func configuredOperatorGate(next http.Handler) http.Handler {
 		case "/api/v1/sewing/production/observations", "/api/v1/sewing/production/completions", "/api/v1/sewing/production/completions/challenge",
 			"/api/v1/quality/garments/challenge", "/api/v1/quality/garments/events", "/api/v1/quality/garments/history", "/api/v1/quality/garments/specification",
 			"/api/v1/quality/production/events/challenge", "/api/v1/quality/production/events", "/api/v1/quality/production/catalog",
+			"/api/v1/packing/units/challenge", "/api/v1/packing/units/events", "/api/v1/packing/manifests/challenge", "/api/v1/packing/manifests/events", "/api/v1/packing/genealogy", "/api/v1/packing/specification",
 			"/api/v1/packing/production/holds/challenge", "/api/v1/packing/production/holds", "/api/v1/packing/production/readiness",
 			"/api/v1/intelligence/production/report",
 			"/api/v1/genealogy/units/challenge", "/api/v1/genealogy/units",
