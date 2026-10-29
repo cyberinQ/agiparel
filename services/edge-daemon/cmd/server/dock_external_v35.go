@@ -232,6 +232,17 @@ func (p *dockExternalAPIv35) status(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	// Concurrency hardening: a slow audit or DDL lock must not monopolize a
+	// tenant-scoped read-only transaction or exhaust the connection pool.
+	// This has no shipment authority and does not alter immutable evidence.
+	if _, err = tx.ExecContext(ctx, `SET LOCAL statement_timeout = '8000ms'`); err != nil {
+		sewProdReply(w, err)
+		return
+	}
+	if _, err = tx.ExecContext(ctx, `SET LOCAL lock_timeout = '1500ms'`); err != nil {
+		sewProdReply(w, err)
+		return
+	}
 	allowed, err := workforceChapterPermit(ctx, tx, actor, "packing.read")
 	if err != nil {
 		sewProdReply(w, err)

@@ -98,5 +98,8 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_v37_isolation_pg.sql
           psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_v38_schema_pg.sql
           psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_v38_tenant_isolation_pg.sql
-          psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_v38_schema_pg.sql
-          psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_v38_tenant_isolation_pg.sql
+          psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_v39_schema_pg.sql
+      - name: Concurrency and connection-failure drills on isolated CI database
+        env:
+          AGIPAREL_TEST_DB_DISPOSABLE: YES
+        run: sh scripts/test_factory_v39_concurrency.sh
