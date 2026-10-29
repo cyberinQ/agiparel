@@ -7,8 +7,19 @@
 <div class="cards"><section><h2>Service</h2><dl id="service"><dt>Status</dt><dd>Loading…</dd></dl></section>
 <section><h2>Database</h2><dl id="database"><dt>Connection</dt><dd>Loading…</dd></dl></section>
 <section><h2>Modules</h2><div id="modules">Loading…</div></section></div>
-<section class="inventory"><h2>Database catalog</h2><p>Read-only schema inventory. Table names and row security state are shown; tenant records and database credentials are never sent to the browser.</p>
-<div class="scroll"><table><thead><tr><th>Schema</th><th>Table</th><th>Row security</th><th>Forced</th></tr></thead><tbody id="catalog"><tr><td colspan="4">Loading…</td></tr></tbody></table></div></section>
+<section class="ops-analytics" aria-label="Platform analytics"><h2>Platform analytics</h2><div class="ops-metrics">
+<div class="ops-metric"><span>Customers</span><strong id="customer-count">—</strong><small>Registered tenant records, not confirmed paying customers</small></div>
+<div class="ops-metric"><span>Users</span><strong id="user-count">—</strong><small>Registered identity accounts, not distinct people online</small></div>
+<div class="ops-metric"><span>Utilization</span><strong id="usage-count">—</strong><small>Application requests since this server started; excludes health checks and static assets</small></div>
+</div><p id="analytics-status" class="ops-help" role="status">Checking source-backed metrics…</p></section>
+<details class="inventory ops-details" id="db-catalog"><summary>Database catalog <span id="db-summary" class="ops-summary-extra">Expand to inspect tables</span></summary>
+<div class="ops-details-body"><p>Read-only schema inventory. Table names and row security state are shown; tenant records and database credentials are never sent to the browser.</p>
+<div class="scroll"><table><thead><tr><th>Schema</th><th>Table</th><th>Row security</th><th>Forced</th></tr></thead><tbody id="catalog"><tr><td colspan="4">Loading…</td></tr></tbody></table></div></div></details>
+<details class="inventory ops-details" id="api-catalog"><summary>Platform API catalog <span id="api-summary" class="ops-summary-extra">Expand to inspect endpoints</span></summary>
+<div class="ops-details-body"><p>Registered HTTP API paths in this code release. Availability depends on configured modules, grants and feature gates. This is not an OpenAPI schema or proof that each endpoint is enabled.</p>
+<label class="ops-search-label" for="api-filter">Filter API paths</label><input type="search" id="api-filter" placeholder="Search path or module" autocomplete="off" aria-controls="api-table" />
+<div class="scroll"><table id="api-table"><thead><tr><th>Area</th><th>Registered path</th></tr></thead><tbody id="api-rows"><tr><td colspan="2">Loading…</td></tr></tbody></table></div>
+<p class="ops-help" id="api-result-count"></p></div></details>
 <section class="access"><h2>Engineering access</h2><div class="cards"><div><h3>Source &amp; deployments</h3><p>Use the controlled repository and host deployment workflow to change code or restart services.</p><a href="https://github.com/cyberinQ/agiparel" rel="noopener noreferrer" target="_blank">Open source repository</a></div>
 <div><h3>Database administration</h3><p>Use an authenticated SSH session and privileged database tools on the server for changes or cross-tenant inspection. No unrestricted SQL endpoint is exposed.</p></div>
 <div><h3>Configuration &amp; access</h3><p>Feature gates, tenant roles, device enrollment and signing keys must be managed with explicit authorization and an audit trail.</p></div></div></section>

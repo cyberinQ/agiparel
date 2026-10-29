@@ -10,10 +10,22 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/web"
 )
+
+// Requests represent traffic handled by the current process, excluding health
+// probes and assets. Not a percentage of machine or labor utilization.
+var engineerOpsRequestsSinceStart atomic.Uint64
+
+func engineerOpsMeteredPath(path string) bool {
+	if path == "/healthz" || strings.HasPrefix(path, "/static/") || strings.HasPrefix(path, "/demo-assets/") || strings.HasPrefix(path, "/engineer-ops") {
+		return false
+	}
+	return true
+}
 
 func isEngineerOpsPath(path string) bool {
 	switch path {
@@ -29,6 +41,9 @@ func isolateEngineerOps(operational, mux http.Handler) http.Handler {
 		if isEngineerOpsPath(r.URL.Path) {
 			admin.ServeHTTP(w, r)
 			return
+		}
+		if engineerOpsMeteredPath(r.URL.Path) {
+			engineerOpsRequestsSinceStart.Add(1)
 		}
 		operational.ServeHTTP(w, r)
 	})
@@ -90,15 +105,23 @@ type engineerOpsDatabase struct {
 	Name   string `json:"name,omitempty"`
 	Role   string `json:"role,omitempty"`
 }
+type engineerOpsAnalytics struct {
+	CustomerCount      *int64 `json:"customer_count"`
+	UserCount          *int64 `json:"user_count"`
+	RequestsSinceStart uint64 `json:"requests_since_start"`
+	SourceStatus       string `json:"source_status"`
+}
 type engineerOpsOverview struct {
-	Release         string              `json:"release"`
-	Environment     string              `json:"environment"`
-	CheckedAt       string              `json:"checked_at"`
-	ServiceStatus   string              `json:"service_status"`
-	Database        engineerOpsDatabase `json:"database"`
-	Modules         []string            `json:"modules"`
-	Tables          []engineerOpsTable  `json:"tables"`
-	TablesTruncated bool                `json:"tables_truncated"`
+	Release         string               `json:"release"`
+	Environment     string               `json:"environment"`
+	CheckedAt       string               `json:"checked_at"`
+	ServiceStatus   string               `json:"service_status"`
+	Database        engineerOpsDatabase  `json:"database"`
+	Modules         []string             `json:"modules"`
+	Tables          []engineerOpsTable   `json:"tables"`
+	TablesTruncated bool                 `json:"tables_truncated"`
+	APIs            []string             `json:"apis"`
+	Analytics       engineerOpsAnalytics `json:"analytics"`
 }
 
 func registerEngineerOpsRoutes(mux *http.ServeMux, server *EdgeServer) {
@@ -144,6 +167,7 @@ func registerEngineerOpsRoutes(mux *http.ServeMux, server *EdgeServer) {
 			Release: os.Getenv("AGIPAREL_RELEASE"), Environment: os.Getenv("ENV"),
 			CheckedAt: time.Now().UTC().Format(time.RFC3339), ServiceStatus: "UP",
 			Database: engineerOpsDatabase{Status: "unavailable"}, Modules: []string{}, Tables: []engineerOpsTable{},
+			APIs: engineerOpsRegisteredAPIPathsV43_2, Analytics: engineerOpsAnalytics{RequestsSinceStart: engineerOpsRequestsSinceStart.Load(), SourceStatus: "Platform counts unavailable until database is connected and aggregation is provisioned."},
 		}
 		if out.Release == "" {
 			out.Release = "v43 (revision not provisioned)"
@@ -163,6 +187,12 @@ func registerEngineerOpsRoutes(mux *http.ServeMux, server *EdgeServer) {
 			var dbName, dbRole string
 			if err := server.db.QueryRowContext(ctx, "SELECT current_database(),current_user").Scan(&dbName, &dbRole); err == nil {
 				out.Database = engineerOpsDatabase{Status: "connected", Name: dbName, Role: dbRole}
+				var customers, users int64
+				if err := server.db.QueryRowContext(ctx, "SELECT customer_count, user_count FROM public.engineer_ops_counts_v43_2()").Scan(&customers, &users); err == nil {
+					out.Analytics.CustomerCount = &customers
+					out.Analytics.UserCount = &users
+					out.Analytics.SourceStatus = "Source: s01_identity.tenants and s01_identity.users. These are provisioned records, not billed accounts or currently logged-in people. Utilization measures requests since process start, not factory production."
+				}
 				rows, err := server.db.QueryContext(ctx, `SELECT n.nspname,c.relname,c.relrowsecurity,c.relforcerowsecurity FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind IN ('r','p') AND n.nspname IN ('public','s01_identity','s02_device') ORDER BY n.nspname,c.relname LIMIT 201`)
 				if err == nil {
 					defer rows.Close()

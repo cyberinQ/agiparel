@@ -1,2 +1,21 @@
 /* Engineer Ops restricted view, 2026-10-29 */
 :root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#253848;background:#f5f8fa}*{box-sizing:border-box}body{margin:0}header{display:flex;gap:22px;align-items:center;background:white;border-bottom:1px solid #dce6eb;padding:19px max(20px,calc((100vw - 1180px)/2))}.brand{font-weight:850;color:#137a85;font-size:25px;text-decoration:none;letter-spacing:-1px}header>span:nth-child(2){font-size:12px;letter-spacing:.15em;font-weight:800}.pill{margin-left:auto;font-size:12px;color:#53677a;border:1px solid #d1dfe5;padding:5px 12px;border-radius:25px}main{max-width:1220px;margin:0 auto;padding:38px 20px 70px}.eyebrow{color:#117782;font-weight:800;font-size:12px;letter-spacing:.15em}.headline{margin-bottom:28px}h1{font-size:clamp(34px,5vw,50px);margin:8px 0;letter-spacing:-.045em}.headline p{color:#53697a;max-width:760px}button{padding:12px 22px;border:0;border-radius:8px;background:#176c72;color:white;font:inherit;font-weight:700;cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid #0097ae;outline-offset:3px}#message{min-height:24px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}.cards>section,.cards>div,.inventory,.access{background:white;border:1px solid #dbe5eb;border-radius:12px;padding:20px}.cards h2,.inventory h2,.access h2{font-size:20px;letter-spacing:-.03em;margin-top:0}dl{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px}dt{color:#61788a}dd{margin:0;font-weight:650;word-break:break-word}#modules{font-size:14px;display:flex;flex-wrap:wrap;gap:8px}.module{padding:7px 10px;background:#e8f6f2;border-radius:6px}.inventory,.access{margin-top:18px}.inventory p,.access p,.boundary{color:#53697a;font-size:14px;line-height:1.6}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;border-bottom:1px solid #e1e9ed;padding:9px 10px}th{font-size:12px;color:#476073;text-transform:uppercase;letter-spacing:.05em}a{color:#137a85}.boundary{margin:25px 0}@media(max-width:850px){.cards{grid-template-columns:1fr}header{flex-wrap:wrap}main{padding-top:25px}}
+
+/* v43.2 — additive Engineer Ops panels. */
+.ops-analytics{background:#fff;border:1px solid #dbe5eb;border-radius:12px;padding:20px;margin-top:18px}
+.ops-analytics h2{margin:0 0 17px;font-size:20px;letter-spacing:-.03em}
+.ops-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.ops-metric{background:#f3f8f8;border:1px solid #e0ebee;border-radius:11px;padding:17px;display:flex;flex-direction:column;gap:5px}
+.ops-metric span{font-size:13px;color:#4d6375;font-weight:650}
+.ops-metric strong{font-size:32px;color:#176c72;letter-spacing:-.04em;line-height:1.2}
+.ops-metric small{font-size:12px;color:#5d7585;line-height:1.5}
+.ops-help{color:#53697a;font-size:13px;line-height:1.55}
+.ops-details{padding:0}.ops-details summary{cursor:pointer;padding:19px 20px;font-size:20px;font-weight:720;letter-spacing:-.02em;display:flex;gap:15px;align-items:center;justify-content:space-between}
+.ops-details summary::marker{color:#137a85}.ops-details summary:focus-visible{outline:3px solid #0097ae;outline-offset:3px}
+.ops-details[open] summary{border-bottom:1px solid #e1e9ed}.ops-details-body{padding:2px 20px 20px}
+.ops-summary-extra{font-size:12px;font-weight:500;color:#627b8b;letter-spacing:0}
+.ops-search-label{display:block;margin:16px 0 5px;font-size:13px;font-weight:700}
+#api-filter{width:min(500px,100%);border:1px solid #c1d5dc;border-radius:7px;padding:10px;font:inherit;color:#253848}
+#api-filter:focus-visible{outline:3px solid #0097ae}
+#api-table td:last-child{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;overflow-wrap:anywhere}
+@media(max-width:850px){.ops-metrics{grid-template-columns:1fr}.ops-details summary{font-size:18px}.ops-summary-extra{font-size:11px}}

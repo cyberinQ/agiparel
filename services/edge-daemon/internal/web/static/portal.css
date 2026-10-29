@@ -60,8 +60,8 @@ footer{border-top:1px solid var(--border);display:flex;gap:20px;align-items:cent
 
 
 /* v43: Public, collapsed-by-default product rationale. No JavaScript required. */
-.factory-why{max-width:920px;margin:0 auto 68px}
-.why-details{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 2px 12px #14354908}
+.factory-why{position:relative;isolation:isolate;max-width:920px;margin:0 auto 68px;border-radius:14px}
+.why-details{position:relative;z-index:1;background:rgba(255,255,255,.68);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 2px 12px #14354908}
 .why-details summary{list-style:none;cursor:pointer;padding:23px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px}
 .why-details summary::-webkit-details-marker{display:none}
 .why-details summary:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
@@ -71,7 +71,7 @@ footer{border-top:1px solid var(--border);display:flex;gap:20px;align-items:cent
 .why-subtitle{font-size:14px;color:var(--muted)}
 .why-toggle{flex:0 0 40px;display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--border);border-radius:50%;font-size:26px;color:var(--accent)}
 .why-details[open] .why-toggle{transform:rotate(45deg)}
-.why-content{border-top:1px solid var(--border);padding:4px 28px 26px}
+.why-content{border-top:1px solid var(--border);padding:4px 28px 26px;background:rgba(255,255,255,.38)}
 .why-content article{padding:20px 0 12px;border-bottom:1px solid var(--border)}
 .why-content article:last-child{border-bottom:0}
 .why-content h3{font-size:21px;letter-spacing:-.03em;margin:0 0 12px}
@@ -82,3 +82,8 @@ footer{border-top:1px solid var(--border);display:flex;gap:20px;align-items:cent
 @media(max-width:600px){.factory-why{margin-bottom:38px}.why-details summary{padding:19px}.why-content{padding:4px 19px 20px}}
 
 footer a{margin-left:auto;color:var(--accent);text-decoration:underline;text-underline-offset:3px}footer a:focus-visible{outline:2px solid currentColor;outline-offset:4px}
+
+/* v43.2.1: Existing fabric threads now sit behind the collapsible Why Agiparel panel. */
+.fabric-wave-art{position:absolute;inset:0;z-index:0;overflow:hidden;border-radius:14px;pointer-events:none;background:linear-gradient(130deg,#f5f8fa,#e9f4f4 54%,#e9f0f8)}
+.fabric-wave-art canvas{display:block;width:100%;height:100%;pointer-events:none}
+@media(prefers-reduced-motion:reduce){.fabric-wave-art canvas{transition:none}}

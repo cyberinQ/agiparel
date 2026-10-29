@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
 const migrationDir = path.join(root, 'services/core-api/migrations');
 const migrationFiles = fs.readdirSync(migrationDir).filter(n => /^\d{4}_.*\.sql$/.test(n));
-assert.deepEqual(migrationFiles, ['0001_v42_baseline.sql']);
+assert.deepEqual(migrationFiles, ['0001_v42_baseline.sql', '0002_engineer_ops_aggregates_v43_2.sql']);
 const sql = fs.readFileSync(path.join(migrationDir, migrationFiles[0]), 'utf8');
 for (const marker of ['CREATE TABLE', 'ROW LEVEL SECURITY', 'dock_integrity_report_v38', 'workforce_chapter_actions_v17']) {
   assert.ok(sql.includes(marker), `canonical schema missing ${marker}`);
@@ -20,4 +20,4 @@ assert.ok(compose.includes('edge_wal_v42'));
 assert.ok(!compose.includes('app_secure_runtime_pass'));
 const legacy = require('./legacy_contract_source.cjs');
 assert.ok(legacy.readFileSync('services/core-api/migrations/0057_material_attribution_integrity_v38.sql', 'utf8').includes('dock_material_trace_v38'));
-console.log('PASS v42: one active canonical schema, no embedded role passwords, archived historical contracts');
+console.log('PASS v42 foundation: canonical baseline plus one additive v43.2 ops migration, no embedded role passwords');

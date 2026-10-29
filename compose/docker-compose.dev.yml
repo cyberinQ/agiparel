@@ -17,6 +17,7 @@ services:
       - ../scripts/bootstrap_roles_v42.sql:/etc/agiparel/bootstrap_roles_v42.sql:ro
       - ../scripts/init_db_roles_v42.sh:/docker-entrypoint-initdb.d/01_roles.sh:ro
       - ../services/core-api/migrations/0001_v42_baseline.sql:/docker-entrypoint-initdb.d/02_baseline.sql:ro
+      - ../services/core-api/migrations/0002_engineer_ops_aggregates_v43_2.sql:/docker-entrypoint-initdb.d/03_ops_aggregates.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agiparel_admin} -d ${POSTGRES_DB:-agiparel_dev}"]
       interval: 3s
@@ -43,7 +44,7 @@ services:
     restart: unless-stopped
     environment:
       ENV: ${ENVIRONMENT:-development}
-      AGIPAREL_RELEASE: v43
+      AGIPAREL_RELEASE: v43.2
       AGIPAREL_ENGINEER_OPS_ENABLED: ${AGIPAREL_ENGINEER_OPS_ENABLED:-false}
       AGIPAREL_ENGINEER_OPS_USER: ${AGIPAREL_ENGINEER_OPS_USER:-}
       AGIPAREL_ENGINEER_OPS_PASSWORD: ${AGIPAREL_ENGINEER_OPS_PASSWORD:-}

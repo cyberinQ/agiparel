@@ -79,6 +79,8 @@ jobs:
           set -euo pipefail
           psql -X -v ON_ERROR_STOP=1 -v app_password=ci_app_dev_only -v doc_password=ci_worker_dev_only -f scripts/bootstrap_roles_v42.sql
           psql -X -v ON_ERROR_STOP=1 -f services/core-api/migrations/0001_v42_baseline.sql
+          psql -X -v ON_ERROR_STOP=1 -f services/core-api/migrations/0002_engineer_ops_aggregates_v43_2.sql
+          psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_v43_2_ops_metrics_pg.sql
       - name: Verify dock and safety schema authorization
         run: |
           psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_f319c_f319d_f320a_schema_pg.sql

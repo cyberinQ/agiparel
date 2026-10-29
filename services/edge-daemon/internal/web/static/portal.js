@@ -190,3 +190,112 @@
   });
   window.addEventListener('pagehide', persist);
 })();
+
+
+// v43.2: fabric-thread decorative waves only; no homepage copy changes. No third-party scripts or network calls.
+// Honors reduced motion, tab visibility and off-screen pausing. Decorative canvas only.
+(() => {
+  'use strict';
+  const canvas = document.getElementById('agiparel-wave-canvas');
+  if (!canvas || typeof canvas.getContext !== 'function') return;
+  const context = canvas.getContext('2d', {alpha: true});
+  if (!context) return;
+  const panel = canvas.closest('.fabric-wave-art');
+  if (!panel) return;
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+  let visible = false;
+  let animation = 0;
+  let lastFrame = -100;
+  let width = 0;
+  let height = 0;
+  let disposed = false;
+  const colors = ['22,126,136', '43,146,167', '55,116,164', '50,167,147'];
+
+  function draw(time) {
+    context.clearRect(0, 0, width, height);
+    const strands = width < 650 ? 30 : 54;
+    const step = Math.max(9, Math.min(20, width / 70));
+    const t = time * .001;
+    // Two gently interlaced groups of flowing parallel threads.
+    for (let i = 0; i < strands; i++) {
+      const p = i / Math.max(1, strands - 1);
+      const base = height * (.10 + p * .83);
+      const gradient = context.createLinearGradient(0, 0, width, 0);
+      const color = colors[Math.floor(i / 14) % colors.length];
+      gradient.addColorStop(0, 'rgba(' + color + ',0.02)');
+      gradient.addColorStop(.31, 'rgba(' + color + ',' + (.16 + .12 * p) + ')');
+      gradient.addColorStop(.78, 'rgba(' + color + ',' + (.28 + .19 * (1 - p)) + ')');
+      gradient.addColorStop(1, 'rgba(' + color + ',0.06)');
+      context.strokeStyle = gradient;
+      context.lineWidth = (i % 9 === 0 ? 1.7 : 1.02);
+      context.beginPath();
+      for (let x = -step, first = true; x <= width + step; x += step) {
+        const u = x / Math.max(width, 1);
+        const rise = Math.sin(u * 5.2 - t * .32 + p * 1.8) * (28 + 13 * p);
+        const weave = Math.sin(u * 12.1 + t * .24 - p * 3.8) * (8 + 8 * p);
+        const arc = Math.exp(-Math.pow((u - .69) / .36, 2)) * (-27 + p * 18);
+        const y = base + rise + weave + arc;
+        if (first) {context.moveTo(x, y); first = false;}
+        else context.lineTo(x, y);
+      }
+      context.stroke();
+    }
+  }
+
+  function resize() {
+    const rect = panel.getBoundingClientRect();
+    width = Math.max(1, Math.round(rect.width));
+    height = Math.max(1, Math.round(rect.height));
+    // Limit device-pixel scaling to keep rendering modest on high-DPI phones.
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw(0);
+  }
+  function shouldAnimate() {
+    return !disposed && visible && !document.hidden && !(reduceMotion && reduceMotion.matches);
+  }
+  function stop() {
+    if (animation) {cancelAnimationFrame(animation); animation = 0;}
+  }
+  function tick(timestamp) {
+    animation = 0;
+    if (!shouldAnimate()) return;
+    // Approx. 30 fps; this is background art, not a game loop.
+    if (timestamp - lastFrame >= 32) {draw(timestamp); lastFrame = timestamp;}
+    animation = requestAnimationFrame(tick);
+  }
+  function update() {
+    if (!shouldAnimate()) {stop(); draw(0); return;}
+    if (!animation) animation = requestAnimationFrame(tick);
+  }
+  resize();
+  let observer;
+  if ('IntersectionObserver' in window) {
+    observer = new IntersectionObserver(entries => {
+      visible = entries.some(entry => entry.isIntersecting);
+      update();
+    }, {threshold: .03});
+    observer.observe(panel);
+  } else {
+    visible = true;
+    update();
+  }
+  let resizeObserver;
+  if ('ResizeObserver' in window) {
+    resizeObserver = new ResizeObserver(() => {resize(); update();});
+    resizeObserver.observe(panel);
+  } else window.addEventListener('resize', resize);
+  document.addEventListener('visibilitychange', update);
+  if (reduceMotion) {
+    if (typeof reduceMotion.addEventListener === 'function') reduceMotion.addEventListener('change', update);
+    else if (typeof reduceMotion.addListener === 'function') reduceMotion.addListener(update);
+  }
+  window.addEventListener('pagehide', () => {
+    disposed = true;
+    stop();
+    if (observer) observer.disconnect();
+    if (resizeObserver) resizeObserver.disconnect();
+  }, {once:true});
+})();
