@@ -46,6 +46,8 @@ var chapterPermissions = map[string]chapterPermission{
 	"stores.fabric.calibration.link": {4, "SIGNED_WRITE"},
 	"quality.aql.inspect":            {7, "SIGNED_WRITE"},
 	"quality.needle.report":          {7, "SIGNED_WRITE"},
+	"quality.needle.clear":           {7, "SIGNED_WRITE"},
+	"quality.aql.review":             {7, "SIGNED_WRITE"},
 	"sewing.piece.hold":              {6, "SIGNED_WRITE"},
 	"sewing.piece.review":            {6, "SIGNED_WRITE"},
 	"sewing.piece.complete":          {6, "SIGNED_WRITE"},
