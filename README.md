@@ -36,3 +36,7 @@ After migration `0057`, the opt-in `GET /api/v1/packing/dock/integrity-report` c
 ### F3.26 v39 database race and recovery verification (2026-10-29)
 
 No migration: existing migrations 0041–0057 contain the relevant packing uniqueness and tenant-isolation controls. v39 adds concurrent double-pack prevention tests against the **actual** partial unique index, PostgreSQL backend-termination rollback verification, separate-tenant key namespace tests, trust-root privilege checks, bounded dock-report SQL execution, and production dock verification flags (all default false). It also removes duplicate CI checks and wires drills into schema/release jobs. Test harness uses `session_replication_role=replica` under an isolated superuser solely to inject test records without signing; this verifies **database uniqueness and rollback only**, not end-to-end signed transaction semantics. Never run against a live or shared database. See `docs/F3_26_CONCURRENCY_RECOVERY_v39.md`.
+
+### F3.27 v40 signed dock admission hardening
+
+The v40 release adds database-side 2-second lock and 12-second statement limits to signed gateway and external-acknowledgement writes, an adversarial Go envelope/signature suite, and a scratch-only 12-worker PostgreSQL concurrency/replay/crash drill. It does not change migrations or authorize stock/shipment postings. See `docs/F3_27_SIGNED_DOCK_RACE_RECOVERY_v40.md` for evidence boundaries and commissioning gaps.

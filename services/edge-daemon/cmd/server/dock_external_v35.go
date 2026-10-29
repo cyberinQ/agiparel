@@ -129,6 +129,14 @@ func (p *dockExternalAPIv35) persist(ctx context.Context, input dockExternalEnve
 	if _, err = tx.ExecContext(ctx, `SET LOCAL ROLE agiparel_app`); err != nil {
 		return "", false, err
 	}
+	// Limit database lock waits and individual statements independently of the
+	// request deadline. Deadlocks and blocked admissions must fail closed.
+	if _, err = tx.ExecContext(ctx, `SET LOCAL lock_timeout = '2000ms'`); err != nil {
+		return "", false, err
+	}
+	if _, err = tx.ExecContext(ctx, `SET LOCAL statement_timeout = '12000ms'`); err != nil {
+		return "", false, err
+	}
 	if err = sewTxLock(ctx, tx, e.TenantID, "F35:ACK:"+e.SignerID+":"+e.EventID); err != nil {
 		return "", false, err
 	}
