@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="light"><title>Agiparel | Engineer Ops</title>
+<link rel="stylesheet" href="/engineer-ops/assets/ops.css"></head><body>
+<header><a href="/" class="brand">agiparel</a><span>ENGINEER OPS</span><span class="pill">Restricted control plane</span></header>
+<main><div class="headline"><p class="eyebrow">PLATFORM ADMINISTRATION</p><h1>System overview</h1><p>Live service health, database structure, configured modules and operational access. No factory data is published on this screen.</p><button id="refresh" type="button">Refresh status</button><p id="message" role="status" aria-live="polite"></p></div>
+<div class="cards"><section><h2>Service</h2><dl id="service"><dt>Status</dt><dd>Loading…</dd></dl></section>
+<section><h2>Database</h2><dl id="database"><dt>Connection</dt><dd>Loading…</dd></dl></section>
+<section><h2>Modules</h2><div id="modules">Loading…</div></section></div>
+<section class="inventory"><h2>Database catalog</h2><p>Read-only schema inventory. Table names and row security state are shown; tenant records and database credentials are never sent to the browser.</p>
+<div class="scroll"><table><thead><tr><th>Schema</th><th>Table</th><th>Row security</th><th>Forced</th></tr></thead><tbody id="catalog"><tr><td colspan="4">Loading…</td></tr></tbody></table></div></section>
+<section class="access"><h2>Engineering access</h2><div class="cards"><div><h3>Source &amp; deployments</h3><p>Use the controlled repository and host deployment workflow to change code or restart services.</p><a href="https://github.com/cyberinQ/agiparel" rel="noopener noreferrer" target="_blank">Open source repository</a></div>
+<div><h3>Database administration</h3><p>Use an authenticated SSH session and privileged database tools on the server for changes or cross-tenant inspection. No unrestricted SQL endpoint is exposed.</p></div>
+<div><h3>Configuration &amp; access</h3><p>Feature gates, tenant roles, device enrollment and signing keys must be managed with explicit authorization and an audit trail.</p></div></div></section>
+<p class="boundary">This engineering view is not a substitute for the host administrator, database owner, source-control administrator or tenant-authorized business roles. The public demo remains separate.</p>
+</main><script src="/engineer-ops/assets/ops.js" defer></script></body></html>

@@ -57,3 +57,26 @@ footer{border-top:1px solid var(--border);display:flex;gap:20px;align-items:cent
 @media(max-width:600px) {
   #aggie-chat {top:5px;right:5px;bottom:5px;width:calc(100vw - 10px);height:calc(100dvh - 10px);max-height:none}
 }
+
+
+/* v43: Public, collapsed-by-default product rationale. No JavaScript required. */
+.factory-why{max-width:920px;margin:0 auto 68px}
+.why-details{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 2px 12px #14354908}
+.why-details summary{list-style:none;cursor:pointer;padding:23px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.why-details summary::-webkit-details-marker{display:none}
+.why-details summary:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+.why-details summary>span:first-child{display:flex;flex-direction:column;gap:4px}
+.why-eyebrow{font-size:11px;letter-spacing:.13em;font-weight:800;color:var(--accent)}
+.why-details summary strong{font-size:24px;letter-spacing:-.035em;color:var(--ink)}
+.why-subtitle{font-size:14px;color:var(--muted)}
+.why-toggle{flex:0 0 40px;display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--border);border-radius:50%;font-size:26px;color:var(--accent)}
+.why-details[open] .why-toggle{transform:rotate(45deg)}
+.why-content{border-top:1px solid var(--border);padding:4px 28px 26px}
+.why-content article{padding:20px 0 12px;border-bottom:1px solid var(--border)}
+.why-content article:last-child{border-bottom:0}
+.why-content h3{font-size:21px;letter-spacing:-.03em;margin:0 0 12px}
+.why-content p{color:#425768;line-height:1.7;max-width:76ch}
+.why-content blockquote{margin:22px 0;padding:15px 20px;border-left:4px solid var(--accent);background:#eef7f7;color:#254957;font-weight:650}
+.why-content ol{padding-left:22px}.why-content li{margin:10px 0;color:#425768}
+.why-content .why-note{font-size:13px;color:#61727e;margin-top:18px}
+@media(max-width:600px){.factory-why{margin-bottom:38px}.why-details summary{padding:19px}.why-content{padding:4px 19px 20px}}

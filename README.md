@@ -49,3 +49,9 @@ Sewing production is opt-in (disabled by default). See `docs/F3_28_V41_PRODUCTIO
 ## v42 database baseline (development only)
 
 The canonical PostgreSQL 16 schema is `services/core-api/migrations/0001_v42_baseline.sql` (generated and equivalence-tested on the development host at v42 cutover). Bootstrap credentials live in ignored `.env`; the app/worker role SQL is `scripts/bootstrap_roles_v42.sql`. Historical migrations and release notes are compressed source fixtures, **not** execution inputs. The automated v42 cutover requires explicit destructive-reset consent. See `docs/V42_CANONICAL_DATABASE_AND_REPO_CLEANUP.md`.
+
+## v43 public Factory Home and engineer operations
+
+The public home at `https://agiparel.empowerai.us/` includes an optional three-question explanation of the product. Restricted `/engineer-ops` provides a live read-only operational overview after independent admin authentication. The website must be deployed to the host behind its TLS reverse proxy; a localhost Docker health check alone does not establish live publication.
+
+For the v43 patch, deployment gate and platform-access boundaries see [V43 Public Demo and Engineer Ops](docs/V43_PUBLIC_DEMO_AND_ENGINEER_OPS.md). No schema migration or shipment authority is introduced.

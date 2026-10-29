@@ -87,3 +87,8 @@ func GetCommissioningHTML() ([]byte, error) {
 func GetOperatorStationHTML() ([]byte, error) {
 	return staticFS.ReadFile("static/factory_operator_station.html")
 }
+
+// v43: Dedicated authenticated engineer-ops UI. Never served by the public assets handler.
+func GetEngineerOpsHTML() ([]byte, error) { return staticFS.ReadFile("static/engineer_ops.html") }
+func GetEngineerOpsCSS() ([]byte, error)  { return staticFS.ReadFile("static/engineer_ops.css") }
+func GetEngineerOpsJS() ([]byte, error)   { return staticFS.ReadFile("static/engineer_ops.js") }

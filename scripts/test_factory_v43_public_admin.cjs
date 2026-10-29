@@ -1,0 +1,21 @@
+// Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
+'use strict';
+const fs=require('fs'),assert=require('assert'),path=require('path');
+const root=path.resolve(__dirname,'..');const f=p=>fs.readFileSync(path.join(root,p),'utf8');
+const home=f('services/edge-daemon/internal/web/static/portal.html');
+const css=f('services/edge-daemon/internal/web/static/portal.css');
+const ops=f('services/edge-daemon/cmd/server/engineer_ops_v43.go');
+const client=f('services/edge-daemon/internal/web/static/engineer_ops.js');
+assert(home.includes('<details id="why-agiparel"') && !home.includes('<details id="why-agiparel" open'));
+assert(home.includes('1. What are we trying to do?'));
+assert(home.includes('2. How is it typically done today'));
+assert(home.includes('3. What is different about Agiparel?'));
+assert(home.indexOf('id="why-agiparel"')>home.indexOf('class="phase-grid"'));
+assert(css.includes('.why-details[open]'));
+assert(ops.includes('isEngineerOpsPath') && ops.includes('AGIPAREL_ENGINEER_OPS_PASSWORD'));
+assert(/sameSecret\(user,\s*givenUser\)/.test(ops) && /sameSecret\(pass,\s*givenPass\)/.test(ops));
+assert(ops.includes('Read-only') || ops.includes('read-only'));
+assert(ops.includes('http.StatusMethodNotAllowed'));
+assert(!ops.includes('exec.Command(') && !ops.includes('BYPASSRLS') && !ops.includes('DROP TABLE'));
+assert(client.includes('textContent=') && !client.includes('innerHTML'));
+console.log('PASS v43: collapsed public Q&A, accessible UI, separate admin gate, read-only catalog and safe DOM');

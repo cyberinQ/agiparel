@@ -43,6 +43,11 @@ services:
     restart: unless-stopped
     environment:
       ENV: ${ENVIRONMENT:-development}
+      AGIPAREL_RELEASE: v43
+      AGIPAREL_ENGINEER_OPS_ENABLED: ${AGIPAREL_ENGINEER_OPS_ENABLED:-false}
+      AGIPAREL_ENGINEER_OPS_USER: ${AGIPAREL_ENGINEER_OPS_USER:-}
+      AGIPAREL_ENGINEER_OPS_PASSWORD: ${AGIPAREL_ENGINEER_OPS_PASSWORD:-}
+      AGIPAREL_ENGINEER_OPS_TRUST_PROXY_TLS: ${AGIPAREL_ENGINEER_OPS_TRUST_PROXY_TLS:-false}
       PORT: ${EDGE_DAEMON_PORT:-18530}
       LEDGER_SECRET: ${LEDGER_HMAC_SECRET:-c9b2e61a4f8d073e51a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f7a8}
       WAL_PATH: "/data/wal/events.wal"
@@ -70,7 +75,7 @@ services:
       - edge_wal_v42:/data/wal
       - ../data:/app/data
     ports:
-      - "${EDGE_DAEMON_PORT:-18530}:18530"
+      - "${AGIPAREL_EDGE_BIND_HOST:-127.0.0.1}:${EDGE_DAEMON_PORT:-18530}:18530"
     depends_on:
       postgres:
         condition: service_healthy

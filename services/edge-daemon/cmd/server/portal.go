@@ -63,6 +63,7 @@ func sameSecret(expected, supplied string) bool {
 
 func portalHeaders(w http.ResponseWriter) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Agiparel-Release", "v43")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Cache-Control", "no-store")
@@ -169,9 +170,9 @@ func configuredOperatorGate(next http.Handler) http.Handler {
 		}
 	})
 	if os.Getenv("ENV") != "development" {
-		return secureIngress
+		return isolateEngineerOps(secureIngress, next)
 	}
 	// A shared Basic credential is acceptable only for a disposable DEV HMI.
 	// Production must use a tenant-scoped workforce identity provider instead.
-	return operatorAccessGate(next, os.Getenv("AGIPAREL_OPERATOR_USER"), os.Getenv("AGIPAREL_OPERATOR_PASSWORD"))
+	return isolateEngineerOps(operatorAccessGate(next, os.Getenv("AGIPAREL_OPERATOR_USER"), os.Getenv("AGIPAREL_OPERATOR_PASSWORD")), next)
 }

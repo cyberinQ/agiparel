@@ -1,0 +1,12 @@
+# EXAMPLE ONLY. On the actual host receiving agiparel.empowerai.us, with Caddy
+# responsible for HTTPS, reverse-proxy to the *same host* local Docker origin.
+# Do not use if the hostname is already managed by Cloudflare Tunnel or nginx;
+# modify that existing route instead.
+agiparel.empowerai.us {
+    encode gzip
+    reverse_proxy 127.0.0.1:18530 {
+        # Sanitize any inbound user-supplied forwarding header.
+        header_up -X-Forwarded-Proto
+        header_up X-Forwarded-Proto https
+    }
+}
