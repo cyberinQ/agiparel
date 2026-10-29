@@ -193,6 +193,7 @@ func main() {
 	}
 	registerWorkforceBrowserRoutes(mux, server.browser)
 	registerWorkforceChapterRoutes(mux, server)
+	registerCommissioningRoutes(mux, server)
 	// Public routes are isolated; every other route requires operator access.
 	registerPublicPortal(mux)
 

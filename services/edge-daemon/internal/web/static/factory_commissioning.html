@@ -1,0 +1,26 @@
+<!doctype html>
+<!-- Author: Sunil Jain, CyberinQ LLC, 2026-10-28. F3.8 read-only workstation readiness. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agiparel · Station commissioning</title>
+<link rel="stylesheet" href="/static/ux_unified.css">
+<link rel="stylesheet" href="/static/chapter_workflow.css">
+<link rel="stylesheet" href="/static/factory_intelligence.css">
+<script src="/static/factory_commissioning.js" defer></script>
+</head><body data-ag-phase="reports" data-ag-workflow="simple"><main class="ag-report-main">
+<p class="ag-work-kicker">FACTORY OPERATIONS · COMMISSIONING</p>
+<h1>Are the stations configured?</h1>
+<p class="ag-report-lead">Plant-specific enrolled readers, approved handoff routes and worker-station assignments. This screen is an operational readiness checklist, not a physical certification.</p>
+<p class="ag-note"><strong>Evidence boundary:</strong> A recorded signed scan means an enrolled gateway sent a report. It does not independently prove a person, garment, RFID read field, scale calibration, or station is physically ready.</p>
+<section class="card" aria-labelledby="scope-head">
+<h2 id="scope-head">Choose your authorized plant</h2>
+<p>Use your enterprise SSO account with a provisioned <code>sewing.read</code> or <code>sewing.transfer</code> permission for the exact tenant and plant.</p>
+<div class="ag-report-controls"><label for="tenant">Tenant ID<input id="tenant" type="text" maxlength="64" autocomplete="off" spellcheck="false" required></label>
+<label for="plant">Plant ID<input id="plant" type="text" maxlength="64" autocomplete="off" spellcheck="false" required></label></div>
+<div class="ag-report-controls"><button id="load" type="button">Check station configuration</button><button id="more" type="button" hidden>Next page</button><a href="/auth/login">Sign in with enterprise SSO</a><a href="/intelligence">Factory report</a></div>
+<p id="status" class="ag-report-status" role="status" aria-live="polite">Sign in, enter your provisioned plant and run the configuration check.</p>
+</section>
+<section class="card" aria-labelledby="stations-head"><h2 id="stations-head">Configured stations</h2>
+<p id="summary" class="ag-report-note">No station records loaded.</p>
+<div class="ag-report-detail ag-report-scroll"><table><thead><tr><th>Station</th><th>Enabled readers / enrolled</th><th>Assigned workers</th><th>Routes in / out</th><th>Latest signed scan received (UTC)</th><th>Configuration</th></tr></thead><tbody id="stations"></tbody></table></div>
+<p class="ag-report-note">A station absent from this report might not yet be provisioned. No entry, a configured entry and a recently signed scan must not be treated as physical commissioning approval. Production writes are never permitted from this screen.</p>
+</section></main></body></html>

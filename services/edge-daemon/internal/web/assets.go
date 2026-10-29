@@ -77,3 +77,8 @@ func GetIntelSimulationHTML() ([]byte, error) {
 func GetIntelProductionHTML() ([]byte, error) {
 	return staticFS.ReadFile("static/factory_intelligence_production.html")
 }
+
+// Author: Sunil Jain, CyberinQ LLC, 2026-10-28.
+func GetCommissioningHTML() ([]byte, error) {
+	return staticFS.ReadFile("static/factory_commissioning.html")
+}
