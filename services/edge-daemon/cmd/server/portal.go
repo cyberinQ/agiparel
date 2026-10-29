@@ -146,6 +146,7 @@ func configuredOperatorGate(next http.Handler) http.Handler {
 			"/api/v1/genealogy/units/challenge", "/api/v1/genealogy/units",
 			"/api/v1/genealogy/carriers/challenge", "/api/v1/genealogy/carriers/events", "/api/v1/genealogy/carriers/history",
 			"/api/v1/cutting/production/reconciliation/challenge", "/api/v1/cutting/production/reconciliation/events", "/api/v1/cutting/production/reconciliation/balance", "/api/v1/cutting/production/reconciliation/defects",
+			"/api/v1/wip/pieces/challenge", "/api/v1/wip/pieces/events", "/api/v1/wip/pieces/groups",
 			"/api/v1/wip/exceptions/challenge", "/api/v1/wip/exceptions/events", "/api/v1/wip/exceptions/cases",
 			"/api/v1/wip/production/scans", "/api/v1/wip/production/movements/challenge", "/api/v1/wip/production/movements", "/api/v1/wip/production/history", "/api/v1/wip/production/metrics",
 			"/auth/login", "/auth/callback", "/auth/logout", "/api/v1/workforce/session", "/api/v1/workforce/chapter-access", "/api/v1/commissioning/stations", "/api/v1/operator-station/inbox":
