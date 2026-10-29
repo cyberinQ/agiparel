@@ -456,7 +456,7 @@ func main() {
 }
 func run(args []string, out io.Writer) error {
 	if len(args) < 1 {
-		return errors.New("usage: scanrelay enqueue|flush|status [options]")
+		return errors.New("usage: scanrelay enqueue|flush|status|verify|audit [options]")
 	}
 	op := args[0]
 	f := flag.NewFlagSet(op, flag.ContinueOnError)
@@ -466,14 +466,38 @@ func run(args []string, out io.Writer) error {
 	endpoint := f.String("endpoint", "", "HTTPS production ingress URL")
 	maxAge := f.Duration("max-age", 12*time.Minute, "local delivery deadline (maximum 15m)")
 	batch := f.Int("batch", 50, "maximum deliveries per invocation")
-	if op != "enqueue" && op != "flush" && op != "status" {
+	publicKey := f.String("public-key-hex", "", "independently obtained enrolled Ed25519 public key")
+	tenant := f.String("tenant", "", "independent expected tenant")
+	plant := f.String("plant", "", "independent expected plant")
+	gateway := f.String("gateway", "", "independent expected gateway")
+	station := f.String("station", "", "independent expected station")
+	if op != "enqueue" && op != "flush" && op != "status" && op != "verify" && op != "audit" {
 		return errors.New("unknown operation")
 	}
 	if err := f.Parse(args[1:]); err != nil {
 		return err
 	}
-	if f.NArg() != 0 || *dir == "" {
-		return errors.New("--dir required and unexpected positional arguments rejected")
+	if f.NArg() != 0 {
+		return errors.New("unexpected positional arguments rejected")
+	}
+	if op == "verify" {
+		if *dir != "" || *endpoint != "" {
+			return errors.New("verify has no state or network access")
+		}
+		return runCommission(op, *file, *publicKey, *tenant, *plant, *gateway, *station, nil, out)
+	}
+	if *dir == "" {
+		return errors.New("--dir required")
+	}
+	if op == "audit" {
+		if *endpoint != "" {
+			return errors.New("audit cannot submit any network event")
+		}
+		s, err := openExistingState(*dir)
+		if err != nil {
+			return err
+		}
+		return runCommission(op, *file, *publicKey, *tenant, *plant, *gateway, *station, &s, out)
 	}
 	s, err := initState(*dir)
 	if err != nil {
