@@ -87,3 +87,33 @@ func TestEngineerOpsNoDefaultCredential(t *testing.T) {
 		t.Fatalf("weak credential must fail closed: %d", w.Code)
 	}
 }
+
+// Forwarded HTTPS is accepted only when explicitly enabled for a trusted proxy.
+// In production the backend port must remain bound to loopback and the proxy
+// must overwrite any incoming X-Forwarded-Proto supplied by web clients.
+func TestEngineerOpsTLSProxyForwarding(t *testing.T) {
+	t.Setenv("ENV", "production")
+	t.Setenv("AGIPAREL_ENGINEER_OPS_ENABLED", "true")
+	t.Setenv("AGIPAREL_ENGINEER_OPS_USER", "platform-admin")
+	t.Setenv("AGIPAREL_ENGINEER_OPS_PASSWORD", "correct-this-is-a-long-random-ops-secret")
+	m := isolateEngineerOps(opsMuxForTest(), opsMuxForTest())
+	for _, tc := range []struct {
+		trusted, forwarded string
+		status             int
+	}{
+		{"false", "https", 403},
+		{"true", "", 403},
+		{"true", "http", 403},
+		{"true", "https", 200},
+	} {
+		t.Setenv("AGIPAREL_ENGINEER_OPS_TRUST_PROXY_TLS", tc.trusted)
+		r := httptest.NewRequest(http.MethodGet, "http://agiparel.empowerai.us/engineer-ops", nil)
+		r.Header.Set("X-Forwarded-Proto", tc.forwarded)
+		r.SetBasicAuth("platform-admin", "correct-this-is-a-long-random-ops-secret")
+		w := httptest.NewRecorder()
+		m.ServeHTTP(w, r)
+		if w.Code != tc.status {
+			t.Fatalf("trusted=%s forwarded=%q got=%d expected=%d", tc.trusted, tc.forwarded, w.Code, tc.status)
+		}
+	}
+}

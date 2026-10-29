@@ -66,7 +66,7 @@ func engineerOpsGate(next http.Handler) http.Handler {
 		localHost := (host == "127.0.0.1" || host == "localhost" || host == "[::1]") && os.Getenv("ENV") == "development"
 		trustedHTTPS := os.Getenv("AGIPAREL_ENGINEER_OPS_TRUST_PROXY_TLS") == "true" && r.Header.Get("X-Forwarded-Proto") == "https"
 		if r.TLS == nil && !trustedHTTPS && !localHost {
-			http.Error(w, "Engineer Ops requires HTTPS", http.StatusForbidden)
+			http.Error(w, "Engineer Ops requires HTTPS. If HTTPS terminates at a proxy, configure its sanitized X-Forwarded-Proto header and enable trusted proxy TLS in the application.", http.StatusForbidden)
 			return
 		}
 		givenUser, givenPass, ok := r.BasicAuth()

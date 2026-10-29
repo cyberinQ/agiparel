@@ -12,6 +12,11 @@ func TestOperationalIntent(t *testing.T) {
 	tests := []struct{ text, want string }{
 		{"how many workers present todaY", "attendance_today"},
 		{"How many employees are present?", "attendance_today"},
+		{"who is present and who is absent today", "attendance_today"},
+		{"Who is absent today?", "attendance_today"},
+		{"Who's late this shift?", "attendance_today"},
+		{"Who is on leave today?", "attendance_today"},
+		{"who attended the meeting today?", ""},
 		{"which po is in progress?", "po_in_progress"},
 		{"Any active purchase orders?", "po_in_progress"},
 		{"Please explain machine bottlenecks", ""},

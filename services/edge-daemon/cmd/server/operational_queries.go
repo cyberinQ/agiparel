@@ -29,7 +29,7 @@ func operationalIntent(messages []interviewer.LLMMessage) string {
 			return "workers_and_machines"
 		case strings.Contains(q, "capacity") || strings.Contains(q, "how many pieces can") || strings.Contains(q, "daily output capability"):
 			return "factory_capacity"
-		case (strings.Contains(q, "present") || strings.Contains(q, "attendance")) && (strings.Contains(q, "worker") || strings.Contains(q, "employee") || strings.Contains(q, "staff")):
+		case isAttendanceQuestion(q):
 			return "attendance_today"
 		case (strings.Contains(q, "po") || strings.Contains(q, "purchase order") || strings.Contains(q, "work order")) && (strings.Contains(q, "progress") || strings.Contains(q, "running") || strings.Contains(q, "active")):
 			return "po_in_progress"
@@ -37,6 +37,22 @@ func operationalIntent(messages []interviewer.LLMMessage) string {
 		break
 	}
 	return ""
+}
+
+// isAttendanceQuestion routes everyday workforce questions directly to verified
+// attendance records rather than the slower, optional language model. In particular,
+// "who is present and who is absent today" need not mention "workers" explicitly.
+// Questions about unrelated people being present must not be intercepted.
+func isAttendanceQuestion(q string) bool {
+	workforce := strings.Contains(q, "worker") || strings.Contains(q, "employee") ||
+		strings.Contains(q, "staff") || strings.Contains(q, "attendance") || strings.Contains(q, "shift")
+	who := strings.Contains(q, "who is") || strings.Contains(q, "who's") ||
+		strings.Contains(q, "who are") || strings.Contains(q, "who was") || strings.Contains(q, "who has")
+	status := strings.Contains(q, "present") || strings.Contains(q, "absent") ||
+		strings.Contains(q, "on leave") || strings.Contains(q, "late") || strings.Contains(q, "checked in")
+	today := strings.Contains(q, "today") || strings.Contains(q, "this morning") ||
+		strings.Contains(q, "this shift") || strings.Contains(q, "right now")
+	return (workforce && status) || (who && status && today)
 }
 
 func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (string, error) {
@@ -196,7 +212,51 @@ func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (s
 			}
 			return fmt.Sprintf("No verified attendance records are available for today (%s, factory local time).", shiftDay.Format("2 Jan 2006")), nil
 		}
-		return fmt.Sprintf("Today (%s, factory local time): %d workers marked PRESENT, %d LATE, %d ABSENT, %d ON_LEAVE, from %d attendance records. These are recorded statuses, not live physical presence.", shiftDay.Format("2 Jan 2006"), present, late, absent, leave, recorded), nil
+		// Return named groups when the caller asks WHO, not just aggregate counts.
+		// Limit the number of names so a large factory cannot generate unbounded replies.
+		groups := map[string][]string{
+			"PRESENT": {}, "LATE": {}, "ABSENT": {}, "ON_LEAVE": {},
+		}
+		rows, err := tx.QueryContext(queryCtx, `
+            SELECT a.status, COALESCE(w.name, a.worker_id), a.worker_id
+            FROM attendance_register a
+            LEFT JOIN workers w ON w.id=a.worker_id AND w.tenant_id=a.tenant_id
+            WHERE a.tenant_id=$1 AND a.shift_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+            ORDER BY a.status, COALESCE(w.name, a.worker_id), a.worker_id
+            LIMIT 51`, tenant)
+		if err != nil {
+			return "", err
+		}
+		seen := 0
+		for rows.Next() {
+			var status, name, id string
+			if err := rows.Scan(&status, &name, &id); err != nil {
+				rows.Close()
+				return "", err
+			}
+			if _, ok := groups[status]; ok && seen < 50 {
+				groups[status] = append(groups[status], fmt.Sprintf("%s (%s)", name, id))
+			}
+			seen++
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return "", err
+		}
+		rows.Close()
+		reply := fmt.Sprintf("Today (%s, factory local time): %d PRESENT, %d LATE, %d ABSENT, %d ON_LEAVE out of %d recorded workers.",
+			shiftDay.Format("2 Jan 2006"), present, late, absent, leave, recorded)
+		for _, entry := range []struct{ status, heading string }{
+			{"PRESENT", "Present"}, {"LATE", "Late"}, {"ABSENT", "Absent"}, {"ON_LEAVE", "On leave"},
+		} {
+			if len(groups[entry.status]) > 0 {
+				reply += "\n" + entry.heading + ": " + strings.Join(groups[entry.status], ", ") + "."
+			}
+		}
+		if recorded > 50 {
+			reply += "\nOnly the first 50 names are shown; totals include all recorded workers."
+		}
+		return reply + "\nThese are recorded attendance statuses, not live physical presence. Workers without an attendance entry are not assumed absent.", nil
 	case "po_in_progress":
 		type order struct {
 			po, status string
