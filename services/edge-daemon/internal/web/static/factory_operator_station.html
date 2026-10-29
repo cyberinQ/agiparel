@@ -3,7 +3,8 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Agiparel · Operator station</title>
 <link rel="stylesheet" href="/static/ux_unified.css"><link rel="stylesheet" href="/static/chapter_workflow.css"><link rel="stylesheet" href="/static/factory_intelligence.css">
-<script src="/static/factory_operator_station.js" defer></script></head>
+<script src="/static/factory_operator_station.js" defer></script>
+<script src="/static/factory_wip_exceptions.js" defer></script></head>
 <body data-ag-phase="reports" data-ag-workflow="simple"><main class="ag-report-main">
 <p class="ag-work-kicker">FACTORY OPERATIONS · STATION EXECUTION</p><h1>What's at my station?</h1>
 <p class="ag-report-lead">A bounded inbox of signed RFID/barcode gateway observations. Choose an observed cut part to inspect its genealogy, custody, and permitted next handoff.</p>
@@ -31,4 +32,18 @@
 <div class="ag-report-controls"><button id="submit" type="button" disabled>Record signed handoff</button><button id="cancel" type="button">Clear transaction</button></div>
 <p id="result" role="status" aria-live="polite">No handoff attempted.</p>
 <p class="ag-report-note">Tokens are never placed in browser storage. Submission uses the existing signed F3.3 movement API, not a new mutation pathway. Site hardware and IdP commissioning remain mandatory.</p></section>
+<section class="card"><h2>Exception and supervised recovery (F3.10)</h2>
+<p>Report a lost/unreadable carrier, missing WIP, failed scan, misroute or rejected handoff. An unresolved case blocks signed custody transfers. Supervisor closure requires an independently signed assertion and a <strong>new</strong> enrolled-gateway scan at the reported station. Closure never fabricates custody or production credit.</p>
+<div class="ag-report-controls"><label for="ex-part">Permanent cut-part UUID<input id="ex-part" maxlength="36" autocomplete="off" spellcheck="false" placeholder="Use a selected part or enter UUID"></label>
+<label for="ex-type">Reported problem<select id="ex-type"><option>LOST_CARRIER</option><option>UNREADABLE_CARRIER</option><option>MISSING_WIP</option><option>FAILED_SCAN</option><option>MISROUTED_PART</option><option>REJECTED_HANDOFF</option></select></label></div>
+<label for="ex-note">Contemporaneous explanation (12–500 characters)<textarea id="ex-note" rows="2" maxlength="500" placeholder="Describe what was observed; no claimed physical recovery without new evidence."></textarea></label>
+<div class="ag-report-controls"><button id="ex-list" type="button">Load cases for part</button><label for="ex-case">Case to close<select id="ex-case"><option value="">Select an open case</option></select></label></div>
+<div class="ag-report-controls"><button id="ex-open" type="button">Prepare signed incident report</button><button id="ex-close" type="button">Prepare supervisor closure using selected new scan</button></div>
+<p id="ex-challenge" class="ag-report-note">No exception transaction prepared.</p>
+<label for="ex-token">Transaction-bound IdP assertion (JWT)<input id="ex-token" type="password" autocomplete="off" spellcheck="false" placeholder="Not stored"></label>
+<div class="ag-report-controls"><button id="ex-submit" disabled type="button">Submit signed exception event</button><button id="ex-cancel" type="button">Clear</button></div>
+<p id="ex-status" role="status" aria-live="polite">No exception transaction attempted.</p>
+<div class="ag-report-detail ag-report-scroll"><table><thead><tr><th>Opened (UTC)</th><th>Problem</th><th>Station</th><th>Status</th></tr></thead><tbody id="ex-cases"></tbody></table></div>
+<p class="ag-report-note">If a carrier is lost, first retire/rebind it through the governed F3.1 workflow and obtain a fresh signed scan. Recovery never bypasses the approved F3.3 DEPART/ARRIVE sequence.</p>
+</section>
 </main></body></html>

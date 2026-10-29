@@ -259,6 +259,19 @@ func (p *operatorStationAPI) lookup(ctx context.Context, tx *sql.Tx, tenant, pla
 	if e != nil {
 		return nil, e
 	}
+	if os.Getenv("AGIPAREL_WIP_EXCEPTIONS_ENABLED") == "true" {
+		// The actual transfer is blocked at the SQL layer under its part lock.
+		var exceptionOpen bool
+		e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM wip_exception_cases_v23 c
+ WHERE c.tenant_id=$1 AND c.plant_id=$2 AND c.part_id=$3::uuid
+ AND NOT EXISTS(SELECT 1 FROM wip_exception_closures_v23 x WHERE x.tenant_id=c.tenant_id AND x.case_id=c.id))`, tenant, plant, v.PartID).Scan(&exceptionOpen)
+		if e != nil {
+			return nil, e
+		}
+		if exceptionOpen {
+			v.Blockers = append(v.Blockers, "UNRESOLVED_WIP_EXCEPTION_HOLD")
+		}
+	}
 	if !transferAllowed {
 		v.Blockers = append(v.Blockers, "TRANSFER_PERMISSION_NOT_PROVISIONED")
 	}
