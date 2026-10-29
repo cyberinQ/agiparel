@@ -22,3 +22,7 @@ for script in scripts/test_*.cjs; do node "$script"; done
 Start with [Production Readiness Plan](docs/Production_Readiness_Plan.md), then [F3.20B–D dock and F3.21 engineering controls](docs/F3_20BCD_F3_21_DOCK_AND_OPERATIONS_20261029.md). New production controls are disabled by default. Migration 0054 follows 0053. See [F3.22 external counterparty assertions and carton reconciliation](docs/F3_22_EXTERNAL_ACK_CARTON_RECONCILIATION_20261029.md). Complete identity/tenant, physical evidence, concurrency, recovery and onsite acceptance gates before authorizing real shipments.
 
 F3.23 v36: spec-bound buyer authorization, exact dock carton reconciliation and read-only diagnostics; see `docs/F3_23_BUYER_CONTRACT_CARTON_DIAGNOSTICS_v36.md`. No shipment posting.
+
+### F3.24 v37 — live cut/WIP lineage audit (read-only)
+
+New `GET /api/v1/packing/dock/lineage-audit` reuses the existing tenant/plant-scoped workforce `packing.read` grant and repeatable-read transaction. Requires both v35 external gate and `AGIPAREL_DOCK_LINEAGE_AUDIT_V37_ENABLED=true`. It conservatively checks packed identities, signed cut reconciliation, latest effective-part/QC evidence, piece holds and jobwork states, with bounded manifest size and named blockers. It is **not** global material/trim/financial conservation, ASN delivery, shipment posting or physical acceptance. See `docs/F3_24_LINEAGE_AUDIT_v37.md`.

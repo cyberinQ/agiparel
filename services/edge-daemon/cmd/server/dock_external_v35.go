@@ -189,6 +189,10 @@ func (p *dockExternalAPIv35) status(w http.ResponseWriter, r *http.Request) {
 	if !p.ready(w) {
 		return
 	}
+	if r.URL.Path == "/api/v1/packing/dock/lineage-audit" && !dockLineageAuditV37Enabled() {
+		docJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "ERR_F37_LINEAGE_AUDIT_DISABLED"})
+		return
+	}
 	if r.URL.Path == "/api/v1/packing/dock/diagnostics" && !dockDiagnosticsV36Enabled() {
 		docJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "ERR_F36_DIAGNOSTICS_DISABLED"})
 		return
@@ -272,8 +276,19 @@ func (p *dockExternalAPIv35) status(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	var lineage []byte
+	if r.URL.Path == "/api/v1/packing/dock/lineage-audit" {
+		if err = tx.QueryRowContext(ctx, `SELECT dock_lineage_audit_v37($1,$2,$3::uuid)`, tenant, plant, manifest).Scan(&lineage); err != nil {
+			sewProdReply(w, err)
+			return
+		}
+	}
 	if err = tx.Commit(); err != nil {
 		sewProdReply(w, err)
+		return
+	}
+	if r.URL.Path == "/api/v1/packing/dock/lineage-audit" {
+		docJSON(w, http.StatusOK, json.RawMessage(lineage))
 		return
 	}
 	if r.URL.Path == "/api/v1/packing/dock/diagnostics" {
@@ -292,9 +307,15 @@ func registerDockExternalRoutesV35(mux *http.ServeMux, s *EdgeServer) {
 	mux.HandleFunc("/api/v1/packing/dock/external-assertions", p.receive)
 	mux.HandleFunc("/api/v1/packing/dock/external-verification", p.status)
 	mux.HandleFunc("/api/v1/packing/dock/diagnostics", p.status)
+	mux.HandleFunc("/api/v1/packing/dock/lineage-audit", p.status)
 }
 
 // Author: Sunil Jain, 2026-10-29. v36 diagnostics are opt-in and read-only.
 func dockDiagnosticsV36Enabled() bool {
 	return os.Getenv("AGIPAREL_DOCK_DIAGNOSTICS_V36_ENABLED") == "true"
+}
+
+// Author: Sunil Jain, 2026-10-29. v37 audit is opt-in and read-only.
+func dockLineageAuditV37Enabled() bool {
+	return os.Getenv("AGIPAREL_DOCK_LINEAGE_AUDIT_V37_ENABLED") == "true"
 }
