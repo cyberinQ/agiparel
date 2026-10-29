@@ -1,0 +1,26 @@
+// Author: Sunil Jain, CyberinQ LLC, 2026-10-29.
+'use strict';
+const fs=require('node:fs');const assert=require('node:assert/strict');
+const read=p=>fs.readFileSync(p,'utf8');
+const sql=read('services/core-api/migrations/0043_trims_atomic_signed_issuance_v24.sql');
+const impl=read('services/edge-daemon/pkg/stores/trim_issuance_v24.go');
+const api=read('services/edge-daemon/cmd/server/material_trim_v24.go');
+const route=read('services/edge-daemon/cmd/server/material_api.go');
+assert.match(sql,/FOR UPDATE/);
+assert.match(sql,/SECURITY DEFINER/);
+assert.match(sql,/remaining_qty=remaining_qty-NEW\.issued_qty/);
+assert.match(sql,/ERR_F314_INSUFFICIENT_STOCK/);
+assert.match(sql,/ERR_F314_RELEASED_ORDER_LINE_REQUIRED/);
+assert.match(sql,/trim_issuance_proof_uses_v24[\s\S]*?PRIMARY KEY\(tenant_id,proof_id\)/);
+assert.match(sql,/FORCE ROW LEVEL SECURITY/g);
+assert.match(sql,/REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public\.store_trims_v13/);
+assert.doesNotMatch(sql,/0042_unified_identity/);
+assert.match(impl,/VerifyMaterialWitness\(ctx,\s*a,\s*challenge\)/);
+assert.match(impl,/VerifyMaterialWitness\(ctx,\s*b,\s*challenge\)/);
+assert.match(impl,/workforce_identity_grants_v15/);
+assert.match(impl,/g\.idp_issuer=\$3/);
+assert.match(api,/a\.verifier\.Verify\(p\.IssuerAttestation/);
+assert.match(api,/a\.verifier\.Verify\(p\.RecipientAttestation/);
+assert.doesNotMatch(api,/json:"issuer_id"|json:"recipient_id"/);
+assert.match(route,/material\/trims\/issues\/challenge/);
+console.log('PASS F3.14: signed dual-witness, stock row locks, immutable issuance, no legacy grant or unauthenticated issuance');

@@ -49,6 +49,7 @@ type ReservationReceipt struct {
 // WitnessProof refers to an independently authenticated and cryptographically
 // bound session assertion from an upstream identity service.
 type WitnessProof struct {
+	IDPIssuer string
 	PlantID   string
 	Role      string
 	TenantID  string

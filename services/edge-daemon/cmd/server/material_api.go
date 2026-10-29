@@ -36,7 +36,7 @@ func (a signedMaterialVerifier) VerifyMaterialWitness(_ context.Context, p store
 	if err != nil {
 		return err
 	}
-	if c.Subject != p.Subject || c.TenantID != p.TenantID || c.JWTID != p.ProofID || c.PlantID != p.PlantID {
+	if c.Subject != p.Subject || c.TenantID != p.TenantID || c.JWTID != p.ProofID || c.PlantID != p.PlantID || (p.IDPIssuer != "" && p.IDPIssuer != c.Issuer) {
 		return errors.New("ERR_WITNESS_IDENTITY_MISMATCH")
 	}
 	return nil
@@ -84,6 +84,8 @@ func registerMaterialRoutes(mux *http.ServeMux, db *sql.DB) {
 	if a.initErr != nil {
 		log.Printf("[material-v5] disabled (fail closed): %v", a.initErr)
 	}
+	mux.HandleFunc("/api/v1/material/trims/issues/challenge", a.trimIssueChallenge)
+	mux.HandleFunc("/api/v1/material/trims/issues", a.trimIssue)
 	mux.HandleFunc("/api/v1/material/reservations", a.reserve)
 	mux.HandleFunc("/api/v1/material/issues/challenge", a.issueChallenge)
 	mux.HandleFunc("/api/v1/material/issues", a.issue)
@@ -143,6 +145,12 @@ func materialError(w http.ResponseWriter, err error) {
 	code := err.Error()
 	status := http.StatusUnprocessableEntity
 	switch {
+	case strings.HasPrefix(code, "ERR_F314_WORKFORCE_GRANT"), strings.HasPrefix(code, "ERR_F314_INDEPENDENT"):
+		status = http.StatusForbidden
+	case strings.HasPrefix(code, "ERR_F314_STOCK_OR_PROOF_CONFLICT"), strings.HasPrefix(code, "ERR_F314_COMMAND_CONFLICT"):
+		status = http.StatusConflict
+	case strings.HasPrefix(code, "ERR_F314_ISSUER_PROOF"), strings.HasPrefix(code, "ERR_F314_RECIPIENT_PROOF"), strings.HasPrefix(code, "ERR_F314_VERIFIER"):
+		status = http.StatusUnauthorized
 	case strings.HasPrefix(code, "ERR_IDP"), strings.HasPrefix(code, "ERR_BEARER"), strings.HasPrefix(code, "ERR_JWS"), strings.HasPrefix(code, "ERR_ASSERTION"), strings.HasPrefix(code, "ERR_INVALID_ASSERTION"), strings.HasPrefix(code, "ERR_STRONG_AUTH"), strings.HasPrefix(code, "ERR_CEO_ATTESTATION"):
 		status = http.StatusUnauthorized
 	case strings.HasPrefix(code, "ERR_MATERIAL_AUTHORITY_UNCONFIGURED"), strings.HasPrefix(code, "ERR_CEO_VERIFIER_REQUIRED"):
