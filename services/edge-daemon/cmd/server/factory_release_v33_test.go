@@ -76,7 +76,9 @@ func TestFactoryReleaseV33Disabled(t *testing.T) {
 	for i, endpoint := range []func(http.ResponseWriter, *http.Request){p.challenge, p.event, p.dockReadiness} {
 		w := httptest.NewRecorder()
 		method := http.MethodPost
-		if i == 2 {method = http.MethodGet}
+		if i == 2 {
+			method = http.MethodGet
+		}
 		r := httptest.NewRequest(method, "/api/v1/packing/dock/readiness", nil)
 		endpoint(w, r)
 		if w.Code < 400 {

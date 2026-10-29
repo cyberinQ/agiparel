@@ -14,7 +14,8 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 FROM alpine:3.19
 RUN apk --no-cache add ca-certificates tzdata poppler-utils
 WORKDIR /app
-RUN mkdir -p /data/wal /app/data/staging/docs /app/data/staging/output
+RUN mkdir -p /data/wal /app/data/staging/docs /app/data/staging/output \
+    && chown -R 10001:10001 /data/wal /app/data/staging
 COPY --from=builder /bin/plant-edge-os /app/plant-edge-os
 COPY --from=builder /bin/ingest-docs /app/ingest-docs
 EXPOSE 18530

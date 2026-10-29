@@ -1,7 +1,7 @@
-<!-- Author: Sunil Jain, CyberinQ LLC -->
+<!-- Author: Sunil Jain, CyberinQ LLC, 2026-10-29. -->
 # Agiparel Factory OS
 
-Go 1.24 / PostgreSQL 16 / Redis / Docker-based garment manufacturing and RFID-emulation platform.
+Go 1.24 / PostgreSQL 16 / Redis / Docker-based garment manufacturing and RFID evidence platform. Physical hardware, buyer approval and shipment credit are **not** inferred from software tests.
 
 ## Development
 
@@ -11,5 +11,12 @@ From this repository root:
 docker compose -f compose/docker-compose.dev.yml up -d --build
 # Restricted operator app: http://localhost:18530
 go test -count=1 ./...
+go test -race -count=1 ./...
 go vet ./...
 go build ./...
+for script in scripts/test_*.cjs; do node "$script"; done
+```
+
+## Production acceptance
+
+Start with [Production Readiness Plan](docs/Production_Readiness_Plan.md), then [F3.20B–D dock and F3.21 engineering controls](docs/F3_20BCD_F3_21_DOCK_AND_OPERATIONS_20261029.md). New production controls are disabled by default. Migration 0053 follows 0052. Complete identity/tenant, physical evidence, concurrency, recovery and onsite acceptance gates before authorizing real shipments.

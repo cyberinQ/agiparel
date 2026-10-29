@@ -15,12 +15,18 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          set -euo pipefail
+          for script in scripts/test_*.cjs; do node "$script"; done
       - run: go vet ./...
       - run: go test -count=1 ./...
       - run: go test -race -count=1 ./...
       - run: go build ./...
   release:
-    needs: verify
+    needs: [verify, postgres-schema]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -41,3 +47,46 @@ jobs:
           files: |
             dist/plant-edge-os
             dist/SHA256SUMS
+
+  postgres-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: agiparel_dev
+          POSTGRES_USER: agiparel_admin
+          POSTGRES_PASSWORD: isolated_ci_only_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agiparel_admin -d agiparel_dev"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGPASSWORD: isolated_ci_only_password
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: agiparel_admin
+      PGDATABASE: agiparel_dev
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          command -v psql || { sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client; }
+      - name: Apply all ordered migrations on empty PostgreSQL 16
+        run: |
+          set -euo pipefail
+          n=0
+          for migration in services/core-api/migrations/[0-9][0-9][0-9][0-9]_*.sql; do
+            n=$((n+1))
+            expected=$(printf '%04d' "$n")
+            [[ "$(basename "$migration" | cut -c1-4)" == "$expected" ]] || exit 2
+            psql -X -v ON_ERROR_STOP=1 -f "$migration" > /dev/null
+          done
+          printf 'Successfully applied %d ordered migrations\n' "$n"
+      - name: Verify dock and safety schema authorization
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_f319c_f319d_f320a_schema_pg.sql
+          psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_f320b_f320d_schema_pg.sql
+          psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_v34_tenant_isolation_pg.sql
