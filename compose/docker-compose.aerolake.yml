@@ -1,0 +1,31 @@
+# Author: Sunil Jain, CyberinQ LLC, 2026-10-30.
+# Local Plant L3 Data Mesh: Aerolake5 Agentd + Agiparel CDC Bridge
+services:
+  aerolake-node:
+    image: cyberinq/aerolake5:latest
+    container_name: agiparel-aerolake-l3
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:51051:51051" # Arrow Flight gRPC
+      - "127.0.0.1:19090:9090"   # Prometheus Metrics
+    volumes:
+      - aerolake_data:/aerolake/parquet_data
+    environment:
+      - AEROLAKE_NODE_ID=PLANT_01_L3
+      - AEROLAKE_RINGBUFFER_CAP=50000
+      - AEROLAKE_COMPACT_INTERVAL_MS=60000
+
+  aerolake-bridge:
+    build:
+      context: ..
+      dockerfile: services/aerolake-bridge/Dockerfile
+    container_name: agiparel-aerolake-bridge
+    restart: unless-stopped
+    depends_on:
+      - aerolake-node
+    environment:
+      - DATABASE_URL=postgres://agiparel_admin:dev_secret_vault_pg16@postgres:5432/agiparel_dev?sslmode=disable
+      - AEROLAKE_FLIGHT_ADDR=aerolake-node:51051
+
+volumes:
+  aerolake_data:
