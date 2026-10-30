@@ -23,6 +23,7 @@ services:
     environment:
       DATABASE_URL: postgres://agiparel_admin:dev_secret_vault_pg16@agiparel-postgres:5432/agiparel_dev?sslmode=disable
       AEROLAKE_FLIGHT_ADDR: aerolake-agentd:51051
+      AEROLAKE_FLIGHT_ENDPOINT: aerolake-agentd:51051
     depends_on:
       - aerolake-agentd
     networks:
