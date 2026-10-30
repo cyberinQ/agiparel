@@ -3,6 +3,7 @@
 # Cache Go dependencies separately from application source so UI-only changes rebuild faster.
 FROM golang:1.24-alpine AS builder
 WORKDIR /build
+ENV GOTOOLCHAIN=auto
 RUN apk add --no-cache git
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
