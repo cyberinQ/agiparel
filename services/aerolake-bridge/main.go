@@ -23,10 +23,16 @@ type Config struct {
 func loadConfig() Config {
 	dbURL := os.Getenv("AGIPAREL_DATABASE_URL")
 	if dbURL == "" {
+		dbURL = os.Getenv("DATABASE_URL")
+	}
+	if dbURL == "" {
 		dbURL = "postgres://postgres:postgres@127.0.0.1:5432/agiparel?sslmode=disable"
 	}
 
 	endpoint := os.Getenv("AEROLAKE_FLIGHT_ENDPOINT")
+	if endpoint == "" {
+		endpoint = os.Getenv("AEROLAKE_ENDPOINT")
+	}
 	if endpoint == "" {
 		endpoint = "127.0.0.1:51051"
 	}
