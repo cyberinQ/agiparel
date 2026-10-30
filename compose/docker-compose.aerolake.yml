@@ -1,31 +1,65 @@
-# Author: Sunil Jain, CyberinQ LLC, 2026-10-30.
-# Local Plant L3 Data Mesh: Aerolake5 Agentd + Agiparel CDC Bridge
+version: '3.8'
+
 services:
-  aerolake-node:
-    image: cyberinq/aerolake5:latest
-    container_name: agiparel-aerolake-l3
+  aerolake-agentd:
+    image: aerolake/agentd:v45-edge
+    container_name: aerolake-agentd
     restart: unless-stopped
+    user: "10001:10001"
     ports:
-      - "127.0.0.1:51051:51051" # Arrow Flight gRPC
-      - "127.0.0.1:19090:9090"   # Prometheus Metrics
-    volumes:
-      - aerolake_data:/aerolake/parquet_data
+      - "51051:51051"
+      - "5433:5432"
+      - "9090:9090"
     environment:
-      - AEROLAKE_NODE_ID=PLANT_01_L3
-      - AEROLAKE_RINGBUFFER_CAP=50000
-      - AEROLAKE_COMPACT_INTERVAL_MS=60000
+      - AEROLAKE_NODE_ID=edge-plant-01
+      - AEROLAKE_LISTEN_ADDR=0.0.0.0:51051
+      - AEROLAKE_PGWIRE_ADDR=0.0.0.0:5432
+      - AEROLAKE_METRICS_ADDR=0.0.0.0:9090
+      - AEROLAKE_DATA_DIR=/var/lib/aerolake/data
+      - AEROLAKE_PARQUET_DIR=/var/lib/aerolake/parquet_data
+      - AEROLAKE_WAL_DIR=/var/lib/aerolake/wal
+      - AEROLAKE_OUTBOX_DIR=/var/lib/aerolake/outbox
+      - AEROLAKE_MAX_MEMORY_MB=1536
+      - RUST_LOG=info,aerolake_storage=debug,aerolake_flight=debug
+    volumes:
+      - aerolake_wal:/var/lib/aerolake/wal
+      - aerolake_parquet:/var/lib/aerolake/parquet_data
+      - aerolake_outbox:/var/lib/aerolake/outbox
+    networks:
+      - agiparel-mesh
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 51051 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
   aerolake-bridge:
     build:
-      context: ..
+      context: ../..
       dockerfile: services/aerolake-bridge/Dockerfile
     container_name: agiparel-aerolake-bridge
     restart: unless-stopped
     depends_on:
-      - aerolake-node
+      aerolake-agentd:
+        condition: service_healthy
     environment:
-      - DATABASE_URL=postgres://agiparel_admin:dev_secret_vault_pg16@postgres:5432/agiparel_dev?sslmode=disable
-      - AEROLAKE_FLIGHT_ADDR=aerolake-node:51051
+      - DATABASE_URL=postgres://agiparel:agiparel@postgres:5432/agiparel_dev?sslmode=disable
+      - AEROLAKE_ENDPOINT=grpc://aerolake-agentd:51051
+      - PRUNE_INTERVAL_SEC=3600
+      - TELEMETRY_RETENTION_INTERVAL=14 days
+      - AEROLAKE_VERIFIED_PRUNE_ENABLED=false
+    networks:
+      - agiparel-mesh
 
 volumes:
-  aerolake_data:
+  aerolake_wal:
+    name: aerolake_wal
+  aerolake_parquet:
+    name: aerolake_parquet
+  aerolake_outbox:
+    name: aerolake_outbox
+
+networks:
+  agiparel-mesh:
+    external: true
