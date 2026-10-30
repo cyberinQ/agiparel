@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  agiparel-db:
+    image: postgres:16-alpine
+    container_name: agiparel-db
+    environment:
+      POSTGRES_USER: agiparel_admin
+      POSTGRES_PASSWORD: dev_secret_vault_pg16
+      POSTGRES_DB: agiparel_dev
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=5"]
+    ports:
+      - "15434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agiparel_admin -d agiparel_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  aerolake-agentd:
+    build:
+      context: ../../aerolake
+      dockerfile: deploy/docker/Dockerfile.agentd
+    container_name: aerolake-agentd
+    ports:
+      - "51051:51051" # Arrow Flight SQL
+      - "15432:5432"  # PGWire Server
+      - "9090:9090"   # Prometheus Exporter
+    volumes:
+      - aerolake-storage:/var/lib/aerolake/parquet_data
+    depends_on:
+      agiparel-db:
+        condition: service_healthy
+
+  aerolake-bridge:
+    build:
+      context: ..
+      dockerfile: services/aerolake-bridge/Dockerfile
+    container_name: aerolake-bridge
+    environment:
+      DATABASE_URL: postgres://agiparel_admin:dev_secret_vault_pg16@agiparel-db:5432/agiparel_dev?sslmode=disable
+      AEROLAKE_FLIGHT_ADDR: aerolake-agentd:51051
+    depends_on:
+      - aerolake-agentd
+
+volumes:
+  pgdata:
+  aerolake-storage:
