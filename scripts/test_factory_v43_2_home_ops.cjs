@@ -17,8 +17,8 @@ assert(!h.slice(h.indexOf('</section>',h.indexOf('<section class="factory-why"')
 assert(h.includes('aria-hidden="true"'));
 assert(!h.includes('One connected factory.'));
 assert(!h.includes('FROM FIRST THREAD TO FINAL CARTON'));
-const visibleCopy=h.replace(/<!--[\s\S]*?-->/g,'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
-assert.strictEqual(crypto.createHash('sha256').update(visibleCopy).digest('hex'), 'cc7ee683b8e1b54c9d908d6bc041cf11367d50505400eea9ec2e25ccf3cbe123', 'home page wording must remain byte-equivalent as visible text');
+const legacyVisibleCopy=h.replace(/<nav class="site-links"[^>]*>[\s\S]*?<\/nav>/,'').replace(/<!--[\s\S]*?-->/g,'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+assert.strictEqual(crypto.createHash('sha256').update(legacyVisibleCopy).digest('hex'), 'cc7ee683b8e1b54c9d908d6bc041cf11367d50505400eea9ec2e25ccf3cbe123', 'original home page wording must remain byte-equivalent, excluding requested new account navigation');
 assert(css.includes('position:absolute;inset:0') && css.includes('background:rgba(255,255,255,.68)'), 'waves must be behind translucent Why details');
 assert(css.includes('.fabric-wave-art') && css.includes('--accent:#167e88'));
 assert(js.includes('prefers-reduced-motion')&&js.includes('IntersectionObserver'));

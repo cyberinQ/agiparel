@@ -19,7 +19,7 @@ import (
 func operatorAccessGate(next http.Handler, user, password string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/", "/demo", "/demo-assets/portal.css", "/demo-assets/portal.js", "/healthz":
+		case "/", "/demo", "/about", "/login", "/register", "/demo-assets/portal.css", "/demo-assets/portal.js", "/healthz":
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -119,6 +119,24 @@ func servePublicPortalAsset(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func servePublicAbout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	portalHeaders(w)
+	data, err := web.GetAboutHTML()
+	if err != nil {
+		http.Error(w, "About unavailable", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if r.Method == http.MethodGet {
+		_, _ = w.Write(data)
+	}
+}
+
 func registerPublicPortal(mux *http.ServeMux) {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -128,6 +146,7 @@ func registerPublicPortal(mux *http.ServeMux) {
 		servePublicPortal(w, r)
 	})
 	mux.HandleFunc("/demo", servePublicPortal)
+	mux.HandleFunc("/about", servePublicAbout)
 	mux.HandleFunc("/demo-assets/portal.css", servePublicPortalAsset)
 	mux.HandleFunc("/demo-assets/portal.js", servePublicPortalAsset)
 }
@@ -138,6 +157,13 @@ func configuredOperatorGate(next http.Handler) http.Handler {
 	// providing no identity assurance. Never exempt generic /api paths.
 	secureIngress := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/", "/demo", "/about", "/login", "/register", "/demo-assets/portal.css", "/demo-assets/portal.js":
+			if r.Method == http.MethodGet || r.Method == http.MethodHead {
+				next.ServeHTTP(w, r)
+				return
+			}
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
 		case "/api/v1/sewing/production/observations", "/api/v1/sewing/production/completions", "/api/v1/sewing/production/completions/challenge",
 			"/api/v1/quality/garments/challenge", "/api/v1/quality/garments/events", "/api/v1/quality/garments/history", "/api/v1/quality/garments/specification",
 			"/api/v1/quality/production/events/challenge", "/api/v1/quality/production/events", "/api/v1/quality/production/catalog",

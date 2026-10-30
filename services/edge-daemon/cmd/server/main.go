@@ -210,6 +210,7 @@ func main() {
 	registerDockExternalRoutesV35(mux, server)
 	// Public routes are isolated; every other route requires operator access.
 	registerPublicPortal(mux)
+	registerPublicAccountRoutes(mux, server.browser)
 	registerEngineerOpsRoutes(mux, server)
 
 	mux.HandleFunc("/healthz", server.handleHealth)
