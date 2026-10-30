@@ -27,9 +27,9 @@ func TestProvenanceStoryIntegrity(t *testing.T) {
 		QCReleased:                true,
 		CartonCode:                "CARTON-C-1104",
 		StatutoryCompliance: map[string]interface{}{
-			"eu_dpp_compliant":               true,
+			"eu_dpp_compliant":              true,
 			"uflpa_chain_of_custody_proven": true,
-			"worker_privacy_protected":       true,
+			"worker_privacy_protected":      true,
 		},
 		ExportedAt: time.Now().UTC(),
 	}
