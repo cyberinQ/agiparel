@@ -5,6 +5,7 @@ go 1.26.0
 
 require (
 	github.com/jackc/pgx/v5 v5.7.2
+	github.com/lib/pq v1.12.3
 	github.com/nats-io/nats.go v1.49.0
 	google.golang.org/grpc v1.85.0
 )

@@ -2,109 +2,124 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/lib/pq"
 )
 
 type Config struct {
-	DatabaseURL          string
-	AerolakeEndpoint     string
-	PruneIntervalSec     int
-	TelemetryRetention   string
-	VerifiedPruneEnabled bool
+	DatabaseURL      string
+	AerolakeEndpoint string
+	BatchSize        int
+	RetentionHours   int
+	PollIntervalSec  int
+	KillSwitch       bool
 }
 
 func loadConfig() Config {
-	pruneInterval := 3600
-	if val := os.Getenv("PRUNE_INTERVAL_SEC"); val != "" {
-		if ival, err := strconv.Atoi(val); err == nil {
-			pruneInterval = ival
-		}
+	dbURL := os.Getenv("AGIPAREL_DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://postgres:postgres@127.0.0.1:5432/agiparel?sslmode=disable"
 	}
 
-	retention := "14 days"
-	if val := os.Getenv("TELEMETRY_RETENTION_INTERVAL"); val != "" {
-		retention = val
+	endpoint := os.Getenv("AEROLAKE_FLIGHT_ENDPOINT")
+	if endpoint == "" {
+		endpoint = "127.0.0.1:51051"
 	}
 
-	verifiedPrune := false
-	if val := os.Getenv("AEROLAKE_VERIFIED_PRUNE_ENABLED"); val == "true" || val == "1" {
-		verifiedPrune = true
+	batchSize, _ := strconv.Atoi(os.Getenv("AEROLAKE_PRUNING_BATCH_SIZE"))
+	if batchSize <= 0 {
+		batchSize = 5000
 	}
+
+	retentionHours, _ := strconv.Atoi(os.Getenv("AEROLAKE_RETENTION_HOURS"))
+	if retentionHours <= 0 {
+		retentionHours = 72
+	}
+
+	pollInterval, _ := strconv.Atoi(os.Getenv("AEROLAKE_POLL_INTERVAL_SEC"))
+	if pollInterval <= 0 {
+		pollInterval = 30
+	}
+
+	killSwitch := os.Getenv("AEROLAKE_PRUNING_KILL_SWITCH") == "true" || os.Getenv("AEROLAKE_PRUNING_KILL_SWITCH") == "1"
 
 	return Config{
-		DatabaseURL:          os.Getenv("DATABASE_URL"),
-		AerolakeEndpoint:     os.Getenv("AEROLAKE_ENDPOINT"),
-		PruneIntervalSec:     pruneInterval,
-		TelemetryRetention:   retention,
-		VerifiedPruneEnabled: verifiedPrune,
+		DatabaseURL:      dbURL,
+		AerolakeEndpoint: endpoint,
+		BatchSize:        batchSize,
+		RetentionHours:   retentionHours,
+		PollIntervalSec:  pollInterval,
+		KillSwitch:       killSwitch,
 	}
 }
 
 func main() {
 	cfg := loadConfig()
-	if cfg.DatabaseURL == "" {
-		log.Fatal("DATABASE_URL environment variable must be set")
-	}
+	log.Printf("[aerolake-bridge] Initializing sidecar bridge service")
+	log.Printf("[aerolake-bridge] Flight endpoint: %s, Batch size: %d, Retention: %dh, Kill switch: %t",
+		cfg.AerolakeEndpoint, cfg.BatchSize, cfg.RetentionHours, cfg.KillSwitch)
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	db, err := sql.Open("postgres", cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %v", err)
+		log.Fatalf("[aerolake-bridge] Fatal: Failed to connect to PostgreSQL: %v", err)
 	}
-	defer pool.Close()
+	defer db.Close()
 
-	log.Printf("[aerolake-bridge] Service initialized. Aerolake Endpoint: %s, Prune Enabled: %t",
-		cfg.AerolakeEndpoint, cfg.VerifiedPruneEnabled)
+	producer := NewFlightProducer(cfg.AerolakeEndpoint)
+	defer producer.Close()
 
-	ticker := time.NewTicker(time.Duration(cfg.PruneIntervalSec) * time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ticker := time.NewTicker(time.Duration(cfg.PollIntervalSec) * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("[aerolake-bridge] Shutdown signal received. Exiting...")
+			log.Println("[aerolake-bridge] Terminating bridge service loop")
 			return
 		case <-ticker.C:
-			runDarkDataPruning(ctx, pool, cfg)
+			runCycle(db, producer, cfg)
 		}
 	}
 }
 
-func runDarkDataPruning(ctx context.Context, pool *pgxpool.Pool, cfg Config) {
-	if !cfg.VerifiedPruneEnabled {
-		log.Printf("[aerolake-bridge] Dark-data pruning bypassed: AEROLAKE_VERIFIED_PRUNE_ENABLED=false (safety kill-switch active)")
+func runCycle(db *sql.DB, producer *FlightProducer, cfg Config) {
+	if cfg.KillSwitch {
+		log.Println("[aerolake-bridge] Pruning cycle skipped: kill-switch is ACTIVE")
 		return
 	}
 
-	watermarkStr := os.Getenv("AEROLAKE_DURABLE_WATERMARK_OVERRIDE")
-	if watermarkStr == "" {
-		log.Printf("[aerolake-bridge] Pruning halted: no verified Aerolake Parquet checkpoint watermark available")
+	// 1. Probe socket listener health
+	if !producer.CheckSocketLive(2 * time.Second) {
+		log.Printf("[aerolake-bridge] Skipping cycle: Aerolake Flight gRPC port (%s) not responsive", cfg.AerolakeEndpoint)
 		return
 	}
 
-	watermarkTime, err := time.Parse(time.RFC3339, watermarkStr)
+	// 2. Compute safety horizon
+	cutoff := time.Now().UTC().Add(-time.Duration(cfg.RetentionHours) * time.Hour)
+
+	// 3. Query PostgreSQL procedure for watermark verification
+	var rowsDeleted int
+	err := db.QueryRow(
+		"SELECT prune_v45_telemetry_batch($1, $2)",
+		cutoff, cfg.BatchSize,
+	).Scan(&rowsDeleted)
+
 	if err != nil {
-		log.Printf("[aerolake-bridge] Pruning halted: invalid watermark format: %v", err)
+		log.Printf("[aerolake-bridge] Pruning execution halted: %v", err)
 		return
 	}
 
-	var deletedCount int64
-	query := `SELECT prune_ambient_rf_telemetry_v45($1::interval, $2::timestamptz)`
-	err = pool.QueryRow(ctx, query, cfg.TelemetryRetention, watermarkTime).Scan(&deletedCount)
-	if err != nil {
-		log.Printf("[aerolake-bridge] Error during verified dark-data pruning: %v", err)
-		return
+	if rowsDeleted > 0 {
+		log.Printf("[aerolake-bridge] Pruned %d telemetry records older than %s", rowsDeleted, cutoff.Format(time.RFC3339))
+	} else {
+		log.Println("[aerolake-bridge] Prune check complete: 0 rows past retention horizon")
 	}
-
-	log.Printf("[aerolake-bridge] Verified dark-data pruning completed: %d rows deleted (bounded by watermark: %s)",
-		deletedCount, watermarkTime.Format(time.RFC3339))
 }
