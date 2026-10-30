@@ -12,10 +12,14 @@ const gate=read('services/edge-daemon/cmd/server/portal.go');
 const main=read('services/edge-daemon/cmd/server/main.go');
 const nav=h.match(/<header class="site-top">([\s\S]*?)<\/header>/);
 assert(nav);
-for (const [url,text] of [['/about','About'],['/login','Sign in'],['/register','Create account']]) {
+for (const [url,text] of [['/about','About'],['/login','Sign in']]) {
   assert(nav[1].includes('href="'+url+'"'),url+' missing in home top nav');
   assert(about.includes('href="'+url+'"'),url+' missing in About nav');
 }
+assert(!nav[1].includes('href="/register"'), 'home top nav must not duplicate registration');
+assert(!about.match(/<header class="site-top">[\s\S]*?<\/header>/)[0].includes('href="/register"'), 'About top nav must not duplicate registration');
+assert(!server.match(/<header class="site-top">[\s\S]*?<\/header>/)[0].includes('href="/register"'), 'account top nav must not duplicate registration');
+assert(server.includes('actions := `<a href="/register">Create an account</a>'), 'registration must remain accessible from Sign in');
 assert(h.includes('class="account-symbol"'), 'person icon missing');
 assert(h.includes('id="agiparel-wave-canvas"'));
 assert(h.includes('Every garment<br><em>tells a story.</em>'));

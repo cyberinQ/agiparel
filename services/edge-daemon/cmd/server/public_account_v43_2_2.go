@@ -60,7 +60,7 @@ func servePublicAccountPage(w http.ResponseWriter, r *http.Request, page string,
 		return
 	}
 	content := `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>` + html.EscapeString(title) + ` | Agiparel</title><link rel="stylesheet" href="/demo-assets/portal.css"></head><body>` +
-		`<header class="site-top"><a href="/" class="brand"><span class="brand-mark" aria-hidden="true"></span>agiparel</a><nav class="site-links" aria-label="Main navigation"><a class="site-link" href="/about">About</a><a class="site-link" href="/login">Sign in</a><a class="site-register" href="/register">Create account</a></nav></header>` +
+		`<header class="site-top"><a href="/" class="brand"><span class="brand-mark" aria-hidden="true"></span>agiparel</a><nav class="site-links" aria-label="Main navigation"><a class="site-link" href="/about">About</a><a class="site-link" href="/login">Sign in</a></nav></header>` +
 		`<main class="account-main"><section class="account-panel account-intro"><p class="eyebrow">AGIPAREL ACCOUNT</p><h1>` + html.EscapeString(title) + `</h1><p>` + html.EscapeString(lead) + `</p><div class="account-status" role="status">` + html.EscapeString(notice) + `</div><nav class="account-actions" aria-label="Account actions">` + actions + `</nav></section></main>` +
 		`<footer><strong>agiparel</strong><span>Empowered by CyberinQ.</span><span>Public home · No customer records</span><a href="/engineer-ops">Engineer Ops</a></footer></body></html>`
 	_, _ = w.Write([]byte(content))
