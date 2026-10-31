@@ -1,0 +1,13 @@
+operation_code,operation_name,canonical_class,default_sam_min,piece_rate_bdt,rate_basis,predecessors
+OP-01,Front Pocket Hemming,SINGLE_NEEDLE_LOCKSTITCH,0.450,1.80,PIECE,NONE
+OP-02,Pocket Bag Overlock,OVERLOCK_4_THREAD,0.620,2.48,PIECE,OP-01
+OP-03,Front Pocket Attach to Panel,SINGLE_NEEDLE_LOCKSTITCH,0.850,3.40,PIECE,OP-02
+OP-04,Back Yoke Join,OVERLOCK_4_THREAD,0.550,2.20,PIECE,NONE
+OP-05,Back Pocket Positioning & Attach,SINGLE_NEEDLE_LOCKSTITCH,1.100,4.40,PIECE,OP-04
+OP-06,Inseam Double Needle Join,FEED_OFF_THE_ARM,0.780,3.12,PIECE,OP-03;OP-05
+OP-07,Outseam Safety Stitch,OVERLOCK_4_THREAD,0.920,3.68,PIECE,OP-06
+OP-08,Waistband Band-Attach,SINGLE_NEEDLE_LOCKSTITCH,1.250,5.00,PIECE,OP-07
+OP-09,Belt Loop Make & Attach,BARTACK,0.650,2.60,PIECE,OP-08
+OP-10,Buttonhole Eyelet Punch & Stitch,BUTTONHOLE_INDEXER,0.380,1.52,PIECE,OP-08
+OP-11,Button Shank Attach,BUTTON_SEWER,0.320,1.28,PIECE,OP-10
+OP-12,End-Line Inspection & Trim,QUALITY_INSPECTION,1.400,5.60,PIECE,OP-09;OP-11

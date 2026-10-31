@@ -1,0 +1,9 @@
+material_sku,description,category,uom,default_width_mm,standard_gsm,approved_supplier,shrinkage_tolerance_pct
+FAB-DNM-12OZ-IND,12.5oz Indigo Ring Denim,FABRIC,METER,1520,380,Apex Textile Mills Ltd,3.5
+FAB-TWL-8OZ-KHK,8.0oz Cotton Twill Khaki,FABRIC,METER,1480,240,Pacific Fabrics Corp,2.0
+FAB-KNT-SJR-180,Single Jersey 100% Combed Cotton,FABRIC,KG,1850,180,Square Textiles,4.5
+TRM-THR-COR-IND,Core Spun Poly-Poly Thread Indigo #40,TRIM,CONE,5000,0,Coats Bangladesh,0.0
+TRM-BTN-MTL-24L,24L Antique Brass Shank Buttons,TRIM,PIECE,0,0,YKK Bangladesh Ltd,0.0
+TRM-RVT-COP-09M,9mm Copper Dome Rivets,TRIM,PIECE,0,0,YKK Bangladesh Ltd,0.0
+TRM-ZIP-MTL-05Y,5# Metal Brass Zipper 16cm,TRIM,PIECE,160,0,YKK Bangladesh Ltd,0.0
+TRM-LBL-SAT-WVN,Main Woven Brand Satin Label,TRIM,PIECE,55,0,Avery Dennison BD,0.0

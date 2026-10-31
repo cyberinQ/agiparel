@@ -1,0 +1,11 @@
+worker_id,legal_name,idp_subject,skill_tier,primary_class,secondary_class,efficiency_pct,status
+WRK-10482,Rashidul Hassan,rashidul.h@apexgarments.com,GRADE_A,SINGLE_NEEDLE_LOCKSTITCH,OVERLOCK_4_THREAD,108.5,ACTIVE
+WRK-10483,Nasreen Begum,nasreen.b@apexgarments.com,GRADE_A,OVERLOCK_4_THREAD,FLATLOCK_INTERLOCK,112.0,ACTIVE
+WRK-10484,Anowar Hossain,anowar.h@apexgarments.com,GRADE_B,FEED_OFF_THE_ARM,SINGLE_NEEDLE_LOCKSTITCH,94.2,ACTIVE
+WRK-10485,Fatema Khatun,fatema.k@apexgarments.com,GRADE_A,BARTACK,BUTTONHOLE_INDEXER,115.0,ACTIVE
+WRK-10486,Mizanur Rahman,mizanur.r@apexgarments.com,GRADE_A,BUTTONHOLE_INDEXER,BUTTON_SEWER,104.0,ACTIVE
+WRK-10487,Jannatul Ferdous,jannatul.f@apexgarments.com,GRADE_B,SINGLE_NEEDLE_LOCKSTITCH,BARTACK,96.8,ACTIVE
+WRK-10488,Shahidul Islam,shahidul.i@apexgarments.com,GRADE_A,STRAIGHT_KNIFE_CUTTER,AUTOMATIC_CNC_CUTTER,118.0,ACTIVE
+WRK-10489,Rokeya Akter,rokeya.a@apexgarments.com,GRADE_A,GRAVITY_STEAM_PRESS,SUCTION_IRONING_TABLE,105.5,ACTIVE
+WRK-10490,Kabir Ahmed,kabir.a@apexgarments.com,GRADE_SUPERVISOR,ALL_CLASSES,INSPECTION_AQL,125.0,ACTIVE
+WRK-10491,Monira Sultana,monira.s@apexgarments.com,GRADE_QC,QUALITY_INSPECTION,MEASUREMENT_AUDIT,110.0,ACTIVE
