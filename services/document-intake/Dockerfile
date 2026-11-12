@@ -1,4 +1,5 @@
-FROM golang:1.24-alpine AS builder
+# Author: Sunil Jain, 2026-11-12 — Build document-intake with the module-required Go toolchain.
+FROM golang:1.26-alpine AS builder
 WORKDIR /build
 COPY go.mod go.sum ./
 COPY services/ services/
