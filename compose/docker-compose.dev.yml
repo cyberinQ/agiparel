@@ -59,6 +59,8 @@ services:
 
       OLLAMA_HOST: "http://host.docker.internal:11434"
       AGIE_MODEL: ${AGIE_MODEL:-qwen3-coder:30b}
+      # Author: Sunil Jain, 2026-11-12 — Optional explicit site time zone for exact attendance answers.
+      AGIPAREL_FACTORY_TIMEZONE: ${AGIPAREL_FACTORY_TIMEZONE:-}
       OLLAMA_VISION_MODEL: ${OLLAMA_VISION_MODEL:-qwen3-vl:8b}
       MANAGER_PIN: ${MANAGER_PIN:-}
       # DEV-only Basic barrier for legacy HMI/API routes; never use for production identity.

@@ -55,3 +55,9 @@ compose/edge_wal_data/
 .agiparel-sop2-backup/
 .agiparel-macbook-dev/
 *.env.local
+
+# v50 local pilot credentials and generated deployment secrets
+.env.factory-v50
+.env.factory-v50.*
+
+.env.backup.*

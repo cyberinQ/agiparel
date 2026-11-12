@@ -1083,16 +1083,22 @@ func (s *EdgeServer) handleAgieChat(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Exact operational questions bypass the optional LLM: answer from tenant-scoped SQL.
-	if intent := operationalIntent(req.Messages); intent != "" {
-		reply, err := groundedOperationalReply(r.Context(), s.db, intent)
-		if err != nil {
-			log.Printf("[AGIE] Operational query failed: %v", err)
-			writeAgieServiceError(w, "records_unavailable", "Factory records are not available right now.")
-			return
+	// Author: Sunil Jain, 2026-11-12 — Resolve every exact quantity in a combined
+	// question from tenant-scoped read-only SQL. A model must never guess counts.
+	if intents := operationalIntents(req.Messages); len(intents) != 0 {
+		replies := make([]string, 0, len(intents))
+		for _, intent := range intents {
+			reply, err := groundedOperationalReply(r.Context(), s.db, intent)
+			if err != nil {
+				log.Printf("[AGIE] Operational query %s failed: %v", intent, err)
+				writeAgieServiceError(w, "records_unavailable", "Factory records are not available right now.")
+				return
+			}
+			replies = append(replies, reply)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"reply": reply, "source": "live_postgresql"})
+		w.Header().Set("Cache-Control", "private, no-store")
+		_ = json.NewEncoder(w).Encode(map[string]string{"reply": strings.Join(replies, "\n\n"), "source": "live_postgresql"})
 		return
 	}
 	// A reviewed procedure is not a live factory fact. Answer it directly from

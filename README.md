@@ -1,7 +1,7 @@
 <!-- Author: Sunil Jain, CyberinQ LLC, 2026-10-29. -->
 # Agiparel Factory OS
 
-Go 1.24 / PostgreSQL 16 / Redis / Docker-based garment manufacturing and RFID evidence platform. Physical hardware, buyer approval and shipment credit are **not** inferred from software tests.
+Go 1.26 / PostgreSQL 16 / Redis / Docker-based garment manufacturing and RFID evidence platform. Physical hardware, buyer approval and shipment credit are **not** inferred from software tests.
 
 ## Development
 
@@ -55,3 +55,15 @@ The canonical PostgreSQL 16 schema is `services/core-api/migrations/0001_v42_bas
 The public home at `https://agiparel.empowerai.us/` includes an optional three-question explanation of the product. Restricted `/engineer-ops` provides a live read-only operational overview after independent admin authentication. The website must be deployed to the host behind its TLS reverse proxy; a localhost Docker health check alone does not establish live publication.
 
 For the v43 patch, deployment gate and platform-access boundaries see [V43 Public Demo and Engineer Ops](docs/V43_PUBLIC_DEMO_AND_ENGINEER_OPS.md). No schema migration or shipment authority is introduced.
+
+
+## v50 — Factory Edge local pilot (NOT production)
+
+The isolated pilot manifest places AGIPAREL, PostgreSQL, Redis, Ollama, document-intake,
+Aerolake and the safe Aerolake bridge in **one Docker project**. It requires approved,
+digest-pinned Ollama and Aerolake images that are **not bundled in this repository**.
+It binds the application only to `127.0.0.1:18539`, creates independent pilot volumes,
+and keeps all production writes, telemetry pruning and public cutter training disabled.
+
+Read [Factory Edge v50 release candidate](docs/FACTORY_EDGE_V50_RELEASE_CANDIDATE.md)
+before installing. There is no self-service customer installer or production identity onboarding yet.

@@ -1,14 +1,16 @@
-// Author: Sunil Jain, 2026-10-28 — Tenant-scoped, source-backed factory identity and operations answers without AI hallucination.
+// Author: Sunil Jain, 2026-11-12 — Tenant-scoped, source-backed operational counts and identity answers.
 package main
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/agie/interviewer"
+	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/aggieintent"
 )
 
 // A simple direct SQL route is safer and faster than asking a language model to
@@ -37,6 +39,39 @@ func operationalIntent(messages []interviewer.LLMMessage) string {
 		break
 	}
 	return ""
+}
+
+// operationalIntents keeps deterministic numerical questions out of the LLM.
+// Multiple counts are answered separately; never give an invented aggregate.
+func operationalIntents(messages []interviewer.LLMMessage) []string {
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role != "user" {
+			continue
+		}
+		if exact := aggieintent.Counts(messages[i].Content); len(exact) > 0 {
+			return exact
+		}
+		break
+	}
+	if legacy := operationalIntent(messages); legacy != "" {
+		return []string{legacy}
+	}
+	return nil
+}
+
+// Factory time zone is explicit when configured; legacy installations used India time.
+// The response labels the fallback rather than silently guessing a new customer's zone.
+func aggieFactoryTimeZone() (string, string, error) {
+	zone := strings.TrimSpace(os.Getenv("AGIPAREL_FACTORY_TIMEZONE"))
+	note := "configured factory time"
+	if zone == "" {
+		zone = "Asia/Kolkata"
+		note = "legacy default Asia/Kolkata (ask the administrator to set the factory time zone)"
+	}
+	if _, err := time.LoadLocation(zone); err != nil {
+		return "", "", fmt.Errorf("invalid factory time zone: %w", err)
+	}
+	return zone, note, nil
 }
 
 // isAttendanceQuestion routes everyday workforce questions directly to verified
@@ -75,6 +110,45 @@ func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (s
 	}
 
 	switch intent {
+	case aggieintent.AttendanceToday:
+		zone, zoneNote, e := aggieFactoryTimeZone()
+		if e != nil {
+			return "I cannot check today's attendance until the factory time zone is fixed.", nil
+		}
+		var date time.Time
+		var recorded, present, late, absent, onLeave int64
+		err = tx.QueryRowContext(queryCtx, `SELECT (CURRENT_TIMESTAMP AT TIME ZONE $2)::date,
+          COUNT(*), COUNT(*) FILTER (WHERE status='PRESENT'),
+          COUNT(*) FILTER (WHERE status='LATE'), COUNT(*) FILTER (WHERE status='ABSENT'),
+          COUNT(*) FILTER (WHERE status='ON_LEAVE')
+          FROM attendance_register WHERE tenant_id=$1
+          AND shift_date=(CURRENT_TIMESTAMP AT TIME ZONE $2)::date`, tenant, zone).
+			Scan(&date, &recorded, &present, &late, &absent, &onLeave)
+		if err != nil {
+			return "", err
+		}
+		if recorded == 0 {
+			return fmt.Sprintf("For %s (%s), no attendance entries were recorded. I cannot say how many workers are at the factory today. Open the attendance register.", date.Format("2 Jan 2006"), zoneNote), nil
+		}
+		return fmt.Sprintf("For %s (%s): %d workers marked present or late (%d present, %d late). %d marked absent, %d on leave, across %d attendance entries. This is recorded attendance, not proof of who is physically inside the factory.", date.Format("2 Jan 2006"), zoneNote, present+late, present, late, absent, onLeave, recorded), nil
+	case aggieintent.RegisteredWorkers:
+		var count int64
+		err = tx.QueryRowContext(queryCtx, `SELECT COUNT(*) FROM workers WHERE tenant_id=$1`, tenant).Scan(&count)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%d workers are listed in this factory's worker register. This is not today's attendance; unregistered workers are not included.", count), nil
+	case aggieintent.InventoryRolls:
+		var total, eligible, reserved, onHold int64
+		err = tx.QueryRowContext(queryCtx, `SELECT COUNT(*),
+          COUNT(*) FILTER (WHERE status='AVAILABLE' AND inspection_status='PASS' AND remaining_length_m > 0),
+          COUNT(*) FILTER (WHERE status='RESERVED' AND remaining_length_m > 0),
+          COUNT(*) FILTER (WHERE status='QUARANTINE' OR inspection_status IS DISTINCT FROM 'PASS')
+          FROM store_rolls WHERE tenant_id=$1`, tenant).Scan(&total, &eligible, &reserved, &onHold)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("Fabric stock book: %d rolls recorded. %d have passed inspection, are marked AVAILABLE, and have fabric left; %d are reserved; %d are on hold or not inspection-passed. These categories may overlap. Roll-check forms alone do not create stock, and this count is not a reservation for any order.", total, eligible, reserved, onHold), nil
 	case "factory_name":
 		// The latest Chapter 01 revision is the only authoritative source for
 		// this question. Provisional names are never presented as confirmed.

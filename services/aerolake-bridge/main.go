@@ -1,3 +1,4 @@
+// Author: Sunil Jain, 2026-11-12 — Fail-closed Aerolake diagnostics; block unsafe telemetry pruning.
 package main
 
 import (
@@ -52,7 +53,8 @@ func loadConfig() Config {
 		pollInterval = 30
 	}
 
-	killSwitch := os.Getenv("AEROLAKE_PRUNING_KILL_SWITCH") == "true" || os.Getenv("AEROLAKE_PRUNING_KILL_SWITCH") == "1"
+	// Default must be safe even when an installer omits a variable.
+	killSwitch := os.Getenv("AEROLAKE_PRUNING_KILL_SWITCH") != "false"
 
 	return Config{
 		DatabaseURL:      dbURL,
@@ -96,36 +98,14 @@ func main() {
 	}
 }
 
+// runCycle is deliberately non-destructive in v50. A TCP listener is not a
+// durable Parquet watermark. Even explicit disabling of the kill switch cannot
+// authorize deletion until an authenticated, table-bound checkpoint verifier,
+// persisted replay evidence and rollback tests are implemented.
 func runCycle(db *sql.DB, producer *FlightProducer, cfg Config) {
 	if cfg.KillSwitch {
-		log.Println("[aerolake-bridge] Pruning cycle skipped: kill-switch is ACTIVE")
+		log.Println("[aerolake-bridge] Retention is OFF (default safe setting).")
 		return
 	}
-
-	// 1. Probe socket listener health
-	if !producer.CheckSocketLive(2 * time.Second) {
-		log.Printf("[aerolake-bridge] Skipping cycle: Aerolake Flight gRPC port (%s) not responsive", cfg.AerolakeEndpoint)
-		return
-	}
-
-	// 2. Compute safety horizon
-	cutoff := time.Now().UTC().Add(-time.Duration(cfg.RetentionHours) * time.Hour)
-
-	// 3. Query PostgreSQL procedure for watermark verification
-	var rowsDeleted int
-	err := db.QueryRow(
-		"SELECT prune_v45_telemetry_batch($1, $2)",
-		cutoff, cfg.BatchSize,
-	).Scan(&rowsDeleted)
-
-	if err != nil {
-		log.Printf("[aerolake-bridge] Pruning execution halted: %v", err)
-		return
-	}
-
-	if rowsDeleted > 0 {
-		log.Printf("[aerolake-bridge] Pruned %d telemetry records older than %s", rowsDeleted, cutoff.Format(time.RFC3339))
-	} else {
-		log.Println("[aerolake-bridge] Prune check complete: 0 rows past retention horizon")
-	}
+	log.Println("[aerolake-bridge] RETENTION BLOCKED: no trusted durable archive checkpoint is connected; no PostgreSQL records deleted")
 }

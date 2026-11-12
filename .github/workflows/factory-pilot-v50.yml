@@ -1,0 +1,23 @@
+# Author: Sunil Jain, 2026-11-12 — Source-only prerelease (no unlicensed image distribution).
+name: Build v50 factory pilot source bundle
+on:
+  push:
+    tags: ['v50.*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/test_factory_v50_contract.cjs
+      - run: python3 scripts/package_factory_v50.py dist/agiparel-factory-v50-pilot-source.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agiparel-v50-pilot-source-only
+          path: dist/agiparel-factory-v50-pilot-source.zip
+          if-no-files-found: error
