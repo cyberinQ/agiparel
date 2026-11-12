@@ -93,3 +93,6 @@ func GetOperatorStationHTML() ([]byte, error) {
 func GetEngineerOpsHTML() ([]byte, error) { return staticFS.ReadFile("static/engineer_ops.html") }
 func GetEngineerOpsCSS() ([]byte, error)  { return staticFS.ReadFile("static/engineer_ops.css") }
 func GetEngineerOpsJS() ([]byte, error)   { return staticFS.ReadFile("static/engineer_ops.js") }
+
+// Author: Sunil Jain, 2026-11-11 — Restricted cutting SOP-2 control tower.
+func GetCuttingSOP2HTML() ([]byte, error) { return staticFS.ReadFile("static/cutting_sop2.html") }

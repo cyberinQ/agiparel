@@ -331,6 +331,8 @@ func main() {
 	mux.HandleFunc("/api/v1/cutting/reader-events", server.handleCuttingReaderEvent)
 	mux.HandleFunc("/api/v1/cutting/release-status", server.handleCuttingReleaseStatus)
 	mux.HandleFunc("/api/v1/cutting/optimize-geometry", server.handleCuttingOptimizeGeometry)
+	// Author: Sunil Jain, 2026-11-11 — Native SOP-2 advisory and frozen-policy preview.
+	registerCuttingSOP2Routes(mux, server)
 	mux.HandleFunc("/cutting", func(w http.ResponseWriter, r *http.Request) {
 		data, err := web.GetCuttingViewHTML()
 		if err != nil {

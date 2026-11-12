@@ -403,12 +403,19 @@ func (s *EdgeServer) saveCutDraft(ctx context.Context, tenant string, v cutDraft
 		if e = skuRows.Scan(&c, &z, &qty); e != nil {
 			break
 		}
-		skuAllowed[c+"\x00"+z] = qty
+		skuAllowed[c+"\x00"+z] += qty
 	}
 	if x := skuRows.Err(); e == nil {
 		e = x
 	}
 	skuRows.Close()
+	if e != nil {
+		return empty, false, e
+	}
+	// Author: Sunil Jain, 2026-11-11 — Once SOP-2 quantities have been
+	// explicitly frozen, they (not the buyer's original ordered units) are
+	// the cutting-draft ceiling. No freeze => retain strict legacy buyer caps.
+	skuAllowed, totalQty, _, e = resolveSOP2CutLimits(ctx, tx, tenant, v.IntakeID, skuAllowed, totalQty)
 	if e != nil {
 		return empty, false, e
 	}
