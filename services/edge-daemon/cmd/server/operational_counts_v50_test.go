@@ -53,6 +53,15 @@ func (v50Conn) QueryContext(_ context.Context, q string, args []driver.NamedValu
 			return nil, driver.ErrBadConn
 		}
 		return &v50Rows{columns: []string{"date", "records", "present", "late", "absent", "leave"}, data: [][]driver.Value{{time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC), int64(5), int64(2), int64(1), int64(1), int64(1)}}}, nil
+	case strings.Contains(q, "FROM machine_roster") && strings.Contains(q, "COUNT(DISTINCT"):
+		return &v50Rows{columns: []string{"total", "active", "lines"}, data: [][]driver.Value{{int64(7), int64(4), int64(2)}}}, nil
+	case strings.Contains(q, "FROM machine_roster") && strings.Contains(q, "COUNT(*)"):
+		return &v50Rows{columns: []string{"total", "active"}, data: [][]driver.Value{{int64(7), int64(4)}}}, nil
+	case strings.Contains(q, "FROM machine_roster") && strings.Contains(q, "SELECT id, name"):
+		return &v50Rows{columns: []string{"id", "name", "line", "station", "status"}, data: [][]driver.Value{
+			{"M-01", "Juki lockstitch", "L1", "S1", "ACTIVE"},
+			{"M-02", "Overlock", "L1", "S2", "MAINTENANCE"},
+		}}, nil
 	case strings.Contains(q, "FROM store_rolls"):
 		return &v50Rows{columns: []string{"total", "eligible", "reserved", "hold"}, data: [][]driver.Value{{int64(8), int64(4), int64(2), int64(2)}}}, nil
 	default:
@@ -99,5 +108,66 @@ func TestAggieCombinedCountsFromReadOnlyFactorySource(t *testing.T) {
 		if !strings.Contains(data["reply"], part) {
 			t.Errorf("missing %q in %q", part, data["reply"])
 		}
+	}
+}
+
+// Author: Sunil Jain, 2026-11-12.
+// Verify the actual chat handler never reuses a previous roll query for a machine question.
+func TestAggieMachineStatusAndMultiTurnIsolationV501(t *testing.T) {
+	t.Setenv("ENV", "development")
+	t.Setenv("AGIPAREL_OPERATOR_TENANT", "dev")
+	t.Setenv("AGIPAREL_FACTORY_TIMEZONE", "Asia/Kolkata")
+	sql.Register("agiparel_v501_machine_fake", v50Driver{})
+	db, err := sql.Open("agiparel_v501_machine_fake", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	server := &EdgeServer{db: db}
+	ask := func(history []map[string]string) string {
+		t.Helper()
+		input, err := json.Marshal(map[string]interface{}{"messages": history})
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec := httptest.NewRecorder()
+		server.handleAgieChat(rec, httptest.NewRequest(http.MethodPost,
+			"/api/v1/agie/chat", strings.NewReader(string(input))))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+		}
+		var result map[string]string
+		if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		if result["source"] != "live_postgresql" {
+			t.Fatalf("not grounded: %v", result)
+		}
+		return result["reply"]
+	}
+	history := []map[string]string{{"role": "user", "content": "How many rolls in inventory?"}}
+	rolls := ask(history)
+	if !strings.Contains(rolls, "8 rolls recorded") {
+		t.Fatal(rolls)
+	}
+	history = append(history,
+		map[string]string{"role": "assistant", "content": rolls},
+		map[string]string{"role": "user", "content": "How many machines?"})
+	machines := ask(history)
+	if !strings.Contains(machines, "7 machines recorded") || strings.Contains(strings.ToLower(machines), "roll") {
+		t.Fatalf("cross-entity answer: %q", machines)
+	}
+	history = append(history,
+		map[string]string{"role": "assistant", "content": machines},
+		map[string]string{"role": "user", "content": "Which machines are open?"})
+	statuses := ask(history)
+	if !strings.Contains(statuses, "Juki lockstitch") ||
+		!strings.Contains(statuses, "not verified live availability") ||
+		strings.Contains(strings.ToLower(statuses), "roll") {
+		t.Fatalf("machine statuses missing or contaminated: %q", statuses)
+	}
+	combined := ask([]map[string]string{{"role": "user", "content": "How many machines and rolls?"}})
+	if !strings.Contains(combined, "7 machines recorded") || !strings.Contains(combined, "8 rolls recorded") {
+		t.Fatalf("combined machine and roll entities lost: %q", combined)
 	}
 }

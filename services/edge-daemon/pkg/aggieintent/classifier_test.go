@@ -29,3 +29,52 @@ func TestCounts(t *testing.T) {
 		}
 	}
 }
+
+
+// Author: Sunil Jain, 2026-11-12.
+// A fresh user turn must never inherit the previous roll question's entity.
+func TestMachineIntentsAndEntityIsolation(t *testing.T) {
+	cases := []struct {
+		question string
+		want     []string
+	}{
+		{"How many machines?", []string{RegisteredMachines}},
+		{"how many machines do we have?", []string{RegisteredMachines}},
+		{"number of machines", []string{RegisteredMachines}},
+		{"Which machines are open?", []string{MachineStatus}},
+		{"which machines are running today?", []string{MachineStatus}},
+		{"Show machine status", []string{MachineStatus}},
+		{"How many machines are available?", []string{MachineStatus}},
+		{"How many rolls in inventory? How many machines?", []string{InventoryRolls, RegisteredMachines}},
+		{"How many machines and workers are registered?", []string{RegisteredMachines, RegisteredWorkers}},
+		{"How many machines, workers today, and rolls?", []string{RegisteredMachines, AttendanceToday, InventoryRolls}},
+		{"How many rolls of fabric?", []string{InventoryRolls}},
+		{"How many payroll entries?", nil},
+		{"How many machinery patents?", nil},
+		{"Which people are on leave?", nil},
+		{"How many sewing operations?", nil},
+		{"How many machines? Which doors are open?", []string{RegisteredMachines}},
+		{"How many workers are registered? How many rolls are available today?", []string{RegisteredWorkers, InventoryRolls}},
+	}
+	for _, tc := range cases {
+		if got := Resolve(tc.question); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("Resolve(%q)=%v want=%v", tc.question, got, tc.want)
+		}
+	}
+	turns := []struct {
+		question string
+		entity   string
+	}{
+		{"How many rolls?", InventoryRolls},
+		{"How many machines?", RegisteredMachines},
+		{"How many workers are registered?", RegisteredWorkers},
+		{"Which machines are open?", MachineStatus},
+		{"How many rolls?", InventoryRolls},
+	}
+	for _, turn := range turns {
+		got := Resolve(turn.question)
+		if len(got) != 1 || got[0] != turn.entity {
+			t.Fatalf("entity leak: %q produced %v, want %s", turn.question, got, turn.entity)
+		}
+	}
+}

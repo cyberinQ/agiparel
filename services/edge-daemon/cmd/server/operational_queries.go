@@ -48,7 +48,7 @@ func operationalIntents(messages []interviewer.LLMMessage) []string {
 		if messages[i].Role != "user" {
 			continue
 		}
-		if exact := aggieintent.Counts(messages[i].Content); len(exact) > 0 {
+		if exact := aggieintent.Resolve(messages[i].Content); len(exact) > 0 {
 			return exact
 		}
 		break
@@ -138,6 +138,59 @@ func groundedOperationalReply(ctx context.Context, db *sql.DB, intent string) (s
 			return "", err
 		}
 		return fmt.Sprintf("%d workers are listed in this factory's worker register. This is not today's attendance; unregistered workers are not included.", count), nil
+	case aggieintent.RegisteredMachines:
+		var total, active, lines int64
+		err = tx.QueryRowContext(queryCtx, `SELECT COUNT(*),
+			COUNT(*) FILTER (WHERE status='ACTIVE'), COUNT(DISTINCT line_id)
+			FROM machine_roster WHERE tenant_id=$1`, tenant).Scan(&total, &active, &lines)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("Machine register: %d machines recorded; %d marked ACTIVE across %d lines. ACTIVE is a recorded machine status, not proof a machine is running, free to use, or safe to operate.", total, active, lines), nil
+	case aggieintent.MachineStatus:
+		// A roster status is NOT a live equipment-availability or safety signal.
+		var total, active int64
+		err = tx.QueryRowContext(queryCtx, `SELECT COUNT(*), COUNT(*) FILTER (WHERE status='ACTIVE')
+			FROM machine_roster WHERE tenant_id=$1`, tenant).Scan(&total, &active)
+		if err != nil {
+			return "", err
+		}
+		if total == 0 {
+			return "No machines are recorded in the machine register. I cannot determine which machines are open or working.", nil
+		}
+		rows, e := tx.QueryContext(queryCtx, `SELECT id, name, line_id, station_id, status
+			FROM machine_roster WHERE tenant_id=$1
+			ORDER BY CASE WHEN status='ACTIVE' THEN 0 ELSE 1 END, line_id, station_id, id LIMIT 21`, tenant)
+		if e != nil {
+			return "", e
+		}
+		items := make([]string, 0, 20)
+		truncated := false
+		for rows.Next() {
+			var id, name, line, station, status string
+			if e = rows.Scan(&id, &name, &line, &station, &status); e != nil {
+				rows.Close()
+				return "", e
+			}
+			if len(items) == 20 {
+				truncated = true
+				break
+			}
+			items = append(items, fmt.Sprintf("%s (%s, line %s, station %s): %s", name, id, line, station, status))
+		}
+		e = rows.Err()
+		rows.Close()
+		if e != nil {
+			return "", e
+		}
+		reply := fmt.Sprintf("Machine register: %d machines, %d marked ACTIVE. These are recorded status labels, not verified live availability or machine safety.", total, active)
+		if len(items) > 0 {
+			reply += "\nRecorded machines:\n- " + strings.Join(items, "\n- ")
+		}
+		if truncated {
+			reply += "\nOnly the first 20 machines are shown; ask the supervisor for the full verified roster."
+		}
+		return reply + "\nI cannot confirm which machines are physically running, open, idle, or safe to operate from this register.", nil
 	case aggieintent.InventoryRolls:
 		var total, eligible, reserved, onHold int64
 		err = tx.QueryRowContext(queryCtx, `SELECT COUNT(*),
