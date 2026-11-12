@@ -30,7 +30,6 @@ func TestCounts(t *testing.T) {
 	}
 }
 
-
 // Author: Sunil Jain, 2026-11-12.
 // A fresh user turn must never inherit the previous roll question's entity.
 func TestMachineIntentsAndEntityIsolation(t *testing.T) {
