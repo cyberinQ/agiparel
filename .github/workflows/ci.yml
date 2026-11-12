@@ -70,6 +70,8 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f services/core-api/migrations/0001_v42_baseline.sql
           psql -X -v ON_ERROR_STOP=1 -f services/core-api/migrations/0002_engineer_ops_aggregates_v43_2.sql
           psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_v43_2_ops_metrics_pg.sql
+          psql -X -v ON_ERROR_STOP=1 -f services/core-api/migrations/0005_cut_sop2_control_plane_v46.sql
+          psql -X -v ON_ERROR_STOP=1 -f scripts/test_cut_sop2_v46_schema_pg.sql
       - name: Verify dock and safety schema authorization
         run: |
           psql -X -v ON_ERROR_STOP=1 -f scripts/test_factory_f319c_f319d_f320a_schema_pg.sql

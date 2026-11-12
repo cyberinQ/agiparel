@@ -443,7 +443,7 @@ func main() {
 	})
 
 	httpServer := &http.Server{
-		Addr:         ":" + port,
+		Addr:         os.Getenv("AGIPAREL_BIND_HOST") + ":" + port,
 		Handler:      configuredOperatorGate(mux),
 		ReadTimeout:  60 * time.Second,
 		WriteTimeout: 240 * time.Second,

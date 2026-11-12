@@ -96,3 +96,9 @@ func GetEngineerOpsJS() ([]byte, error)   { return staticFS.ReadFile("static/eng
 
 // Author: Sunil Jain, 2026-11-11 — Restricted cutting SOP-2 control tower.
 func GetCuttingSOP2HTML() ([]byte, error) { return staticFS.ReadFile("static/cutting_sop2.html") }
+
+// Author: Sunil Jain, 2026-11-12 — Local-only cutting operator training.
+func GetCutterDemoHTML() ([]byte, error)    { return staticFS.ReadFile("static/cutter_demo.html") }
+func GetCutterDemoCSS() ([]byte, error)     { return staticFS.ReadFile("static/cutter_demo.css") }
+func GetCutterDemoModelJS() ([]byte, error) { return staticFS.ReadFile("static/cutter_demo_model.js") }
+func GetCutterDemoJS() ([]byte, error)      { return staticFS.ReadFile("static/cutter_demo.js") }

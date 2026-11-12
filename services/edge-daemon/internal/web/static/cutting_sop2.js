@@ -85,5 +85,14 @@
   $('sop2-order').addEventListener('change',()=>{selected='';sourceLines=[];requestKey=''});
   $('sop2-target-input').addEventListener('input',()=>{requestKey=''});
   ['sop2-pomin','sop2-pomax','sop2-reason','sop2-actor'].forEach(id=>$(id).addEventListener('input',()=>{requestKey=''}));
+  // Author: Sunil Jain, 2026-11-12 — Discoverable ONLY on MacBook localhost.
+  // The route itself separately requires development + loopback binding.
+  if ((location.hostname === '127.0.0.1' || location.hostname === 'localhost') &&
+      document.querySelector('.navlinks')) {
+    const training = document.createElement('a');
+    training.href = '/cutting/demo';
+    training.textContent = '▶ Cutter guided demo';
+    document.querySelector('.navlinks').prepend(training);
+  }
   orders();
 })();

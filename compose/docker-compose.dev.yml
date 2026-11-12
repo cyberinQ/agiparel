@@ -70,6 +70,8 @@ services:
       AGIPAREL_OPERATOR_TENANT: ${AGIPAREL_OPERATOR_TENANT:-dev}
       # Dev-only SOP-2 immutable target/inspection preview; never production authority.
       AGIPAREL_CUT_SOP2_WRITES_ENABLED: ${AGIPAREL_CUT_SOP2_WRITES_ENABLED:-false}
+      # Only a fictional, browser-memory teaching flow; OFF by default.
+      AGIPAREL_PUBLIC_CUTTER_DEMO_ENABLED: ${AGIPAREL_PUBLIC_CUTTER_DEMO_ENABLED:-false}
       # Safety bridge: the older Planning uploader must capture, not auto-merge.
       AGIPAREL_CAPTURE_FIRST: "true"
       AGIPAREL_CLAMD_ADDR: ${AGIPAREL_CLAMD_ADDR:-}

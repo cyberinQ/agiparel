@@ -22,6 +22,29 @@ import (
 const sop2Advisory = "ADVISORY_ONLY_NO_PHYSICAL_OR_SIGNED_AUTHORITY"
 
 func registerCuttingSOP2Routes(mux *http.ServeMux, s *EdgeServer) {
+	// Author: Sunil Jain, 2026-11-12 — Loopback-only operator training simulation.
+	// All cutter demo state lives in the browser; this route grants NO production authority.
+	mux.HandleFunc("/cutting/demo", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			http.Error(w, "GET required", http.StatusMethodNotAllowed)
+			return
+		}
+		if os.Getenv("ENV") != "development" || os.Getenv("AGIPAREL_BIND_HOST") != "127.0.0.1" {
+			http.NotFound(w, r)
+			return
+		}
+		data, err := web.GetCutterDemoHTML()
+		if err != nil {
+			http.Error(w, "Cutter training page unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+		_, _ = w.Write(data)
+	})
 	mux.HandleFunc("/cutting/sop2", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "GET required", http.StatusMethodNotAllowed)

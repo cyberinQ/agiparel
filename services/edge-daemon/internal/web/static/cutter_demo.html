@@ -1,0 +1,23 @@
+<!doctype html>
+<!-- Author: Sunil Jain, 2026-11-12. Five-step, isolated local AGIPAREL cutter demonstration. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>AGIPAREL | Cutter Mode — Guided Demonstration</title>
+<link rel="stylesheet" href="/static/cutter_demo.css">
+<script defer src="/static/cutter_demo_model.js"></script><script defer src="/static/cutter_demo.js"></script>
+</head><body><div class="app-shell">
+<header class="topbar"><a class="brand" href="/cutting/sop2" aria-label="AGIPAREL cutting control tower"><span class="brandmark">A</span><span>AGIPAREL <small>FACTORY OPERATIONS</small></span></a>
+<div class="toplinks"><span class="demo-pill"><span class="demo-dot"></span>TRAINING SIMULATION</span><a href="/cutting/sop2">Manager control tower <span aria-hidden="true">↗</span></a></div></header>
+<div class="notice" role="note"><strong>Safe demo:</strong> All orders, roll IDs, plies, scans and handoffs on this screen are fictional and stored only in this browser page. Nothing is cut, frozen in the database, issued to sewing or signed.</div>
+<div class="page-layout"><aside class="sidebar"><div class="side-heading">CUTTER MODE <span>05 steps</span></div><nav id="demo-nav" aria-label="Demo steps"></nav>
+<div class="sidetip"><span class="icon-circle">?</span><strong>Presenter tip</strong><p>Show the cutter one decision at a time. Use red exception buttons to prove mistakes get caught before sewing.</p></div>
+<button class="reset" type="button" data-action="reset">↺ Restart training demo</button></aside>
+<main class="main"><div class="hero"><div><span class="eyebrow">CHAPTER 05 / CUTTING / INTERACTIVE REHEARSAL</span><h1>Cut right. Cut once.<br><span>Send complete sets.</span></h1><p>From customer order to ready-for-sewing bundles—without confusing a planned garment with a real garment.</p></div><div class="hero-icon" aria-hidden="true"><svg viewBox="0 0 140 140"><rect x="12" y="12" width="116" height="116" rx="26" fill="#223b58"/><path d="M29 83h82M42 38l60 64M99 38l-60 64" stroke="#eab57f" stroke-width="5" stroke-linecap="round"/><circle cx="43" cy="37" r="9" fill="#ecf3fa"/><circle cx="102" cy="36" r="9" fill="#ecf3fa"/></svg></div></div>
+<div id="demo-metrics" class="metrics" aria-live="polite"></div>
+<div id="demo-content" class="content" aria-live="polite"></div>
+<section class="exceptions" aria-labelledby="exception-title"><div class="section-top"><div><span class="eyebrow">DEMONSTRATE QUALITY GATES</span><h2 id="exception-title">Try to make a mistake</h2><p>The system must explain why it will not let the wrong work proceed.</p></div></div><div class="exception-row">
+<button type="button" data-action="exception" data-kind="shade" class="exception-button"> <span>◈</span> Wrong fabric shade</button>
+<button type="button" data-action="exception" data-kind="overcut" class="exception-button"><span>✕</span> Too many pieces</button>
+<button type="button" data-action="exception" data-kind="missing" class="exception-button"><span>▦</span> Missing sleeve</button></div>
+<div id="demo-alert" class="alert" role="status" aria-live="assertive">Tap an example to test a safety check. No factory transaction is created.</div></section>
+<section class="evidence" aria-labelledby="evidence-title"><div class="section-top"><div><span class="eyebrow">IN-MEMORY TRAINING LOG</span><h2 id="evidence-title">What happened?</h2><p>This demonstration log is <strong>not</strong> signed evidence or an audit record.</p></div><button class="subtle-button" type="button" data-action="print">Print summary</button></div><ol id="demo-events" class="events"></ol></section>
+<footer>AGIPAREL / CyberinQ LLC · Localhost training only · Real production handoffs require authenticated, independently signed evidence.</footer></main></div></div></body></html>

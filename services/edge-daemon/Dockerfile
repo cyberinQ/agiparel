@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Author: Sunil Jain, 2026-10-28
 # Cache Go dependencies separately from application source so UI-only changes rebuild faster.
-FROM golang:1.24-alpine AS builder
+FROM golang:1.26-alpine AS builder
 WORKDIR /build
 ENV GOTOOLCHAIN=auto
 RUN apk add --no-cache git

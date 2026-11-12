@@ -51,3 +51,7 @@ compose/redisdata/
 compose/edge_wal_data/
 .env
 .env.local
+# Local SOP-2 patch backups, disposable MacBook runtime and installer scratch
+.agiparel-sop2-backup/
+.agiparel-macbook-dev/
+*.env.local

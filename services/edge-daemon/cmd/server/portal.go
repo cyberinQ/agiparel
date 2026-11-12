@@ -19,7 +19,7 @@ import (
 func operatorAccessGate(next http.Handler, user, password string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/", "/demo", "/about", "/login", "/register", "/demo-assets/portal.css", "/demo-assets/portal.js", "/healthz":
+		case "/", "/demo", "/demo/cutting", "/demo-assets/cutter.css", "/demo-assets/cutter-model.js", "/demo-assets/cutter.js", "/about", "/login", "/register", "/demo-assets/portal.css", "/demo-assets/portal.js", "/healthz":
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -146,6 +146,10 @@ func registerPublicPortal(mux *http.ServeMux) {
 		servePublicPortal(w, r)
 	})
 	mux.HandleFunc("/demo", servePublicPortal)
+	mux.HandleFunc("/demo/cutting", servePublicCutterDemo)
+	mux.HandleFunc("/demo-assets/cutter.css", servePublicCutterAsset)
+	mux.HandleFunc("/demo-assets/cutter-model.js", servePublicCutterAsset)
+	mux.HandleFunc("/demo-assets/cutter.js", servePublicCutterAsset)
 	mux.HandleFunc("/about", servePublicAbout)
 	mux.HandleFunc("/demo-assets/portal.css", servePublicPortalAsset)
 	mux.HandleFunc("/demo-assets/portal.js", servePublicPortalAsset)
@@ -157,7 +161,7 @@ func configuredOperatorGate(next http.Handler) http.Handler {
 	// providing no identity assurance. Never exempt generic /api paths.
 	secureIngress := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/", "/demo", "/about", "/login", "/register", "/demo-assets/portal.css", "/demo-assets/portal.js":
+		case "/", "/demo", "/demo/cutting", "/demo-assets/cutter.css", "/demo-assets/cutter-model.js", "/demo-assets/cutter.js", "/about", "/login", "/register", "/demo-assets/portal.css", "/demo-assets/portal.js":
 			if r.Method == http.MethodGet || r.Method == http.MethodHead {
 				next.ServeHTTP(w, r)
 				return
