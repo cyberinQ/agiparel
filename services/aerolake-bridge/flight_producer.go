@@ -14,10 +14,10 @@ import (
 
 // CheckpointWatermark models the durable Parquet state emitted by aerolake-agentd.
 type CheckpointWatermark struct {
-	TableName                 string `json:"table_name"`
-	LastCompactedSequence     uint64 `json:"last_compacted_sequence"`
-	LastCompactedTimestampMs  int64  `json:"last_compacted_timestamp_ms"`
-	TotalCompactedRows        uint64 `json:"total_compacted_rows"`
+	TableName                string `json:"table_name"`
+	LastCompactedSequence    uint64 `json:"last_compacted_sequence"`
+	LastCompactedTimestampMs int64  `json:"last_compacted_timestamp_ms"`
+	TotalCompactedRows       uint64 `json:"total_compacted_rows"`
 }
 
 // FlightProducer manages the client stream and watermark safety assertions.
