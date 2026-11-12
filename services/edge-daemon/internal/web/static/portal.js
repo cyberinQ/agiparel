@@ -130,7 +130,7 @@
       const response = await fetch('/api/v1/agie/chat', {
         method: 'POST', credentials: 'same-origin',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({messages:history.slice(-12)})
+        body: JSON.stringify({messages:history.slice(-12),page:window.location?.pathname || "/"})
       });
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) throw new Error('Sign in to use Aggie with factory records.');
@@ -153,7 +153,7 @@
       answerNode.textContent = data.reply;
       history.push({role:'assistant', content:data.reply.slice(0, MAX_SAVED_REPLY)});
       history = history.slice(-MAX_TURNS);
-      updateStatus(data.source === 'live_postgresql' ? 'Answer checked against factory records.' : '');
+      updateStatus(data.source === 'live_postgresql' ? 'Answer checked against factory records.' : data.source === 'reviewed_worker_manual' ? 'Instructions from the worker manual; not a factory approval.' : '');
     } catch (error) {
       // Do not leave an unanswered question and an error-looking "answer" in
       // the transcript. The original question is returned to the composer.

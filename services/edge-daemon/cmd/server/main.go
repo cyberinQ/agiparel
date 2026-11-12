@@ -20,6 +20,7 @@ import (
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/topology"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/wal"
 	"github.com/cyberinq/agiparel/services/edge-daemon/internal/web"
+	"github.com/cyberinq/agiparel/services/edge-daemon/internal/workerhelp"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/attachment"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/cutting"
 	"github.com/cyberinq/agiparel/services/edge-daemon/pkg/dbsmith"
@@ -219,6 +220,8 @@ func main() {
 	mux.HandleFunc("/api/v1/ledger/latest", server.handleLedgerLatest)
 	mux.HandleFunc("/api/v1/ledger/verify", server.handleLedgerVerify)
 	mux.HandleFunc("/api/v1/agie/chat", server.handleAgieChat)
+	mux.HandleFunc("/api/v1/agie/manual", server.handleAgieManual)
+	mux.HandleFunc("/api/v1/agie/capabilities", server.handleAgieCapabilities)
 	mux.HandleFunc("/api/v1/agie/confirm", server.handleAgieConfirm)
 	mux.HandleFunc("/api/v1/issues", server.handleGetIssues)
 	mux.HandleFunc("/api/v1/config", server.handleGetConfig)
@@ -1054,6 +1057,7 @@ func (s *EdgeServer) handleGetTopologyDevices(w http.ResponseWriter, r *http.Req
 
 type AgieChatRequest struct {
 	Mode     string                   `json:"mode"`
+	Page     string                   `json:"page"`
 	Messages []interviewer.LLMMessage `json:"messages"`
 }
 
@@ -1063,9 +1067,20 @@ func (s *EdgeServer) handleAgieChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req AgieChatRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&req); err != nil {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
+	}
+	// A browser must not be able to send forged system/tool messages to the model.
+	if len(req.Messages) == 0 || len(req.Messages) > 12 || req.Messages[len(req.Messages)-1].Role != "user" {
+		http.Error(w, "Please send a question", http.StatusBadRequest)
+		return
+	}
+	for _, message := range req.Messages {
+		if (message.Role != "user" && message.Role != "assistant") || len(message.Content) > 16000 || strings.TrimSpace(message.Content) == "" || len(message.ToolCalls) != 0 || message.ToolCallID != "" {
+			http.Error(w, "Invalid conversation", http.StatusBadRequest)
+			return
+		}
 	}
 
 	// Exact operational questions bypass the optional LLM: answer from tenant-scoped SQL.
@@ -1080,6 +1095,27 @@ func (s *EdgeServer) handleAgieChat(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]string{"reply": reply, "source": "live_postgresql"})
 		return
 	}
+	// A reviewed procedure is not a live factory fact. Answer it directly from
+	// the complete bundled manual; this works even when Ollama or DB is offline.
+	if workerhelp.IsFullManualRequest(lastAgieQuestion(req.Messages)) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(map[string]string{"reply": workerhelp.FullText(), "source": "reviewed_worker_manual"})
+		return
+	}
+	if chapter, ok := workerhelp.Match(lastAgieQuestion(req.Messages), req.Page); ok {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(map[string]string{"reply": workerhelp.Answer(chapter), "source": "reviewed_worker_manual"})
+		return
+	}
+	if workerhelp.IsInstructionsQuestion(lastAgieQuestion(req.Messages)) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(map[string]string{"reply": workerhelp.Overview(), "source": "reviewed_worker_manual"})
+		return
+	}
+
 	// Use the same tenant selected by Chapter 01 and document intake. The
 	// interpreter must never fall back to the unrelated TENANT_DEFAULT scope.
 	tenant, tenantErr := intakeTenant()

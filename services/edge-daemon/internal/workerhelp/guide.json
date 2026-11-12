@@ -1,0 +1,196 @@
+{
+  "version": "2026-11-12",
+  "scope": "Worker instructions, not production permissions or live production evidence",
+  "chapters": [
+    {
+      "number": 1,
+      "title": "Factory setup",
+      "subtitle": "Tell us about the factory",
+      "path": "/factory-setup",
+      "goal": "Write down facts about the factory.",
+      "have": "Know the factory name. Have your machine or worker counts if you checked them.",
+      "steps": [
+        "On Home, click 01 Factory setup.",
+        "Read the question under One thing at a time. Click Add answer.",
+        "Type the answer. Under How sure are you?, say if you counted it or if it is a guess.",
+        "Click Save this fact. Do the next question the same way.",
+        "Do not know an answer? Click Skip for now. Come back when you know.",
+        "Look at What can we assess?. Click Review & Submit to see what needs checking."
+      ],
+      "done": "Your saved facts show under Factory details. Missing facts stay missing.",
+      "stop": "Do not guess. Do not upload payroll, ID cards, or worker personal records.",
+      "mode": "draft-or-review"
+    },
+    {
+      "number": 2,
+      "title": "Buyer order",
+      "subtitle": "Check what the customer asked for",
+      "path": "/buyer-review",
+      "goal": "Copy the correct order into the system.",
+      "have": "Have the customer order and the cloth-and-trims list. Upload them in Chapter 10 if needed.",
+      "steps": [
+        "On Home, click 02 Buyer order.",
+        "Under Choose buyer files, pick the Purchase order (PO) and Tech pack / materials list.",
+        "Click Read order details. If there is more than one order, pick the right one.",
+        "Check PO number, Style number, every Color, Size, and Pieces against the customer paper.",
+        "Check the Cloth & trims list. Fix wrong or missing entries. Add a short Review note.",
+        "Tick I checked the order details. Click Save draft order. Then click Plan material."
+      ],
+      "done": "The page says Order saved. This is a draft, not an accepted order.",
+      "stop": "If the paper is unclear, or two sizes do not match, stop and ask the order checker.",
+      "mode": "draft-or-review"
+    },
+    {
+      "number": 3,
+      "title": "Plan material",
+      "subtitle": "See what cloth and trims are needed",
+      "path": "/material-planning",
+      "goal": "Compare the order with the stock sheet.",
+      "have": "Have a saved order, a stock sheet, and a price sheet with checked numbers.",
+      "steps": [
+        "On Home, click 03 Plan material.",
+        "Under Choose an order, pick the customer order you are checking.",
+        "Open Check stock and costs. Add the Stock check and Material rates sheets.",
+        "No sheets? Use Blank stock sheet and Blank rate sheet. Fill them with checked facts.",
+        "Click Check materials. Read Still needs checking and check any missing cloth or trims.",
+        "If the numbers match your papers, click Save draft plan."
+      ],
+      "done": "The page says Draft plan saved. Nothing was bought or taken from the store.",
+      "stop": "If a price or stock amount is unknown, do not enter zero or guess.",
+      "mode": "draft-or-review"
+    },
+    {
+      "number": 4,
+      "title": "Fabric store",
+      "subtitle": "Check each roll of cloth",
+      "path": "/stores",
+      "goal": "Record what is on each fabric roll.",
+      "have": "Have the roll in front of you, a tape or roll meter, and its paper label.",
+      "steps": [
+        "On Home, click 04 Fabric store. For a new roll, click New roll.",
+        "Enter Roll ID, Fabric code, Supplier lot number, Shade band, and Bin / rack.",
+        "Write the paper-label length, your measured length, and usable width. Record marks or damage.",
+        "Choose PASS, HOLD, or REJECTED for the check. Say how you checked it.",
+        "Click Save roll check. Find the roll under Rolls we've checked.",
+        "Under Find matching rolls, choose an order, write a reason, and click Save draft pick list."
+      ],
+      "done": "The roll check is saved. The pick list is only a suggestion.",
+      "stop": "Wrong shade, short roll, damage, or missing proof? Mark HOLD and ask for a recheck. PASS is not stock approval.",
+      "mode": "draft-or-review"
+    },
+    {
+      "number": 5,
+      "title": "Cutting",
+      "subtitle": "Make a cutting plan and check the lay",
+      "path": "/cutting",
+      "goal": "Tell the system the cutting plan and what was actually spread.",
+      "have": "Get the approved marker and cut sheet from the cutting head. Have signed fabric issue details.",
+      "steps": [
+        "On Home, click 05 Cutting. Choose the correct Buyer order.",
+        "Copy the Cut number, Marker code, cloth code, shade, plies, marker length, and fabric width from the cut sheet.",
+        "Add the marker sizes and garment parts, using the supplied sheets or rows on screen.",
+        "Write a short note. Click Save lay draft. Open it under Your saved cut plans.",
+        "After the fabric is spread, enter the actual ply count, measured marker length, and signed fabric issue amounts.",
+        "Click Save spread report. Then click Refresh status to check bundle release."
+      ],
+      "done": "The plan and spread report are saved. Signed release is a separate check.",
+      "stop": "Never call a draft a completed cut. If plies, roll, or shade do not match, stop before cutting or issuing bundles.",
+      "mode": "draft-or-review"
+    },
+    {
+      "number": 6,
+      "title": "Sewing",
+      "subtitle": "Practice moving bundles through sewing",
+      "path": "/sewing",
+      "goal": "Show which bundle parts belong to a sewing job.",
+      "have": "This chapter screen is a practice run. Real factory work needs approved jobs and real scans.",
+      "steps": [
+        "On Home, click 06 Sewing. Choose a Cutting lay and Bundle group.",
+        "Enter the Plant, Station, Worker, and Machine class for the practice run.",
+        "Pick a Sewing job. If instructed, use Add a sewing job for this practice run.",
+        "Tap each correct part label in Record the bundle parts.",
+        "Click Start work on scanned bundles. Use Pause or Resume as needed.",
+        "Click Mark job done. If a part is missing or wrong, use Problem / Report issue."
+      ],
+      "done": "Look under Saved sewing work for the practice record.",
+      "stop": "This screen does not prove real sewing, attendance, or pay. Never use made-up scans for actual factory work.",
+      "mode": "practice"
+    },
+    {
+      "number": 7,
+      "title": "Quality",
+      "subtitle": "Practice checking a finished piece",
+      "path": "/quality",
+      "goal": "Check a practice garment and record any problem.",
+      "have": "Use only practice garment records on this screen.",
+      "steps": [
+        "On Home, click 07 Quality. Choose a Sewing order, Plant, and Piece number.",
+        "Click Record piece arrival.",
+        "Under Set up finishing for this style, pick the right practice steps and click Save demo finishing steps.",
+        "Enter the checker and station. Look at the piece. If it is good, click Pass check.",
+        "If damaged, enter the problem and click Hold this piece. After repair, click Mark repair done and check it again.",
+        "For a passed piece, click Mark next finishing job done for each step. Add the buyer tag number when shown."
+      ],
+      "done": "Read the result under Saved quality work.",
+      "stop": "A practice PASS is not an approved factory quality release. Do not pass a piece with a defect.",
+      "mode": "practice"
+    },
+    {
+      "number": 8,
+      "title": "Packing",
+      "subtitle": "Practice packing good pieces",
+      "path": "/packing",
+      "goal": "Put practice pieces into a carton and make a demo packing list.",
+      "have": "Use only practice pieces shown as ready.",
+      "steps": [
+        "On Home, click 08 Packing. Enter the practice worker, station, and reader details.",
+        "Click Refresh list. Under Ready piece, select one piece.",
+        "Enter a Carton number. Click Make new carton.",
+        "Click Scan piece into carton. Repeat for the correct practice pieces.",
+        "Wrong piece? Click Remove piece before sealing. When correct, click Seal carton.",
+        "Enter a Dispatch list number. Click Make dispatch list, Scan sealed carton, and Mark demo dispatch done."
+      ],
+      "done": "The carton and practice dispatch list show in the lists.",
+      "stop": "Do not ship any real carton from this page. A demo dispatch is not a truck handoff.",
+      "mode": "practice"
+    },
+    {
+      "number": 9,
+      "title": "Factory report",
+      "subtitle": "See where work is stuck",
+      "path": "/intelligence",
+      "goal": "Look at counts and spot problems.",
+      "have": "In the practice view, have a saved cutting plan. A real report needs manager access.",
+      "steps": [
+        "On Home, click 09 Factory report.",
+        "Under Choose work, pick the cutting plan to check.",
+        "Click Show progress.",
+        "Read the step counts. Open Where do counts not match? and What needs attention?.",
+        "If unclear, click Ask Aggie to explain. Check the source before making a decision.",
+        "Click Save this report if you need the practice record."
+      ],
+      "done": "You can read the counts and saved report. Missing data stays missing.",
+      "stop": "A practice number is not a real factory output count. Ask a manager about any large difference.",
+      "mode": "practice"
+    },
+    {
+      "number": 10,
+      "title": "Upload files",
+      "subtitle": "Keep factory papers together",
+      "path": "/documents",
+      "goal": "Add and find buyer or factory documents.",
+      "have": "Have only the papers you were told to upload.",
+      "steps": [
+        "On Home, click 10 Upload files.",
+        "Under Step 1 - Add files, choose the files and click Upload files.",
+        "Under Step 2 - Find your files, click Refresh and find the file name.",
+        "Click the file to see more. Use Download or View source details to check it.",
+        "Do not see an old file? Click Load older files. Do not see all its text? Click Load more extracted text.",
+        "Use Step 3 - Check and save records only when asked by the person checking the documents."
+      ],
+      "done": "The uploaded file name appears in the file list.",
+      "stop": "Do not upload payroll, ID cards, or private worker records through the development account.",
+      "mode": "draft-or-review"
+    }
+  ]
+}

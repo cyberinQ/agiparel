@@ -18,6 +18,20 @@ var AgieToolDefinitions = []ToolDefinition{
 	{
 		Type: "function",
 		Function: FunctionSpec{
+			Name: "read_worker_manual",
+			Description: "Read the reviewed instructions for one of the ten factory chapters. " +
+				"Use chapter 0 to retrieve the full end-to-end worker manual; these are instructions, never live factory records.",
+			Parameters: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"chapter": map[string]interface{}{"type": "integer", "minimum": 0, "maximum": 10},
+				},
+			},
+		},
+	},
+	{
+		Type: "function",
+		Function: FunctionSpec{
 			Name: "inspect_db_catalog",
 			Description: "Lists all available table names and column definitions in the manufacturing execution database. " +
 				"Use this tool when you need to know the schema before generating a query.",
