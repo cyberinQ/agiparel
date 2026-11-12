@@ -26,6 +26,7 @@ jobs:
           for script in scripts/test_*.cjs; do node "$script"; done
       - name: Verify gofmt and patch cleanliness
         run: |
+          gofmt -l $(git ls-files '*.go')
           test -z "$(gofmt -l $(git ls-files '*.go'))"
           git diff --check
       - name: Static vet
