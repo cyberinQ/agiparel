@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Author: Sunil Jain, 2026-10-28 — Source-safe Chapter 02 buyer-order workflow. -->
+<!-- Author: Sunil Jain, CyberinQ LLC — Source-safe Chapter 02 buyer-order workflow. -->
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -30,16 +30,21 @@
   <div id="coverage" class="coverage" role="status"></div><div id="order-summary" class="order-summary" role="status" aria-live="polite">No order quantity checked.</div><p id="order-checks" class="support">Drafts are not approvals.</p><div id="issues" class="issues" role="alert" hidden></div>
   <div class="select-grid"><label>PO number<input id="po-number" maxlength="64" placeholder="Buyer PO number"></label><label>Style number<input id="style-code" maxlength="64" placeholder="Style or design code"></label></div>
   <div id="multiple-po" class="multiple-po" hidden><label>We found more than one order. Choose one to check.<select id="po-choice"></select></label></div>
-  <div class="table-head"><h3>Colors, sizes &amp; pieces</h3><button class="secondary" type="button" id="add-sku">+ Add size</button></div>
-  <div class="scroll"><table><thead><tr><th>Color</th><th>Size</th><th>Pieces</th><th>UPC</th><th>Source</th><th>Remove</th></tr></thead><tbody id="sku-rows"></tbody></table></div>
+  <details id="po-metadata-panel" class="techpack-panel" open hidden aria-label="PO commercial, logistics and packing details">
+    <summary>Commercial, logistics, fabric &amp; packing details from PO</summary>
+    <div id="po-metadata-grid" class="select-grid"></div>
+    <div id="po-packing-rules" class="message"></div>
+  </details>
+  <div class="table-head"><h3>Colors, sizes &amp; pieces</h3><div class="actions"><button class="secondary" type="button" id="assign-upcs">Assign missing UPCs / SKU IDs</button><button class="secondary" type="button" id="add-sku">+ Add size</button></div></div>
+  <div class="scroll"><table><thead><tr><th>Color</th><th>Size</th><th>Pieces</th><th>UPC / Item Barcode (GTIN)</th><th>Document Origin</th><th>Remove</th></tr></thead><tbody id="sku-rows"></tbody></table></div>
   <div class="table-head"><h3>Cloth &amp; trims</h3><button class="secondary" type="button" id="add-material">+ Add material</button></div>
   <p class="support">Use the material code in the file. If it only has a name, we’ll suggest a code for you to confirm. Check the amount and unit.</p>
-  <div class="scroll"><table><thead><tr><th>Material code</th><th>Type</th><th>Per garment</th><th>Unit</th><th>Source</th><th>Remove</th></tr></thead><tbody id="bom-rows"></tbody></table></div>
+  <div class="scroll"><table><thead><tr><th>Material code</th><th>Type</th><th>Per garment</th><th>Unit</th><th>Document Origin</th><th>Remove</th></tr></thead><tbody id="bom-rows"></tbody></table></div>
   <details id="techpack-workbench" class="techpack-panel" hidden aria-label="Tech-pack material evidence"><summary>More material details found in the tech pack</summary>
     <p class="tech-help">Some files show <strong>0.000</strong> even when fabric is needed. This is <strong>not</strong> a zero requirement. Check the original and enter a verified rate and unit before adding material. Keep alternative cloth and packing instructions separate.</p>
     <div id="techpack-summary" class="message" role="status"></div><div id="techpack-candidates" class="techpack-candidates"></div>
   </details>
-  <details class="source-box"><summary>See source evidence</summary><p>Open the original file to check a number. Source 0 means a value entered manually.</p><div class="source-cols"><div><h4 id="po-evidence-title">PO source</h4><div id="po-evidence"></div></div><div><h4 id="bom-evidence-title">Tech pack source</h4><div id="bom-evidence"></div></div></div></details>
+  <details class="source-box"><summary>See source evidence</summary><p>Click any Document Origin link above to inspect the exact page or row in the uploaded PO or Tech Pack. Rows added or overridden by you are marked Manual Entry.</p><div class="source-cols"><div><h4 id="po-evidence-title">PO source</h4><div id="po-evidence"></div></div><div><h4 id="bom-evidence-title">Tech pack source</h4><div id="bom-evidence"></div></div></div></details>
   <p class="support">Before a commercial commitment, separately verify the latest PO amendment, delivery date, price/currency, payment terms, approved sample, packing instructions and shipping obligations. This screen does not establish profitability or available capacity.</p>
   <label class="note">Review note<textarea id="review-note" maxlength="1000" rows="2" placeholder="What did you check? What still needs checking?"></textarea></label>
   <label class="ack"><input id="acknowledged" type="checkbox"> I checked the order details. This saves a draft, not permission to buy or produce.</label>

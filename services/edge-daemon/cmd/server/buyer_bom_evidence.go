@@ -1,5 +1,6 @@
-// Gate 06.5-C2: conservative, page-anchored recognition of Centric-style
-// colorway/material BOM tables in buyer tech packs. These are evidence hints.
+// Author: Sunil Jain, CyberinQ LLC
+// Gate 06.5-C2: conservative, page-anchored recognition of colorway/material
+// BOM tables in buyer tech packs. These are evidence hints.
 // No guessed consumption, UOM, buyer approval, or factory stock authority.
 package main
 
@@ -15,6 +16,9 @@ import (
 type buyerBOMHint struct {
 	Component     string `json:"component"`
 	MaterialLabel string `json:"material_label"`
+	ReferenceNo   string `json:"reference_no,omitempty"`
+	Colorways     string `json:"colorways,omitempty"`
+	Placement     string `json:"placement,omitempty"`
 	SuggestedCode string `json:"suggested_code,omitempty"`
 	Category      string `json:"category"`
 	Section       string `json:"section"`
@@ -32,9 +36,12 @@ type buyerBOMCoverage struct {
 	Classification             string   `json:"classification"`
 }
 
-var bomQuantityText = regexp.MustCompile(`^\d{1,6}(?:\.\d{1,3})?$`)
-var bomNumberedMaterial = regexp.MustCompile(`^([0-9]{4,8})(?:[-\s]|$)`)
-var bomPageSection = regexp.MustCompile(`(?i)^\s*Section:\s*([^\n]+?)\s{3,}`)
+var (
+	bomQuantityText     = regexp.MustCompile(`^\d{1,6}(?:\.\d{1,3})?$`)
+	bomNumberedMaterial = regexp.MustCompile(`^([0-9]{4,8})(?:[-\s]|$)`)
+	bomAlphaCode        = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9_./-]{2,31})`)
+	bomPageSection      = regexp.MustCompile(`(?i)^\s*Section:\s*([^\n]+?)\s{3,}`)
+)
 
 func bomPageNumber(locator json.RawMessage) int {
 	var x struct {
@@ -72,19 +79,29 @@ func bomSection(line string) string {
 	}
 	return strings.TrimSpace(m[1])
 }
-func bomHeaderOffsets(line string) (int, int, int, int, int, bool) {
+func bomHeaderOffsets(line string) (int, int, int, int, int, int, int, bool) {
 	lower := strings.ToLower(line)
 	comp := strings.Index(lower, "component or")
 	material := strings.Index(lower, "material")
 	placement := strings.Index(lower, "placement")
 	quantity := strings.Index(lower, "quantity")
 	comments := strings.Index(lower, "comments")
-	return comp, material, placement, quantity, comments, comp >= 0 && material > comp && placement > material && quantity > placement && comments > quantity && comments-quantity >= 9
+	refNo := strings.Index(lower, "reference no")
+	designer := strings.Index(lower, "designer name")
+	ok := comp >= 0 && material > comp && placement > material && quantity > placement && comments > quantity && comments-quantity >= 9
+	return comp, material, placement, quantity, comments, refNo, designer, ok
 }
-func bomSuggestedCode(label string) string {
-	x := bomNumberedMaterial.FindStringSubmatch(label)
-	if len(x) == 2 {
+func bomSuggestedCode(label, refNo string) string {
+	if x := bomNumberedMaterial.FindStringSubmatch(label); len(x) == 2 {
 		return x[1]
+	}
+	if r := strings.Fields(refNo); len(r) > 0 {
+		if x := bomAlphaCode.FindStringSubmatch(r[0]); len(x) == 2 {
+			return strings.TrimRight(x[1], "-_./")
+		}
+	}
+	if x := bomAlphaCode.FindStringSubmatch(label); len(x) == 2 {
+		return strings.TrimRight(x[1], "-_./")
 	}
 	return ""
 }
@@ -108,9 +125,6 @@ func bomReason(raw string) (string, string) {
 	return "SOURCE_QUANTITY_UNVERIFIED", "Printed quantity has no verified usage unit or basis. Confirm per-garment rate and unit before staging."
 }
 
-// PDF extraction may split a long physical page into multiple 6,000-byte
-// evidence segments. Reassemble per page for table interpretation while
-// preserving the segment ordinal containing each detected row's first byte.
 type bomSourceChunk struct {
 	Offset  int
 	Ordinal int
@@ -151,10 +165,6 @@ func (pg bomSourcePage) ordinalAt(offset int) int {
 	return result
 }
 
-// detectTechPackBOM returns candidate component identities, not ready-to-stage
-// materials. If a table is absent or disrupted, it reports insufficient coverage.
-// The parser uses layout column positions *from each source page*, not global
-// whitespace splitting; wrapped multi-line descriptions remain with the row.
 func detectTechPackBOM(segments []buyerEvidence) ([]buyerBOMHint, buyerBOMCoverage, []string) {
 	hints := []buyerBOMHint{}
 	coverage := buyerBOMCoverage{Sections: []string{}, Classification: "EVIDENCE_ONLY"}
@@ -168,7 +178,7 @@ func detectTechPackBOM(segments []buyerEvidence) ([]buyerBOMHint, buyerBOMCovera
 		byteOffset := 0
 		foundHeader := false
 		activeSection := ""
-		colComp, colMat, colPlace, colQty, colComments := -1, -1, -1, -1, -1
+		colComp, colMat, colPlace, colQty, colComments, colRef, colDesign := -1, -1, -1, -1, -1, -1, -1
 		var pending *buyerBOMHint
 		flush := func() {
 			if pending == nil {
@@ -176,8 +186,11 @@ func detectTechPackBOM(segments []buyerEvidence) ([]buyerBOMHint, buyerBOMCovera
 			}
 			pending.Component = bomTrimSpace(pending.Component)
 			pending.MaterialLabel = bomTrimSpace(pending.MaterialLabel)
+			pending.Placement = bomTrimSpace(pending.Placement)
+			pending.ReferenceNo = bomTrimSpace(pending.ReferenceNo)
+			pending.Colorways = bomTrimSpace(pending.Colorways)
 			if pending.Component != "" && pending.MaterialLabel != "" && pending.RawQuantity != "" {
-				pending.SuggestedCode = bomSuggestedCode(pending.MaterialLabel)
+				pending.SuggestedCode = bomSuggestedCode(pending.MaterialLabel, pending.ReferenceNo)
 				pending.QuantityState, pending.Hint = bomReason(pending.RawQuantity)
 				hints = append(hints, *pending)
 				coverage.WithoutVerifiedConsumption++
@@ -195,14 +208,13 @@ func detectTechPackBOM(segments []buyerEvidence) ([]buyerBOMHint, buyerBOMCovera
 					sections[ss] = true
 					coverage.Sections = append(coverage.Sections, ss)
 				}
-				// Table headings may repeat for every section on a single page.
 				foundHeader = false
 				continue
 			}
-			c, m, p, q, z, header := bomHeaderOffsets(line)
+			c, m, p, q, z, r, d, header := bomHeaderOffsets(line)
 			if header && bomSectionKind(activeSection) != "" {
 				flush()
-				colComp, colMat, colPlace, colQty, colComments = c, m, p, q, z
+				colComp, colMat, colPlace, colQty, colComments, colRef, colDesign = c, m, p, q, z, r, d
 				foundHeader = true
 				pageHasTable = true
 				continue
@@ -215,32 +227,56 @@ func detectTechPackBOM(segments []buyerEvidence) ([]buyerBOMHint, buyerBOMCovera
 				foundHeader = false
 				continue
 			}
-			if len(strings.TrimSpace(line)) == 0 {
-				continue
-			}
-			if len(line) < colMat {
+			if len(strings.TrimSpace(line)) == 0 || len(line) < colMat {
 				continue
 			}
 			component := bomRegion(line, colComp, colMat)
 			material := bomRegion(line, colMat, colPlace)
+			placement := bomRegion(line, colPlace, colQty)
 			quantity := bomRegion(line, colQty, colComments)
-			// A row start requires an explicitly printed quantity in its own
-			// layout column. Do not interpret adjacent colorway numbers or
-			// standalone figures as a new per-garment consumption value.
+			refNo, colorways := "", ""
+			if colRef > colComments {
+				endRef := len(line)
+				if colDesign > colRef {
+					endRef = colDesign
+				}
+				refNo = bomRegion(line, colRef, endRef)
+			}
+			if colDesign > colComments {
+				colorways = bomRegion(line, colDesign, len(line))
+			}
 			isStart := component != "" && bomQuantityText.MatchString(quantity)
 			if isStart {
 				flush()
-				pending = &buyerBOMHint{Component: component, MaterialLabel: material, Category: bomSectionKind(activeSection), Section: activeSection, RawQuantity: quantity, SourceOrdinal: page.ordinalAt(lineStart), Page: page.Page}
+				pending = &buyerBOMHint{
+					Component:     component,
+					MaterialLabel: material,
+					Placement:     placement,
+					ReferenceNo:   refNo,
+					Colorways:     colorways,
+					Category:      bomSectionKind(activeSection),
+					Section:       activeSection,
+					RawQuantity:   quantity,
+					SourceOrdinal: page.ordinalAt(lineStart),
+					Page:          page.Page,
+				}
 				continue
 			}
-			// PDF text layout wraps long material descriptions across lines.
-			// Do not start a new row merely because its component wraps.
 			if pending != nil {
 				if component != "" {
 					pending.Component += " " + component
 				}
 				if material != "" {
 					pending.MaterialLabel += " " + material
+				}
+				if placement != "" {
+					pending.Placement += " " + placement
+				}
+				if refNo != "" {
+					pending.ReferenceNo += " " + refNo
+				}
+				if colorways != "" {
+					pending.Colorways += " " + colorways
 				}
 			}
 		}
@@ -257,6 +293,5 @@ func detectTechPackBOM(segments []buyerEvidence) ([]buyerBOMHint, buyerBOMCovera
 	if len(hints) > 0 {
 		issues = append(issues, fmt.Sprintf("%d tech-pack BOM row(s) were recognized as evidence only; printed quantities are not verified material consumption and have no validated UOM", len(hints)))
 	}
-	// No candidate can independently authorize a purchase indent.
 	return hints, coverage, issues
 }

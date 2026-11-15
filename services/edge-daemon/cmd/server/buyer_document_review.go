@@ -1,5 +1,6 @@
-// Author: Sunil Jain, 2026-10-28 — Gate 06.5-C1: map extracted buyer evidence into *proposed* PO/BOM records.
-// Original documents remain immutable and linked. No automatic buyer approval.
+// Author: Sunil Jain, CyberinQ LLC
+// Gate 06.5-C1: customer-agnostic mapping of extracted buyer evidence into *proposed* PO/BOM records,
+// with pre-save colleague conflict detection and line-by-line discrepancy reconciliation.
 package main
 
 import (
@@ -7,14 +8,20 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -39,12 +46,27 @@ type buyerSource struct {
 	Segments  []buyerEvidence `json:"segments"`
 	Truncated bool            `json:"truncated"`
 }
+type buyerDrawing struct {
+	Title   string `json:"title"`
+	Source  string `json:"source"`
+	Page    int    `json:"page"`
+	Width   int    `json:"width"`
+	Height  int    `json:"height"`
+	DataURL string `json:"data_url"`
+	SHA256  string `json:"sha256"`
+}
 type buyerSKU struct {
-	Color         string `json:"color"`
-	Size          string `json:"size"`
-	UPC           string `json:"upc"`
-	Quantity      int64  `json:"quantity"`
-	SourceOrdinal int    `json:"source_ordinal"`
+	MaterialNumber string `json:"material_number,omitempty"`
+	BuyerStyleNo   string `json:"buyer_style_no,omitempty"`
+	Color          string `json:"color"`
+	Size           string `json:"size"`
+	UPC            string `json:"upc"`
+	PackRatio      string `json:"pack_ratio,omitempty"`
+	Quantity       int64  `json:"quantity"`
+	Cases          string `json:"cases,omitempty"`
+	UnitCost       string `json:"unit_cost,omitempty"`
+	LineTotal      string `json:"line_total,omitempty"`
+	SourceOrdinal  int    `json:"source_ordinal"`
 }
 type buyerMaterial struct {
 	StyleCode     string `json:"style_code,omitempty"`
@@ -54,28 +76,102 @@ type buyerMaterial struct {
 	UOM           string `json:"uom"`
 	SourceOrdinal int    `json:"source_ordinal"`
 }
+type buyerOrderDetails struct {
+	SalesOrderNo     string            `json:"sales_order_no,omitempty"`
+	CustomerPONo     string            `json:"customer_po_no,omitempty"`
+	ProgramNo        string            `json:"program_no,omitempty"`
+	SupplierNo       string            `json:"supplier_no,omitempty"`
+	PLMNo            string            `json:"plm_no,omitempty"`
+	ProjectNo        string            `json:"project_no,omitempty"`
+	BuyerStyleNo     string            `json:"buyer_style_no,omitempty"`
+	MaterialNo       string            `json:"material_no,omitempty"`
+	Customer         string            `json:"customer,omitempty"`
+	Buyer            string            `json:"buyer,omitempty"`
+	BrandManager     string            `json:"brand_manager,omitempty"`
+	CountryOfOrigin  string            `json:"country_of_origin,omitempty"`
+	FactoryID        string            `json:"factory_id,omitempty"`
+	VendorCode       string            `json:"vendor_code,omitempty"`
+	GoodsSupplier    string            `json:"goods_supplier,omitempty"`
+	ShipTo           string            `json:"ship_to,omitempty"`
+	Warehouse        string            `json:"warehouse,omitempty"`
+	Season           string            `json:"season,omitempty"`
+	SeasonCode       string            `json:"season_code,omitempty"`
+	Dept             string            `json:"dept,omitempty"`
+	Fineline         string            `json:"fineline,omitempty"`
+	RetailPrice      string            `json:"retail_price,omitempty"`
+	UnitCost         string            `json:"unit_cost,omitempty"`
+	TotalOrderValue  string            `json:"total_order_value,omitempty"`
+	TotalCases       string            `json:"total_cases,omitempty"`
+	ItemDesc         string            `json:"item_desc,omitempty"`
+	InWhseDate       string            `json:"in_whse_date,omitempty"`
+	MABD             string            `json:"mabd,omitempty"`
+	RequiredDelivery string            `json:"required_delivery_date,omitempty"`
+	CancelDate       string            `json:"cancel_date,omitempty"`
+	ValidFromDate    string            `json:"valid_from_date,omitempty"`
+	ExFactoryDate    string            `json:"ex_factory_date,omitempty"`
+	ExPortDate       string            `json:"ex_port_date,omitempty"`
+	ETAToPort        string            `json:"eta_to_port,omitempty"`
+	DeliveryDate     string            `json:"delivery_date,omitempty"`
+	Incoterms        string            `json:"incoterms,omitempty"`
+	PortOfExit       string            `json:"port_of_exit,omitempty"`
+	PortOfEntry      string            `json:"port_of_entry,omitempty"`
+	FreightForwarder string            `json:"freight_forwarder,omitempty"`
+	ShipMode         string            `json:"ship_mode,omitempty"`
+	FabricSpec       string            `json:"fabric_spec,omitempty"`
+	FabricContent    string            `json:"fabric_content,omitempty"`
+	FabricWeightGSM  string            `json:"fabric_weight_gsm,omitempty"`
+	FabricCategory   string            `json:"fabric_category,omitempty"`
+	HTSCode          string            `json:"hts_code,omitempty"`
+	Accessories      map[string]string `json:"accessories,omitempty"`
+	PackingRules     []string          `json:"packing_rules,omitempty"`
+}
 type buyerOrderOption struct {
-	PONumber  string     `json:"po_number"`
-	StyleCode string     `json:"style_code"`
-	SKUs      []buyerSKU `json:"skus"`
+	PONumber    string             `json:"po_number"`
+	StyleCode   string             `json:"style_code"`
+	SKUs        []buyerSKU         `json:"skus"`
+	Details     *buyerOrderDetails `json:"details,omitempty"`
+	POMaterials []buyerBOMHint     `json:"po_materials,omitempty"`
 }
 type buyerReviewRequest struct {
-	PODocumentID  string          `json:"po_document_id"`
-	BOMDocumentID string          `json:"bom_document_id"`
-	PONumber      string          `json:"po_number"`
-	StyleCode     string          `json:"style_code"`
-	SKUs          []buyerSKU      `json:"skus"`
-	Materials     []buyerMaterial `json:"materials"`
-	ReviewNote    string          `json:"review_note"`
-	Acknowledged  bool            `json:"acknowledged"`
+	PODocumentID    string             `json:"po_document_id"`
+	BOMDocumentID   string             `json:"bom_document_id"`
+	PONumber        string             `json:"po_number"`
+	StyleCode       string             `json:"style_code"`
+	SKUs            []buyerSKU         `json:"skus"`
+	Materials       []buyerMaterial    `json:"materials"`
+	OrderDetails    *buyerOrderDetails `json:"order_details,omitempty"`
+	ReviewNote      string             `json:"review_note"`
+	Acknowledged    bool               `json:"acknowledged"`
+	SupersedeDigest string             `json:"supersede_digest,omitempty"`
+}
+type buyerFieldDiff struct {
+	Scope          string `json:"scope"`
+	Key            string `json:"key"`
+	ColleagueValue string `json:"colleague_value"`
+	YourValue      string `json:"your_value"`
+}
+type buyerSavedDraft struct {
+	HandoffID    string          `json:"handoff_id"`
+	IntakeID     string          `json:"intake_id"`
+	PONumber     string          `json:"po_number"`
+	StyleCode    string          `json:"style_code"`
+	OrderedQty   int64           `json:"ordered_qty"`
+	SourceDigest string          `json:"source_digest"`
+	ReviewedBy   string          `json:"reviewed_by"`
+	ReviewNote   string          `json:"review_note"`
+	CapturedAt   time.Time       `json:"captured_at"`
+	SKUs         []buyerSKU      `json:"skus"`
+	Materials    []buyerMaterial `json:"materials"`
 }
 
-var buyerCell = regexp.MustCompile(`^([A-Z]{1,3})[0-9]+:\s*(.*)$`)
-var buyerHeaderNoise = regexp.MustCompile(`[^a-z0-9]+`)
-var buyerWalmartPO = regexp.MustCompile(`(?m)^\s*(REP[0-9]{1,8})\s+SO/PO#`)
-var buyerWalmartStyle = regexp.MustCompile(`(?m)PROJECT\s*#:\s*([A-Za-z0-9_./-]{1,64})`)
-var buyerWalmartColorRow = regexp.MustCompile(`^[A-Za-z0-9_-]*-[A-Za-z0-9_-]+$`)
-var buyerWalmartStyleToken = regexp.MustCompile(`^TT[A-Za-z0-9]{5,25}$`)
+var (
+	buyerCell            = regexp.MustCompile(`^([A-Z]{1,3})[0-9]+:\s*(.*)$`)
+	buyerHeaderNoise     = regexp.MustCompile(`[^a-z0-9]+`)
+	genericCompositePORe = regexp.MustCompile(`(?im)^\s*([A-Za-z0-9_-]{2,24})\s+(?:SO/PO#|PO\s*#|ORDER\s*#)\s*[:/]?\s*([A-Za-z0-9_-]{3,32})?`)
+	genericStyleRe       = regexp.MustCompile(`(?im)(?:PROJECT\s*#|STYLE\s*(?:CODE|#|NO\.?)|ARTICLE\s*#|ITEM\s*#)\s*:\s*([A-Za-z0-9_./-]{2,64})`)
+	genericSizeTokenRe   = regexp.MustCompile(`^(?:[2-5][0-9]|[0-9]{1,2}(?:W|L|X[0-9]{2})?|XXS|XS|S|M|L|XL|[2-6]XL|OS)$`)
+	genericStyleTokenRe  = regexp.MustCompile(`^[A-Z]{2,6}[0-9]{3,16}[A-Z0-9_-]*$`)
+)
 
 func buyerHeader(s string) string {
 	return strings.Trim(buyerHeaderNoise.ReplaceAllString(strings.ToLower(strings.TrimSpace(s)), "_"), "_")
@@ -148,8 +244,6 @@ func buyerMappedValues(row map[string]string, header map[string]string) map[stri
 	return out
 }
 
-// Conservative, header-driven extraction from CSV/XLSX; no scalar facts invented.
-// Resets header on every worksheet. PDF/DOCX evidence remains visible for manual review.
 func detectBuyerOptions(segments []buyerEvidence) ([]buyerOrderOption, []buyerMaterial, []string) {
 	headerByScope := map[string]map[string]string{}
 	poMap := map[string]*buyerOrderOption{}
@@ -176,8 +270,6 @@ func detectBuyerOptions(segments []buyerEvidence) ([]buyerOrderOption, []buyerMa
 		color := buyerField(row, "color_code", "color", "colorway")
 		size := buyerField(row, "size_code", "size")
 		qtyText := buyerField(row, "ordered_qty", "order_qty", "quantity", "qty")
-		// An incomplete PO line must not silently disappear from the candidate
-		// matrix. It could reduce ordered units and understate material demand.
 		if (color != "" || size != "" || po != "" && qtyText != "") &&
 			(po == "" || style == "" || color == "" || size == "" || qtyText == "") {
 			issues = append(issues, fmt.Sprintf("PO source segment %d has missing order/style/color/size/quantity; inspect the original", seg.Ordinal))
@@ -195,7 +287,14 @@ func detectBuyerOptions(segments []buyerEvidence) ([]buyerOrderOption, []buyerMa
 				poMap[key] = option
 				order = append(order, key)
 			}
-			option.SKUs = append(option.SKUs, buyerSKU{Color: color, Size: size, UPC: buyerField(row, "upc", "barcode", "ean"), Quantity: qty, SourceOrdinal: seg.Ordinal})
+			option.SKUs = append(option.SKUs, buyerSKU{
+				Color:         color,
+				Size:          size,
+				UPC:           buyerField(row, "upc", "barcode", "ean"),
+				Quantity:      qty,
+				UnitCost:      buyerField(row, "unit_cost", "unit_price", "price"),
+				SourceOrdinal: seg.Ordinal,
+			})
 		}
 		material := buyerField(row, "material_sku", "material_code", "item_code", "material")
 		cat := strings.ToUpper(buyerField(row, "category", "material_category", "type"))
@@ -208,29 +307,34 @@ func detectBuyerOptions(segments []buyerEvidence) ([]buyerOrderOption, []buyerMa
 			materials = append(materials, buyerMaterial{StyleCode: style, SKU: material, Category: cat, PerGarment: rate, UOM: uom, SourceOrdinal: seg.Ordinal})
 		}
 	}
-	opts := make([]buyerOrderOption, 0, len(poMap))
-	for _, key := range order {
-		opts = append(opts, *poMap[key])
-	}
-	sort.SliceStable(opts, func(i, j int) bool { return opts[i].PONumber+opts[i].StyleCode < opts[j].PONumber+opts[j].StyleCode })
+	var lastPDFOption *buyerOrderOption
 	for _, seg := range segments {
-		option, warn := detectWalmartSalesOrder(seg)
+		if mergeCompanionOrderPage(seg, poMap, lastPDFOption) {
+			continue
+		}
+		option, warn := detectStructuredPDFOrder(seg)
 		if warn != "" {
 			issues = append(issues, warn)
 		}
 		if option == nil {
 			continue
 		}
+		lastPDFOption = option
 		key := option.PONumber + "\x00" + option.StyleCode
 		if existing, ok := poMap[key]; ok {
 			existing.SKUs = append(existing.SKUs, option.SKUs...)
+			if existing.Details == nil {
+				existing.Details = option.Details
+			}
+			if len(existing.POMaterials) == 0 {
+				existing.POMaterials = option.POMaterials
+			}
 		} else {
 			poMap[key] = option
 			order = append(order, key)
 		}
 	}
-	// Rebuild once PDF page records have joined the structured rows.
-	opts = opts[:0]
+	opts := make([]buyerOrderOption, 0, len(order))
 	for _, key := range order {
 		opts = append(opts, *poMap[key])
 	}
@@ -238,90 +342,632 @@ func detectBuyerOptions(segments []buyerEvidence) ([]buyerOrderOption, []buyerMa
 	return opts, materials, issues
 }
 
-// An intentionally narrow parser for the supplied YSAG/Walmart sales-order page layout.
-// It refuses to infer quantities unless size columns and explicit line totals reconcile.
-// This is a draft hint, NEVER buyer or factory approval.
 func detectWalmartSalesOrder(seg buyerEvidence) (*buyerOrderOption, string) {
-	if seg.Kind != "PAGE" || !strings.Contains(seg.Content, "YSAG CONFIRMED SALES ORDER") || !strings.Contains(seg.Content, "COLOR & UNIT INFORMATION") || !strings.Contains(seg.Content, "SALES ORDER ITEM INFO") {
+	return detectStructuredPDFOrder(seg)
+}
+
+func extractFirstMatch(text string, patterns ...string) string {
+	for _, p := range patterns {
+		m := regexp.MustCompile(p).FindStringSubmatch(text)
+		if len(m) >= 2 && strings.TrimSpace(m[1]) != "" {
+			return strings.TrimSpace(m[1])
+		}
+	}
+	return ""
+}
+
+func detectStructuredPDFOrder(seg buyerEvidence) (*buyerOrderOption, string) {
+	if seg.Kind != "PAGE" {
 		return nil, ""
 	}
-	poMatch := buyerWalmartPO.FindStringSubmatch(seg.Content)
-	styleMatch := buyerWalmartStyle.FindStringSubmatch(seg.Content)
-	if len(poMatch) != 2 || len(styleMatch) != 2 {
-		return nil, fmt.Sprintf("Walmart-like page in segment %d: PO or style not found; review manually", seg.Ordinal)
+	upper := strings.ToUpper(seg.Content)
+	if !strings.Contains(upper, "ORDER") && !strings.Contains(upper, "PO#") && !strings.Contains(upper, "PO #") {
+		return nil, ""
 	}
-	sizes := []string{}
-	data := strings.Split(seg.Content, "\n")
-	for _, line := range data {
-		if !strings.Contains(line, "SALES ORDER ITEM INFO") {
+	if !strings.Contains(upper, "UNITS") && !strings.Contains(upper, "TOTAL") && !strings.Contains(upper, "QTY") {
+		return nil, ""
+	}
+	custPO, salesOrderNo := "", ""
+	if m := genericCompositePORe.FindStringSubmatch(seg.Content); len(m) >= 2 {
+		custPO = strings.TrimSpace(m[1])
+		if len(m) >= 3 {
+			salesOrderNo = strings.TrimSpace(m[2])
+		}
+	}
+	if custPO == "" {
+		custPO = extractFirstMatch(seg.Content, `(?im)(?:CUSTOMER\s+PO\s*#|PURCHASE\s+ORDER\s*#?|PO\s*#|SO/PO\s*#)\s*[:/]?\s*([A-Za-z0-9_-]{2,32})`)
+	}
+	styleCode := ""
+	if m := genericStyleRe.FindStringSubmatch(seg.Content); len(m) == 2 {
+		styleCode = strings.TrimSpace(m[1])
+	}
+	if custPO == "" || styleCode == "" {
+		if strings.Contains(upper, "SALES ORDER ITEM INFO") {
+			return nil, fmt.Sprintf("Order page in segment %d: PO or style not found; review manually", seg.Ordinal)
+		}
+		return nil, ""
+	}
+	sizes, packRatios := []string{}, []string{}
+	lines := strings.Split(seg.Content, "\n")
+	for _, line := range lines {
+		uLine := strings.ToUpper(line)
+		if strings.Contains(uLine, "COLOR & UNIT INFORMATION") || strings.Contains(uLine, "PACK RATIO") {
+			for _, f := range strings.Fields(line) {
+				if f == "PPK" || f == "YES" || f == "NO" {
+					break
+				}
+				if strings.Contains(f, "/") && len(f) <= 8 {
+					packRatios = append(packRatios, f)
+				}
+			}
+		}
+		if !strings.Contains(uLine, "UNITS") && !strings.Contains(uLine, "QTY") {
 			continue
 		}
-		fields := strings.Fields(strings.SplitN(line, "SALES ORDER ITEM INFO", 2)[1])
-		for _, f := range fields {
-			if f == "UNITS" || f == "PPK" {
+		candidate := line
+		if idx := strings.Index(uLine, "ITEM INFO"); idx >= 0 {
+			candidate = line[idx+len("ITEM INFO"):]
+		} else if idx := strings.Index(uLine, "SIZE"); idx >= 0 {
+			candidate = line[idx+len("SIZE"):]
+		}
+		for _, f := range strings.Fields(candidate) {
+			uf := strings.ToUpper(f)
+			if uf == "UNITS" || uf == "QTY" || uf == "TOTAL" || uf == "PPK" || uf == "CASES" {
 				break
 			}
-			if len(f) >= 2 && len(f) <= 4 {
-				if _, err := strconv.ParseInt(f, 10, 64); err == nil {
-					sizes = append(sizes, f)
-					continue
-				}
+			if genericSizeTokenRe.MatchString(uf) {
+				sizes = append(sizes, f)
+				continue
 			}
 			if len(sizes) > 0 {
 				break
 			}
 		}
-		break
+		if len(sizes) > 0 {
+			break
+		}
 	}
 	if len(sizes) < 1 || len(sizes) > 30 {
-		return nil, fmt.Sprintf("Walmart-like page %d: size columns could not be determined", seg.Ordinal)
+		if strings.Contains(upper, "SALES ORDER ITEM INFO") {
+			return nil, fmt.Sprintf("Order page %d: size columns could not be determined", seg.Ordinal)
+		}
+		return nil, ""
 	}
-	option := &buyerOrderOption{PONumber: poMatch[1], StyleCode: styleMatch[1], SKUs: []buyerSKU{}}
-	for _, line := range data {
+	details := extractGenericPageDetails(seg.Content, custPO, salesOrderNo, styleCode)
+	poMats := extractGenericPOMaterials(seg.Ordinal, details)
+	option := &buyerOrderOption{PONumber: custPO, StyleCode: styleCode, SKUs: []buyerSKU{}, Details: details, POMaterials: poMats}
+	for _, line := range lines {
+		if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(line)), "TOTAL") {
+			continue
+		}
 		fields := strings.Fields(line)
-		if len(fields) < len(sizes)+4 || !buyerWalmartColorRow.MatchString(fields[0]) {
+		if len(fields) < len(sizes)+2 {
 			continue
 		}
-		styleAt := -1
-		for i := 1; i < len(fields); i++ {
-			if buyerWalmartStyleToken.MatchString(fields[i]) {
-				styleAt = i
-				break
+		qtyStart := -1
+		for start := 1; start+len(sizes) < len(fields); start++ {
+			var sum int64
+			allValid := true
+			for i := 0; i < len(sizes); i++ {
+				v, err := strconv.ParseInt(strings.ReplaceAll(fields[start+i], ",", ""), 10, 64)
+				if err != nil || v < 0 || v > 100000000 {
+					allValid = false
+					break
+				}
+				sum += v
 			}
-		}
-		if styleAt < 2 || styleAt+len(sizes)+1 >= len(fields) {
-			continue
-		}
-		color := strings.Join(fields[1:styleAt], "_")
-		quantities := make([]int64, len(sizes))
-		var total int64
-		valid := true
-		for i := range sizes {
-			var err error
-			quantities[i], err = strconv.ParseInt(strings.ReplaceAll(fields[styleAt+1+i], ",", ""), 10, 64)
-			if err != nil || quantities[i] < 0 || quantities[i] > 100000000 {
-				valid = false
-				break
+			if !allValid || sum <= 0 {
+				continue
 			}
-			total += quantities[i]
+			tot, err := strconv.ParseInt(strings.ReplaceAll(fields[start+len(sizes)], ",", ""), 10, 64)
+			if err != nil {
+				if start >= 2 && genericStyleTokenRe.MatchString(fields[start-1]) {
+					return nil, fmt.Sprintf("Order page %d: size quantities do not equal printed total", seg.Ordinal)
+				}
+				continue
+			}
+			if tot != sum {
+				return nil, fmt.Sprintf("Order page %d: size quantities do not equal printed total", seg.Ordinal)
+			}
+			qtyStart = start
+			break
 		}
-		if !valid {
+		if qtyStart < 1 {
 			continue
 		}
-		documented, err := strconv.ParseInt(strings.ReplaceAll(fields[styleAt+1+len(sizes)], ",", ""), 10, 64)
-		if err != nil || documented != total {
-			return nil, fmt.Sprintf("Walmart-like page %d: size quantities do not equal printed total", seg.Ordinal)
+		prefix := fields[:qtyStart]
+		materialNo, buyerStyleNo, color := "", "", ""
+		switch {
+		case len(prefix) >= 3 && genericStyleTokenRe.MatchString(prefix[len(prefix)-1]):
+			materialNo = prefix[0]
+			buyerStyleNo = prefix[len(prefix)-1]
+			color = strings.Join(prefix[1:len(prefix)-1], "_")
+		case len(prefix) == 2 && genericStyleTokenRe.MatchString(prefix[1]):
+			color = prefix[0]
+			buyerStyleNo = prefix[1]
+		default:
+			color = strings.Join(prefix, "_")
+		}
+		if materialNo != "" {
+			details.MaterialNo = materialNo
+		}
+		if buyerStyleNo != "" {
+			details.BuyerStyleNo = buyerStyleNo
+		}
+		totalIdx := qtyStart + len(sizes)
+		cases, unitCost, lineTotal := "", "", ""
+		for _, tail := range fields[totalIdx+1:] {
+			if strings.HasPrefix(tail, "$") || strings.HasPrefix(tail, "€") || strings.HasPrefix(tail, "£") {
+				if unitCost == "" {
+					unitCost = tail
+					details.UnitCost = tail
+				} else if lineTotal == "" {
+					lineTotal = tail
+					details.TotalOrderValue = tail
+				}
+			} else if cases == "" {
+				cases = tail
+				details.TotalCases = tail
+			}
 		}
 		for i, size := range sizes {
-			if quantities[i] > 0 {
-				option.SKUs = append(option.SKUs, buyerSKU{Color: color, Size: size, Quantity: quantities[i], SourceOrdinal: seg.Ordinal})
+			q, _ := strconv.ParseInt(strings.ReplaceAll(fields[qtyStart+i], ",", ""), 10, 64)
+			if q > 0 {
+				ratio := ""
+				if i < len(packRatios) {
+					ratio = packRatios[i]
+				}
+				option.SKUs = append(option.SKUs, buyerSKU{
+					MaterialNumber: materialNo,
+					BuyerStyleNo:   buyerStyleNo,
+					Color:          color,
+					Size:           size,
+					PackRatio:      ratio,
+					Quantity:       q,
+					Cases:          cases,
+					UnitCost:       unitCost,
+					LineTotal:      lineTotal,
+					SourceOrdinal:  seg.Ordinal,
+				})
 			}
 		}
 	}
 	if len(option.SKUs) == 0 {
-		return nil, fmt.Sprintf("Walmart-like page %d: no reconciled color/size detail located", seg.Ordinal)
+		if strings.Contains(upper, "SALES ORDER ITEM INFO") {
+			return nil, fmt.Sprintf("Order page %d: no reconciled color/size detail located", seg.Ordinal)
+		}
+		return nil, ""
 	}
-	return option, fmt.Sprintf("Walmart sales-order page %d suggested PO %s; check project/style mapping, packing and buyer revisions before staging", seg.Ordinal, option.PONumber)
+	soLabel := ""
+	if salesOrderNo != "" {
+		soLabel = " (SO/PO# " + salesOrderNo + ")"
+	}
+	return option, fmt.Sprintf("Structured order page %d suggested PO %s%s; check project/style mapping, packing and buyer revisions before staging", seg.Ordinal, option.PONumber, soLabel)
+}
+
+func mergeCompanionOrderPage(seg buyerEvidence, poMap map[string]*buyerOrderOption, fallback *buyerOrderOption) bool {
+	if seg.Kind != "PAGE" || (!strings.Contains(seg.Content, "PRODUCTION ORDER FORM") && !strings.Contains(seg.Content, "PO Terms (Incoterms)")) {
+		return false
+	}
+	custPO := extractFirstMatch(seg.Content, `(?im)\*?Customer\s+PO\s*#:\s*([A-Za-z0-9_-]+)`)
+	refStyle := extractFirstMatch(seg.Content, `(?im)(?:Reference|Project|Style)\s*#:\s*([A-Za-z0-9_./-]+)`)
+	var target *buyerOrderOption
+	for _, opt := range poMap {
+		if custPO != "" && (opt.PONumber == custPO || (opt.Details != nil && opt.Details.CustomerPONo == custPO)) {
+			if refStyle == "" || opt.StyleCode == refStyle {
+				target = opt
+				break
+			}
+		}
+	}
+	if target == nil {
+		target = fallback
+	}
+	if target == nil {
+		return false
+	}
+	if target.Details == nil {
+		target.Details = &buyerOrderDetails{}
+	}
+	d := target.Details
+	if v := extractFirstMatch(seg.Content, `(?im)\*?Required\s+Delivery\s+Date:\s*([0-9/-]+)`); v != "" {
+		d.RequiredDelivery = v
+	}
+	if v := extractFirstMatch(seg.Content, `(?im)\*?Cancel\s+Date:\s*([0-9/-]+)`); v != "" {
+		d.CancelDate = v
+	}
+	if v := extractFirstMatch(seg.Content, `(?im)Valid\s+From\s+Date:\s*([0-9/-]+)`); v != "" {
+		d.ValidFromDate = v
+	}
+	if v := extractFirstMatch(seg.Content, `(?im)(?:PO\s+Terms\s*\(Incoterms\)|Incoterms):\s*([A-Za-z0-9_-]+)`); v != "" {
+		d.Incoterms = v
+	}
+	if v := extractFirstMatch(seg.Content, `(?im)Ex-Factory\s+Date:\s*([0-9/-]+)`); v != "" {
+		d.ExFactoryDate = v
+	}
+	if v := extractFirstMatch(seg.Content, `(?im)Ex-Port\s+Date:\s*([0-9/-]+)`); v != "" {
+		d.ExPortDate = v
+	}
+	if v := extractFirstMatch(seg.Content, `(?im)ETA\s+TO\s+PORT:\s*([0-9/-]+)`); v != "" {
+		d.ETAToPort = v
+	}
+	if v := extractFirstMatch(seg.Content, `(?im)Delivery\s+Date:\s*([0-9/-]+)`); v != "" {
+		d.DeliveryDate = v
+	}
+	if v := extractFirstMatch(seg.Content, `(?im)Port\s+of\s+Exit:\s*([^\n]+)`); v != "" {
+		d.PortOfExit = strings.Join(strings.Fields(v), " ")
+	}
+	if v := extractFirstMatch(seg.Content, `(?im)Port\s+of\s+Entry:\s*([^\n]+)`); v != "" {
+		d.PortOfEntry = strings.Join(strings.Fields(v), " ")
+	}
+	if v := extractFirstMatch(seg.Content, `(?im)Freight\s+Forwarder:\s*([^\n]+)`); v != "" {
+		d.FreightForwarder = strings.Join(strings.Fields(v), " ")
+	}
+	if v := extractFirstMatch(seg.Content, `(?im)Ship\s+Mode:\s*([A-Za-z0-9_-]+)`); v != "" {
+		d.ShipMode = v
+	}
+	return true
+}
+
+func extractGenericPageDetails(content, custPO, salesOrderNo, projectNo string) *buyerOrderDetails {
+	d := &buyerOrderDetails{
+		CustomerPONo: custPO,
+		SalesOrderNo: salesOrderNo,
+		ProjectNo:    projectNo,
+		Accessories:  map[string]string{},
+		PackingRules: []string{},
+	}
+	d.InWhseDate = extractFirstMatch(content, `(?im)IN\s+WHSE\s+([0-9/-]+)`)
+	d.Season = extractFirstMatch(content, `(?im)IN\s+WHSE\s+[0-9/-]+\s+([A-Z]+\s+[0-9]{4})`, `(?im)SEASON:\s*([^\n]+?)(?:\s{2,}|$)`)
+	d.SeasonCode = extractFirstMatch(content, `(?im)SEASON\s+CODE:\s*([0-9A-Za-z_-]+)`)
+	d.ProgramNo = extractFirstMatch(content, `(?im)PROGRAM\s*#:\s*([0-9A-Za-z_-]+)`)
+	d.CountryOfOrigin = extractFirstMatch(content, `(?im)COUNTRY\s+OF\s+ORIGIN:\s*([^\n]+?)(?:\s{2,}|DEPT:|$)`)
+	d.Dept = extractFirstMatch(content, `(?im)DEPT(?:\s*#)?:\s*([0-9A-Za-z_-]+)`)
+	d.SupplierNo = extractFirstMatch(content, `(?im)SUPPLIER\s*#:\s*([0-9A-Za-z_-]+)`)
+	d.PLMNo = extractFirstMatch(content, `(?im)PLM\s*#:\s*([0-9A-Za-z_-]+)`)
+	d.FactoryID = extractFirstMatch(content, `(?im)FACTORY\s+ID:\s*([0-9A-Za-z_-]+)`)
+	d.Fineline = extractFirstMatch(content, `(?im)FINELINE:\s*([0-9A-Za-z_-]+)`)
+	d.RetailPrice = extractFirstMatch(content, `(?im)RETAIL(?:\s+PRICE)?:\s*([\$€£]?[0-9.,]+)`)
+	d.Customer = extractFirstMatch(content, `(?im)CUSTOMER:\s*([A-Za-z0-9 _-]+?)(?:\s{2,}|GOODS\s+SUPPLIER:|$)`)
+	d.Buyer = extractFirstMatch(content, `(?im)BUYER:\s*([A-Za-z0-9 _-]+?)(?:\s{2,}|SHIP\s+TO:|$)`)
+	d.BrandManager = extractFirstMatch(content, `(?im)BR(?:A)?ND\s+M(?:A)?N(?:A)?G(?:E)?R:\s*([A-Za-z0-9 _-]+?)(?:\s{2,}|PORT:|$)`)
+	d.VendorCode = extractFirstMatch(content, `(?im)VENDOR(?:\s+CODE)?:\s*([^\n]+?)(?:\s{2,}(?:RETAIL:|$))`)
+	d.GoodsSupplier = extractFirstMatch(content, `(?im)GOODS\s+SUPPLIER(?:\s+CODE)?:\s*([^\n]+?)(?:\s{2,}(?:REP\s+CODE:|$))`)
+	d.ShipTo = extractFirstMatch(content, `(?im)SHIP\s+TO:\s*([^\n]+?)(?:\s{2,}(?:ITEM\s+DESC:|$))`)
+	d.PortOfEntry = extractFirstMatch(content, `(?im)PORT:\s*([0-9A-Za-z_-]+)`)
+	d.Warehouse = extractFirstMatch(content, `(?im)(?:WHSE|STORAGE\s+LOCATION):\s*([0-9A-Za-z_-]+)`)
+	d.ItemDesc = extractFirstMatch(content, `(?im)ITEM\s+DESC(?:RIPTION)?:\s*([^\n]+)`)
+	d.MABD = extractFirstMatch(content, `(?im)MABD:\s*([0-9/-]+)`)
+	d.FabricSpec = extractFirstMatch(content, `(?im)FABRIC:\s*([^\n]+?)(?:\s{2,}|HTS\s+CODE|$)`)
+	d.HTSCode = extractFirstMatch(content, `(?im)HTS\s+CODE(?:/CAT)?:\s*([0-9A-Za-z_.-]+)`)
+	d.FabricContent = extractFirstMatch(content, `(?im)CONTENT:\s*([^\n]+?)(?:\s{2,}|DUTY:|$)`)
+	d.FabricWeightGSM = extractFirstMatch(content, `(?im)WEIGHT:\s*([0-9]+\s*(?:G/M2|GSM|OZ))`)
+	d.FabricCategory = extractFirstMatch(content, `(?im)FABRIC\s+CAT(?:EGORY)?:\s*([A-Za-z0-9_-]+)`)
+	for _, kv := range []struct{ key, pat string }{
+		{"MAIN_SIZE_COO", `(?im)MAIN/SIZE/COO:\s*([A-Za-z0-9_-]+)`},
+		{"JOKER_TAG", `(?im)JOKER\s+TAG:\s*([A-Za-z0-9_-]+)`},
+		{"SIZE_STRIP", `(?im)SIZE\s+STRIP:\s*([^\n]+?)(?:\s{2,}|[0-9]+\.\s|$)`},
+		{"CARE_LABEL", `(?im)CARE\s+LABEL:\s*([A-Za-z0-9_-]+)`},
+		{"POLYBAG", `(?im)(?:RFID\s+)?POLYBAG:\s*([^\n]+)`},
+		{"POLYBAG_STICKER", `(?im)(?:RFID\s+)?POLYBAG\s+STICKER:\s*([A-Za-z0-9_-]+)`},
+		{"CARTON_STICKER", `(?im)Carton\s+Sticker:\s*(YES|NO)`},
+	} {
+		if val := extractFirstMatch(content, kv.pat); val != "" {
+			d.Accessories[kv.key] = val
+		}
+	}
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		u := strings.ToUpper(trimmed)
+		if strings.HasPrefix(u, "FOLDED ") ||
+			strings.HasPrefix(u, "SIZES - ") ||
+			strings.HasPrefix(u, "SIZES-") ||
+			strings.HasPrefix(u, "PACK ") ||
+			strings.HasPrefix(u, "EACH ") ||
+			strings.Contains(u, "CARTON STICKER REQUIRED") {
+			d.PackingRules = append(d.PackingRules, strings.Join(strings.Fields(trimmed), " "))
+		}
+	}
+	return d
+}
+
+func extractGenericPOMaterials(ordinal int, d *buyerOrderDetails) []buyerBOMHint {
+	if d == nil {
+		return nil
+	}
+	hints := []buyerBOMHint{}
+	if d.FabricSpec != "" {
+		code := "PRIMARY-FABRIC"
+		if m := regexp.MustCompile(`([A-Za-z0-9]{2,}#?[0-9A-Za-z_-]+)$`).FindStringSubmatch(strings.TrimSpace(d.FabricSpec)); len(m) == 2 {
+			code = strings.ReplaceAll(m[1], "#", "-")
+		}
+		hints = append(hints, buyerBOMHint{
+			Component:     "PO PRIMARY FABRIC",
+			MaterialLabel: strings.TrimSpace(d.FabricSpec + " · " + d.FabricContent + " · " + d.FabricWeightGSM),
+			SuggestedCode: code,
+			Category:      "FABRIC",
+			Section:       "PO Product Information",
+			RawQuantity:   "0.000",
+			QuantityState: "ZERO_UNVERIFIED",
+			SourceOrdinal: ordinal,
+			Page:          ordinal,
+			Hint:          "Extracted from PO Product Information. Enter verified per-garment fabric consumption and UOM before staging.",
+		})
+	}
+	for _, key := range []string{"MAIN_SIZE_COO", "JOKER_TAG", "SIZE_STRIP", "CARE_LABEL", "POLYBAG", "POLYBAG_STICKER"} {
+		val := d.Accessories[key]
+		if val == "" {
+			continue
+		}
+		code := strings.Fields(val)[0]
+		hints = append(hints, buyerBOMHint{
+			Component:     "PO ACCESSORY · " + strings.ReplaceAll(key, "_", " "),
+			MaterialLabel: val,
+			SuggestedCode: code,
+			Category:      "TRIM",
+			Section:       "PO Accessory Information",
+			RawQuantity:   "1.000",
+			QuantityState: "SOURCE_QUANTITY_UNVERIFIED",
+			SourceOrdinal: ordinal,
+			Page:          ordinal,
+			Hint:          "Extracted from PO Accessory Information. Confirm per-garment/polybag ratio and unit (PCS).",
+		})
+	}
+	return hints
+}
+
+func extractPDFDrawings(ctx context.Context, tx *sql.Tx, tenant string, src buyerSource, roleLabel string, maxOut int) []buyerDrawing {
+	if src.Format != "PDF" || maxOut <= 0 {
+		return nil
+	}
+	var rawPDF []byte
+	if err := tx.QueryRowContext(ctx, `SELECT original FROM document_sources_v65 WHERE tenant_id=$1 AND id=$2`, tenant, src.ID).Scan(&rawPDF); err != nil || len(rawPDF) == 0 {
+		return nil
+	}
+	c, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	dir, err := os.MkdirTemp("", "agiparel-drawings-")
+	if err != nil {
+		return nil
+	}
+	defer os.RemoveAll(dir)
+	pdfPath := filepath.Join(dir, "doc.pdf")
+	if err = os.WriteFile(pdfPath, rawPDF, 0600); err != nil {
+		return nil
+	}
+	prefix := filepath.Join(dir, "img")
+	if err = exec.CommandContext(c, "pdfimages", "-png", "-p", pdfPath, prefix).Run(); err != nil {
+		return nil
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	pageTitles := map[int]string{}
+	for _, seg := range src.Segments {
+		if seg.Kind == "PAGE" {
+			pn := bomPageNumber(seg.Locator)
+			firstLine := strings.TrimSpace(strings.SplitN(seg.Content, "\n", 2)[0])
+			if idx := strings.Index(firstLine, "In Work"); idx > 0 {
+				firstLine = strings.TrimSpace(firstLine[:idx])
+			}
+			if pn > 0 && firstLine != "" && pageTitles[pn] == "" {
+				pageTitles[pn] = firstLine
+			}
+		}
+	}
+	type rawImg struct {
+		page          int
+		width, height int
+		data          []byte
+		hash          string
+	}
+	candidates := []rawImg{}
+	hashCount := map[string]int{}
+	pageNumRe := regexp.MustCompile(`^img-([0-9]+)-[0-9]+\.png$`)
+	for _, e := range entries {
+		m := pageNumRe.FindStringSubmatch(e.Name())
+		if len(m) != 2 {
+			continue
+		}
+		page, _ := strconv.Atoi(m[1])
+		p := filepath.Join(dir, e.Name())
+		b, err := os.ReadFile(p)
+		if err != nil || len(b) < 12000 || len(b) > 900000 {
+			continue
+		}
+		cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
+		if err != nil || cfg.Width < 260 || cfg.Height < 180 {
+			continue
+		}
+		if cfg.Width > cfg.Height*3 || cfg.Height > cfg.Width*3 {
+			continue
+		}
+		sum := sha256.Sum256(b)
+		h := hex.EncodeToString(sum[:])
+		hashCount[h]++
+		candidates = append(candidates, rawImg{page: page, width: cfg.Width, height: cfg.Height, data: b, hash: h})
+	}
+	seenHash := map[string]bool{}
+	out := []buyerDrawing{}
+	for _, item := range candidates {
+		if hashCount[item.hash] >= 3 || seenHash[item.hash] {
+			continue
+		}
+		seenHash[item.hash] = true
+		title := fmt.Sprintf("%s · Page %d", roleLabel, item.page)
+		if t := pageTitles[item.page]; t != "" && !strings.Contains(strings.ToUpper(t), "CONFIRMED SALES ORDER") {
+			title = fmt.Sprintf("%s (p.%d): %s", roleLabel, item.page, t)
+		} else if roleLabel == "PO" {
+			title = fmt.Sprintf("PO Product Sketch (Page %d)", item.page)
+		}
+		out = append(out, buyerDrawing{
+			Title:   title,
+			Source:  src.Filename,
+			Page:    item.page,
+			Width:   item.width,
+			Height:  item.height,
+			DataURL: "data:image/png;base64," + base64.StdEncoding.EncodeToString(item.data),
+			SHA256:  item.hash[:16],
+		})
+		if len(out) >= maxOut {
+			break
+		}
+	}
+	return out
+}
+
+func readExistingBuyerDrafts(ctx context.Context, tx *sql.Tx, tenant, poDocID, bomDocID string) []buyerSavedDraft {
+	rows, err := tx.QueryContext(ctx, `
+		SELECT h.id::text, h.intake_id, o.po_number, o.style_code, o.ordered_qty,
+		       h.source_digest, h.reviewed_by, h.review_note, h.captured_at, h.mapping
+		FROM buyer_order_handoffs_v65c1 h
+		JOIN order_intakes_v5 o ON o.tenant_id = h.tenant_id AND o.id = h.intake_id
+		WHERE h.tenant_id = $1 AND (h.po_document_id = $2 OR h.bom_document_id = $3)
+		ORDER BY h.captured_at DESC, h.id DESC LIMIT 25`, tenant, poDocID, bomDocID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	out := []buyerSavedDraft{}
+	for rows.Next() {
+		var d buyerSavedDraft
+		var rawMap []byte
+		if err := rows.Scan(&d.HandoffID, &d.IntakeID, &d.PONumber, &d.StyleCode, &d.OrderedQty,
+			&d.SourceDigest, &d.ReviewedBy, &d.ReviewNote, &d.CapturedAt, &rawMap); err != nil {
+			continue
+		}
+		var savedReq buyerReviewRequest
+		if json.Unmarshal(rawMap, &savedReq) == nil {
+			d.SKUs = savedReq.SKUs
+			d.Materials = savedReq.Materials
+		}
+		out = append(out, d)
+	}
+	return out
+}
+
+func findConflictingBuyerDraft(ctx context.Context, tx *sql.Tx, tenant, poDocID, poNumber, newDigest string) (*buyerSavedDraft, error) {
+	var d buyerSavedDraft
+	var rawMap []byte
+	err := tx.QueryRowContext(ctx, `
+		SELECT h.id::text, h.intake_id, o.po_number, o.style_code, o.ordered_qty,
+		       h.source_digest, h.reviewed_by, h.review_note, h.captured_at, h.mapping
+		FROM buyer_order_handoffs_v65c1 h
+		JOIN order_intakes_v5 o ON o.tenant_id = h.tenant_id AND o.id = h.intake_id
+		WHERE h.tenant_id = $1 AND (o.po_number = $2 OR h.po_document_id = $3 AND o.po_number = $2)
+		ORDER BY h.captured_at DESC, h.id DESC LIMIT 1`, tenant, poNumber, poDocID).Scan(
+		&d.HandoffID, &d.IntakeID, &d.PONumber, &d.StyleCode, &d.OrderedQty,
+		&d.SourceDigest, &d.ReviewedBy, &d.ReviewNote, &d.CapturedAt, &rawMap)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if d.SourceDigest == newDigest {
+		return nil, nil
+	}
+	var savedReq buyerReviewRequest
+	if json.Unmarshal(rawMap, &savedReq) == nil {
+		d.SKUs = savedReq.SKUs
+		d.Materials = savedReq.Materials
+	}
+	return &d, nil
+}
+
+func computeBuyerDraftDiffs(saved buyerSavedDraft, current buyerReviewRequest) []buyerFieldDiff {
+	diffs := []buyerFieldDiff{}
+	if saved.StyleCode != current.StyleCode {
+		diffs = append(diffs, buyerFieldDiff{
+			Scope:          "Order Header",
+			Key:            "Style Code",
+			ColleagueValue: saved.StyleCode,
+			YourValue:      current.StyleCode,
+		})
+	}
+	savedSKUs := map[string]buyerSKU{}
+	skuKeys := []string{}
+	seenKey := map[string]bool{}
+	for _, s := range saved.SKUs {
+		k := s.Color + " · Size " + s.Size
+		savedSKUs[k] = s
+		if !seenKey[k] {
+			seenKey[k] = true
+			skuKeys = append(skuKeys, k)
+		}
+	}
+	currSKUs := map[string]buyerSKU{}
+	for _, s := range current.SKUs {
+		k := s.Color + " · Size " + s.Size
+		currSKUs[k] = s
+		if !seenKey[k] {
+			seenKey[k] = true
+			skuKeys = append(skuKeys, k)
+		}
+	}
+	for _, k := range skuKeys {
+		a, okA := savedSKUs[k]
+		b, okB := currSKUs[k]
+		switch {
+		case okA && !okB:
+			diffs = append(diffs, buyerFieldDiff{Scope: "SKU Line", Key: k, ColleagueValue: fmt.Sprintf("%d pcs (UPC: %s)", a.Quantity, emptyDash(a.UPC)), YourValue: "Removed / Missing"})
+		case !okA && okB:
+			diffs = append(diffs, buyerFieldDiff{Scope: "SKU Line", Key: k, ColleagueValue: "Not present", YourValue: fmt.Sprintf("%d pcs (UPC: %s)", b.Quantity, emptyDash(b.UPC))})
+		case a.Quantity != b.Quantity || a.UPC != b.UPC || a.SourceOrdinal != b.SourceOrdinal:
+			diffs = append(diffs, buyerFieldDiff{
+				Scope:          "SKU Line",
+				Key:            k,
+				ColleagueValue: fmt.Sprintf("%d pcs · UPC %s (src #%d)", a.Quantity, emptyDash(a.UPC), a.SourceOrdinal),
+				YourValue:      fmt.Sprintf("%d pcs · UPC %s (src #%d)", b.Quantity, emptyDash(b.UPC), b.SourceOrdinal),
+			})
+		}
+	}
+	savedBOM := map[string]buyerMaterial{}
+	bomKeys := []string{}
+	seenBOM := map[string]bool{}
+	for _, m := range saved.Materials {
+		k := m.Category + " · " + m.SKU
+		savedBOM[k] = m
+		if !seenBOM[k] {
+			seenBOM[k] = true
+			bomKeys = append(bomKeys, k)
+		}
+	}
+	currBOM := map[string]buyerMaterial{}
+	for _, m := range current.Materials {
+		k := m.Category + " · " + m.SKU
+		currBOM[k] = m
+		if !seenBOM[k] {
+			seenBOM[k] = true
+			bomKeys = append(bomKeys, k)
+		}
+	}
+	for _, k := range bomKeys {
+		a, okA := savedBOM[k]
+		b, okB := currBOM[k]
+		switch {
+		case okA && !okB:
+			diffs = append(diffs, buyerFieldDiff{Scope: "BOM Material", Key: k, ColleagueValue: fmt.Sprintf("%s %s", a.PerGarment, a.UOM), YourValue: "Removed / Missing"})
+		case !okA && okB:
+			diffs = append(diffs, buyerFieldDiff{Scope: "BOM Material", Key: k, ColleagueValue: "Not present", YourValue: fmt.Sprintf("%s %s", b.PerGarment, b.UOM)})
+		case a.PerGarment != b.PerGarment || !strings.EqualFold(a.UOM, b.UOM) || a.SourceOrdinal != b.SourceOrdinal:
+			diffs = append(diffs, buyerFieldDiff{
+				Scope:          "BOM Material",
+				Key:            k,
+				ColleagueValue: fmt.Sprintf("%s %s (src #%d)", a.PerGarment, a.UOM, a.SourceOrdinal),
+				YourValue:      fmt.Sprintf("%s %s (src #%d)", b.PerGarment, b.UOM, b.SourceOrdinal),
+			})
+		}
+	}
+	return diffs
+}
+
+func emptyDash(s string) string {
+	if strings.TrimSpace(s) == "" {
+		return "none"
+	}
+	return s
 }
 
 func readBuyerSource(ctx context.Context, tx *sql.Tx, tenant, id string) (buyerSource, error) {
@@ -492,6 +1138,11 @@ func (s *EdgeServer) handleBuyerReview(w http.ResponseWriter, r *http.Request) {
 		opts, _, issues := detectBuyerOptions(po.Segments)
 		_, mats, bomIssues := detectBuyerOptions(bom.Segments)
 		techHints, techCoverage, techIssues := detectTechPackBOM(bom.Segments)
+		drawings := extractPDFDrawings(ctx, tx, tenant, po, "PO", 4)
+		if req.BOMDocumentID != req.PODocumentID {
+			drawings = append(drawings, extractPDFDrawings(ctx, tx, tenant, bom, "Tech Pack", 6)...)
+		}
+		existingDrafts := readExistingBuyerDrafts(ctx, tx, tenant, po.ID, bom.ID)
 		issues = append(issues, bomIssues...)
 		issues = append(issues, techIssues...)
 		if po.Truncated || bom.Truncated {
@@ -504,12 +1155,45 @@ func (s *EdgeServer) handleBuyerReview(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Database unavailable", 503)
 			return
 		}
-		docJSON(w, 200, map[string]any{"po_source": po, "bom_source": bom, "po_options": opts, "materials": mats, "techpack_material_hints": techHints, "techpack_bom_coverage": techCoverage, "issues": issues, "status": "UNREVIEWED", "release": "HOLD"})
+		docJSON(w, 200, map[string]any{
+			"po_source":               po,
+			"bom_source":              bom,
+			"po_options":              opts,
+			"materials":               mats,
+			"techpack_material_hints": techHints,
+			"techpack_bom_coverage":   techCoverage,
+			"drawings":                drawings,
+			"existing_drafts":         existingDrafts,
+			"issues":                  issues,
+			"status":                  "UNREVIEWED",
+			"release":                 "HOLD",
+		})
 		return
 	}
 	sub, err := prepareBuyerSubmission(req, po, bom)
 	if err != nil {
 		http.Error(w, err.Error(), 400)
+		return
+	}
+	// Serialize concurrent saves for the same tenant + PO number so two colleagues
+	// clicking Save simultaneously cannot race past the conflict detector.
+	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, tenant+"/po/"+strings.ToUpper(strings.TrimSpace(req.PONumber))); err != nil {
+		http.Error(w, "Database unavailable", 503)
+		return
+	}
+	conflictDraft, err := findConflictingBuyerDraft(ctx, tx, tenant, po.ID, req.PONumber, sub.Report.SourceSHA256)
+	if err != nil {
+		writeBuyerSaveFailure(w, err, "conflict check")
+		return
+	}
+	if conflictDraft != nil && strings.TrimSpace(req.SupersedeDigest) != conflictDraft.SourceDigest {
+		diffs := computeBuyerDraftDiffs(*conflictDraft, req)
+		docJSON(w, http.StatusConflict, map[string]any{
+			"code":          "COLLEAGUE_DRAFT_CONFLICT",
+			"message":       fmt.Sprintf("Colleague %q already saved a different draft for PO %s at %s. Review the %d discrepancy(s) below and coordinate before saving.", conflictDraft.ReviewedBy, conflictDraft.PONumber, conflictDraft.CapturedAt.UTC().Format("2006-01-02 15:04 UTC"), len(diffs)),
+			"colleague":     conflictDraft,
+			"discrepancies": diffs,
+		})
 		return
 	}
 	rep, reused, err := persistIntakeInTx(ctx, tx, tenant, sub)
@@ -522,7 +1206,15 @@ func (s *EdgeServer) handleBuyerReview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid mapping", 400)
 		return
 	}
-	reviewedBy := os.Getenv("AGIPAREL_OPERATOR_USER") // Development-only identity; production needs authenticated reviewer identity.
+	reviewedBy := strings.TrimSpace(r.Header.Get("X-Agiparel-Operator"))
+	if reviewedBy == "" {
+		if u, _, ok := r.BasicAuth(); ok && strings.TrimSpace(u) != "" {
+			reviewedBy = strings.TrimSpace(u)
+		}
+	}
+	if reviewedBy == "" {
+		reviewedBy = os.Getenv("AGIPAREL_OPERATOR_USER")
+	}
 	if reviewedBy == "" {
 		reviewedBy = "dev"
 	}
@@ -546,9 +1238,6 @@ func (s *EdgeServer) handleBuyerReview(w http.ResponseWriter, r *http.Request) {
 	docJSON(w, map[bool]int{true: 200, false: 201}[reused], map[string]any{"intake": rep, "handoff_id": handoffID, "reused": reused, "status": "PROPOSED", "release": "HOLD", "next": "/material-planning", "source_note": "The existing order and BOM quantities are proposals. Original sources remain in Document Intelligence."})
 }
 
-// Author: Sunil Jain, 2026-10-27 — Classify draft persistence failures without
-// leaking database details, buyer files, or customer data to the browser.
-// A failed transaction is rolled back by the caller; never claim a draft was saved.
 func buyerSaveError(err error) (int, string, string) {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
@@ -560,9 +1249,6 @@ func buyerSaveError(err error) (int, string, string) {
 		case "23505":
 			return http.StatusConflict, "This order conflicts with an existing saved record. Ask an administrator to inspect the conflicting entry. No new draft was saved.", pgErr.Code
 		case "23503":
-			// The document source tables historically had no foreign key to
-			// tenants, whereas structured buyer orders do. Do not assume every
-			// foreign-key failure means an uploaded document has vanished.
 			switch pgErr.ConstraintName {
 			case "order_intakes_v5_tenant_id_fkey", "buyer_order_handoffs_v65c1_tenant_id_fkey":
 				return http.StatusServiceUnavailable, "Factory account setup is incomplete. Ask an administrator to verify the configured factory identity. No draft was saved.", pgErr.Code
@@ -588,7 +1274,6 @@ func writeBuyerSaveFailure(w http.ResponseWriter, err error, stage string) {
 	status, message, code := buyerSaveError(err)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
-		// SQLSTATE and schema identifiers only. Never log extracted order contents.
 		log.Printf("buyer-review: failed at %s (sqlstate=%s table=%s constraint=%s)", stage, code, pgErr.TableName, pgErr.ConstraintName)
 	} else {
 		log.Printf("buyer-review: failed at %s (class=%s type=%T)", stage, code, err)
