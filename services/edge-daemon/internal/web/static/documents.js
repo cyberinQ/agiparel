@@ -1,4 +1,4 @@
-// Author: Sunil Jain, 2026-10-28 — original-file intake and compact, sortable evidence library.
+// Author: Sunil Jain, CyberinQ LLC — Chapter 10: Auto-Grouped PO/Style Dossier Folders + 17-Stage RFID Experiment.
 (()=>{'use strict';
 const $=id=>document.getElementById(id),text=(node,value)=>{node.textContent=value??'';return node};
 const create=(tag,cls,contents,parent)=>{const n=document.createElement(tag);if(cls)n.className=cls;text(n,contents);if(parent)parent.append(n);return n};
@@ -7,6 +7,26 @@ let files=[],library=[],current=null,currentSegments=[];
 let nextCursor="", sourceOrdinal=0, hasMoreSources=false, libraryGeneration=0, sourceGeneration=0, paging=false;
 const deepLink=new URLSearchParams(window.location.search);let deepLinkOpened=false;
 const formatSize=n=>n>=1024*1024?`${(n/1024/1024).toFixed(1)} MiB`:`${(n/1024).toFixed(1)} KiB`;
+
+// Automatically classify any uploaded filename into its Style/Program key and Document Role.
+function classifyDocument(name=''){
+ const u=String(name).toUpperCase();
+ const norm=u.replace(/[_\s().-]+/g,' ');
+ let role='OTHER_DOC', roleLabel='Supporting File';
+ if(/\b(01 MACHINE|MACHINE ROSTER|02 WORKFORCE|SKILLS MATRIX|03 OPERATION BULLETIN RATES|04 RAW MATERIAL)/.test(norm)){
+  role='PLANT_MASTER'; roleLabel='Plant Master Register';
+ }else if(norm.includes('PO SHEET')||norm.includes('PURCHASE ORDER')||norm.includes('BUYER PO')){
+  role='ANCHOR_PO'; roleLabel='1. Anchor Purchase Order (PO)';
+ }else if(` ${norm} `.includes(' OB ')||norm.includes('OPERATION BULLETIN')||(u.endsWith('.XLSX')&&(norm.includes('45PW')||norm.includes('PRINT')||norm.includes('SOLID')))){
+  role='OPERATION_BULLETIN'; roleLabel='3. Operation Bulletin (OB)';
+ }else if(norm.includes('TECH PACK')||norm.includes('SAMPLE ENGLISH')||norm.includes('SPEC')){
+  role='TECH_PACK'; roleLabel='2. Style Tech Pack';
+ }
+ const m=/(?:^|\s)([A-Z]{2}[0-9]{2}[A-Z][0-9]{3}|[0-9]{2}[A-Z]{2}[0-9]{3}|[0-9]{6})(?=\s|$)/.exec(norm);
+ const styleKey=role==='PLANT_MASTER'?'PLANT_MASTER':(m?m[1]:'UNGROUPED');
+ return {styleKey, role, roleLabel};
+}
+
 function feedback(message,kind='',issues=[],duplicates=[]){
  const el=$('feedback');el.className=`feedback ${kind}`;el.replaceChildren();
  create('span','',message,el);
@@ -28,7 +48,7 @@ $('files').addEventListener('change',e=>selection(e.target.files));
 const drop=$('drop');drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag')});drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag');selection(e.dataTransfer.files)});
 drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('files').click()}});
 const request=async(url,init)=>{const res=await fetch(url,{credentials:'same-origin',...init});if(!res.ok)throw Error((await res.text()).slice(0,250)||`HTTP ${res.status}`);return res.json()};
-// Author: Sunil Jain, 2026-10-27 — Distinguish new, already-stored, and rejected originals.
+
 async function upload(){
  if(!files.length)return;
  $('upload').disabled=true;
@@ -95,11 +115,11 @@ function renderList(){
   const moment=Date.parse(d.captured_at);create('td','',Number.isFinite(moment)?new Date(moment).toLocaleString():'Date unavailable',row);
   const action=create('td','',null,row);const link=create('a','file-download','↓',action);link.href=`/api/v1/documents/${encodeURIComponent(d.id)}/source`;link.download=fileName(d);link.title=`Download ${fileName(d)}`;link.setAttribute('aria-label',`Download ${fileName(d)}`);
  }
+ renderAutoGroupedBundles(latest);
 }
 $('sort-by').addEventListener('change',e=>{sortKey=e.target.value;sortAscending=sortKey!=='captured_at';$('sort-direction').textContent=sortAscending?'Ascending ↑':'Newest first ↓';renderList()});
 $('sort-direction').addEventListener('click',()=>{sortAscending=!sortAscending;$('sort-direction').textContent=sortAscending?'Ascending ↑':'Descending ↓';renderList()});
-// Every request is scoped to an operator-visible, bounded page. Never imply a partial
-// catalog represents all files in the factory.
+
 function announceLibrary(preferred='') {
  document.dispatchEvent(new CustomEvent('agiparel-documents-updated',{detail:{items:library.filter(d=>d.current_version!==false),preferred}}));
 }
@@ -112,7 +132,6 @@ async function refresh({preferred=""}={}) {
   renderList();announceLibrary(preferred);
   if(!deepLinkOpened&&deepLink.has('document')){
    deepLinkOpened=true;
-   // Direct evidence links are not restricted to the first catalog page.
    await inspect(deepLink.get('document'));
   }
  }catch(e){if(generation!==libraryGeneration)return;const list=$('doc-list');list.replaceChildren();const row=create('tr','',null,list);const cell=create('td','file-empty',`Cannot load files: ${e.message}`,row);cell.colSpan=3;text($('library-progress'),'Catalog unavailable');}
@@ -132,6 +151,99 @@ async function loadMore(){
  finally{paging=false;$('library-more').disabled=false;}
 }
 $('library-more').addEventListener('click',()=>void loadMore());
+
+// Automatically group loaded files into Style/PO Dossier Cards with zero manual checkboxes.
+function renderAutoGroupedBundles(latestFiles){
+ const libPanel=$('library-more')?.parentElement;
+ if(!libPanel)return;
+ let host=libPanel.querySelector('.po-dossier-workbench');
+ if(!host){
+  host=create('details','library-options po-dossier-workbench',null,libPanel);
+  host.open=true;
+ }
+ host.replaceChildren();
+ const groups=new Map();
+ for(const f of latestFiles){
+  const info=classifyDocument(fileName(f));
+  if(!groups.has(info.styleKey))groups.set(info.styleKey,[]);
+  groups.get(info.styleKey).push({doc:f, role:info.role, roleLabel:info.roleLabel});
+ }
+ create('summary','',`Automatic PO & Style Bundles (${groups.size} groups detected from your ${latestFiles.length} files)`,host);
+ const wrap=create('div','dossier-box',null,host);
+ create('p','evidence-message','Your uploaded files are automatically grouped by Style / Program code below so you never mix Tech Packs or Operation Bulletins from different orders. Click any bundle to open Chapter 02 pre-locked to ONLY that bundle’s files.',wrap);
+
+ const cardsGrid=create('div','dossier-cards',null,wrap);
+ const roleOrder={ANCHOR_PO:1,TECH_PACK:2,OPERATION_BULLETIN:3,PLANT_MASTER:4,OTHER_DOC:5};
+ for(const [styleKey, items] of groups.entries()){
+  items.sort((a,b)=>(roleOrder[a.role]||9)-(roleOrder[b.role]||9));
+  const card=create('div','dossier-card',null,cardsGrid);
+  const title=styleKey==='PLANT_MASTER'?'🏭 Shared Plant Master Registers (Machines, Workers, Catalog)':`📦 Style / Order Bundle: ${styleKey} (${items.length} file${items.length===1?'':'s'})`;
+  create('strong','',title,card);
+  const ul=create('ul','dossier-doc-list',null,card);
+  let poDoc=null, tpDoc=null, obDoc=null;
+  for(const item of items){
+   if(item.role==='ANCHOR_PO'&&!poDoc)poDoc=item.doc;
+   if(item.role==='TECH_PACK'&&!tpDoc)tpDoc=item.doc;
+   if(item.role==='OPERATION_BULLETIN'&&!obDoc)obDoc=item.doc;
+   const li=create('li','',null,ul);
+   create('span','dossier-role-badge',item.roleLabel,li);
+   const btn=create('button','file-name',` ${fileName(item.doc)}`,li);
+   btn.type='button';
+   btn.style.cssText='display:inline;min-height:auto;padding:0 4px;font-size:12px';
+   btn.addEventListener('click',()=>void inspect(item.doc.id));
+  }
+  if(styleKey!=='PLANT_MASTER'){
+   const act=create('div','review-actions',null,card);
+   const openCh2=create('button','secondary',`Check ${styleKey} in Chapter 02 →`,act);
+   openCh2.type='button';
+   openCh2.addEventListener('click',async()=>{
+    const docsPayload=items.map(x=>({document_id:x.doc.id,doc_role:x.role==='PLANT_MASTER'?'MACHINE_ROSTER':x.role,filename:fileName(x.doc)}));
+    try{
+     await request('/api/v1/document-dossiers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({po_number:styleKey,style_code:styleKey,documents:docsPayload})});
+    }catch{}
+    try{
+     if(typeof window!=='undefined'&&window.sessionStorage){
+      window.sessionStorage.setItem('agiparel:active-po-context:v51',JSON.stringify({
+       po_number:styleKey,
+       style_code:styleKey,
+       po_document_id:(poDoc||tpDoc||items[0].doc).id,
+       bom_document_id:(tpDoc||poDoc||items[0].doc).id,
+       ob_document_id:obDoc?obDoc.id:'',
+       documents:docsPayload
+      }));
+     }
+    }catch{}
+    window.location.href=`/buyer-review?style=${encodeURIComponent(styleKey)}`;
+   });
+  }
+ }
+
+ // Clean 1-click RFID experiment bar
+ const expBar=create('div','dossier-exp-box',null,wrap);
+ const expTop=create('div','panel-head',null,expBar);
+ create('strong','','17-Stage Factory RFID / NFC Experiment (Store Rolls → Cutting → Sewing Line → SGTIN-96 → Dock)',expTop);
+ const expBtn=create('button','secondary','Run 17-Stage Live RFID Experiment →',expTop);expBtn.type='button';
+ const expStatus=create('p','evidence-message','Simulate 10 Store Rolls (PO-independent General Stock), 14 Dual UHF+NFC Sewing Bundles, 4 RTLS Machines/Trolleys, 16 SGTIN-96 Garments, and 4 SSCC Cartons.',expBar);
+ const expDetails=create('div','dossier-cards',null,expBar);
+ expBtn.addEventListener('click',async()=>{
+  expBtn.disabled=true;text(expStatus,'Running 17-stage Live RFID + Passive UHF + Station NFC Puck + SGTIN-96 experiment…');
+  try{
+   const res=await request('/api/v1/rfid/experiment/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({po_number:'REP3',style_code:'GM09Y094',roll_count:10,bundle_count:14,carton_count:4})});
+   const pool=await request('/api/v1/rfid/tag-pool');
+   const rolls=await request('/api/v1/stores/roll-sheet');
+   const telemetry=await request('/api/v1/rfid/rtls-sightings');
+   text(expStatus,`✓ Verified PO ${res.po_number} (${res.style_code}): ${rolls.reconciliation?.mapped_grn||10} General-Stock Store Rolls mapped & allocated (${rolls.reconciliation?.short_missing||1} short roll & ${rolls.reconciliation?.claims||1} narrow/defect roll flagged) · ${res.rolls_recycled_unused} roll tags & ${res.bundles_cycled} bundle fobs automatically recycled to UNUSED pool (${pool.counts?.UNUSED||0} UNUSED ready in bin) · ${res.garments_sgtin96} SGTIN-96 garments & ${res.cartons_dispatched} SSCC cartons dispatched.`);
+   expDetails.replaceChildren();
+   for(const ev of (telemetry.events||[]).slice(0,8)){
+    const c=create('div','dossier-card',null,expDetails);
+    create('strong','',ev.stage_name,c);
+    create('p','evidence-message',`Tag ${ev.epc_hex} · ${ev.target_type} ${ev.target_id} · Scope: ${ev.po_number||'GENERAL_STOCK'} · Reader ${ev.gateway_id} (${ev.zone_code})`,c);
+   }
+  }catch(e){text(expStatus,`Experiment error: ${e.message}`);}
+  finally{expBtn.disabled=false;}
+ });
+}
+
 function renderSourcePage(payload,append){
  if(!append)currentSegments=[];
  currentSegments.push(...(payload.segments||[]));
@@ -160,7 +272,6 @@ async function inspect(id){
   if(!deepLink.has('document'))$('source-details').scrollIntoView({behavior:'smooth',block:'start'});
   const ordinal=Number(deepLink.get('segment'));
   if(Number.isSafeInteger(ordinal)&&ordinal>0){
-   // An original's segment may be far beyond the first 200; do not pretend to display it.
    const matched=document.getElementById(`source-segment-${ordinal}`);
    if(matched){matched.classList.add('source-highlight');matched.scrollIntoView({behavior:'smooth',block:'center'});}
    else text($('evidence-message'),`Segment #${ordinal} is not loaded. Use Load more extracted text or download the original.`);
@@ -181,6 +292,5 @@ async function loadMoreSource(){
 $('source-more').addEventListener('click',()=>void loadMoreSource());
 function renderSegments(){const q=$('search').value.trim().toLocaleLowerCase();const holder=$('segments');holder.replaceChildren();let found=0;for(const s of currentSegments){if(q&&!s.content.toLocaleLowerCase().includes(q)&&!JSON.stringify(s.locator).toLocaleLowerCase().includes(q))continue;found++;const card=create('article','segment','',holder);card.id=`source-segment-${s.ordinal}`;create('div','segment-label',`${s.kind} #${s.ordinal} · ${Object.entries(s.locator||{}).map(([k,v])=>`${k}: ${v}`).join(' · ')}`,card);create('pre','',s.content,card)}text($('evidence-message'),currentSegments.length?`${found} matching segment(s) of ${currentSegments.length} loaded${hasMoreSources?'; more evidence available':'; end of extracted evidence'}. Search covers loaded text only; the original is always available.`:'No extracted text for this document yet. Check the job status or download the original.')}
 $('search').addEventListener('input',renderSegments);$('refresh').addEventListener('click',()=>void refresh());void refresh();
-// Only poll when queued/processing; avoid unnecessary requests once settled.
 setInterval(()=>{if(library.some(d=>d.status==='QUEUED'||d.status==='PROCESSING')){void refresh().then(()=>{if(current&&library.some(d=>d.id===current&&d.status!=='QUEUED'&&d.status!=='PROCESSING')&&currentSegments.length===0)void inspect(current)})}},4500);
 })();

@@ -209,6 +209,7 @@ func main() {
 	registerFactoryReleaseRoutesV33(mux, server)
 	registerDockRoutesV34(mux, server)
 	registerDockExternalRoutesV35(mux, server)
+	registerRFIDAndDossierRoutesV51(mux, server)
 	// Public routes are isolated; every other route requires operator access.
 	registerPublicPortal(mux)
 	registerPublicAccountRoutes(mux, server.browser)

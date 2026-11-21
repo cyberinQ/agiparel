@@ -1,9 +1,90 @@
-// Author: Sunil Jain, 2026-10-28
-// Same-tab WIP recovery for chapter forms; NOT a server save or an authorization.
+// Author: Sunil Jain, CyberinQ LLC
+// Same-tab WIP recovery + Global Cross-Chapter PO & Style Context Selector across all 10 chapters.
 // Never store files, secrets, approval checkboxes, hidden revision tokens, or API results.
 (() => {
   'use strict';
   if (!document.body.dataset.agPhase || !window.sessionStorage) return;
+
+  // 1. Cross-Chapter Active PO + Style Scope Bar (prevents mixing Tech Packs / Bulletins from another PO)
+  const CTX_KEY = 'agiparel:active-po-context:v51';
+  function getActiveContext() {
+    try { return JSON.parse(sessionStorage.getItem(CTX_KEY) || 'null'); } catch { return null; }
+  }
+  function setActiveContext(ctx) {
+    try {
+      if (ctx && ctx.po_number) sessionStorage.setItem(CTX_KEY, JSON.stringify(ctx));
+      else sessionStorage.removeItem(CTX_KEY);
+    } catch {}
+    document.dispatchEvent(new CustomEvent('agiparel:po-context-changed', { detail: ctx }));
+  }
+  async function mountPOContextRibbon() {
+    if (typeof fetch !== 'function' || document.getElementById('agiparel-po-scope-bar')) return;
+    let dossiers = [];
+    try {
+      const res = await fetch('/api/v1/document-dossiers', { credentials: 'same-origin' });
+      if (res.ok) {
+        const data = await res.json();
+        dossiers = data.dossiers || [];
+      }
+    } catch { return; }
+    if (!dossiers.length) return;
+    const bar = document.createElement('section');
+    bar.id = 'agiparel-po-scope-bar';
+    bar.className = 'ag-wip-resume';
+    bar.setAttribute('data-no-draft', 'true');
+    bar.setAttribute('aria-label', 'Active Purchase Order and Style Scope');
+    const label = document.createElement('span');
+    label.textContent = 'Active PO & Style Scope (filters Tech Packs & Bulletins across chapters):';
+    const sel = document.createElement('select');
+    sel.style.cssText = 'min-height:36px;padding:6px 10px;border:1px solid #b9cad5;border-radius:8px;background:#fff;font-weight:700;color:#1d3b4f';
+    const allOpt = document.createElement('option');
+    allOpt.value = '';
+    allOpt.textContent = 'All POs / Unfiltered';
+    sel.append(allOpt);
+    const saved = getActiveContext();
+    for (const d of dossiers) {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      const docCount = (d.documents || []).length;
+      opt.textContent = `PO ${d.po_number} · Style ${d.style_code}${d.buyer_name ? ' (' + d.buyer_name + ')' : ''} — ${docCount} linked doc(s)`;
+      if (saved && saved.po_number === d.po_number && saved.style_code === d.style_code) {
+        opt.selected = true;
+      }
+      sel.append(opt);
+    }
+    const meta = document.createElement('small');
+    function updateMeta(d) {
+      if (!d) {
+        meta.textContent = 'Select a PO + Style above so only its Tech Packs, Operation Bulletins, Machines, Workers, and RFID tags appear.';
+        return;
+      }
+      const roles = (d.documents || []).map(x => `${x.doc_role.replaceAll('_', ' ')}: ${x.filename}`).join(' | ');
+      const mach = (d.locked_machines || []).length ? ` · Locked Machines: ${d.locked_machines.join(', ')}` : '';
+      const work = (d.locked_workers || []).length ? ` · Workers: ${d.locked_workers.join(', ')}` : '';
+      meta.textContent = `Scoped to PO ${d.po_number} / Style ${d.style_code}${mach}${work}${roles ? ' · Docs: ' + roles : ''}`;
+    }
+    const activeDossier = dossiers.find(x => x.id === sel.value) || null;
+    updateMeta(activeDossier);
+    if (activeDossier) {
+      setTimeout(() => document.dispatchEvent(new CustomEvent('agiparel:po-context-changed', { detail: activeDossier })), 60);
+    }
+    sel.addEventListener('change', () => {
+      const picked = dossiers.find(x => x.id === sel.value) || null;
+      updateMeta(picked);
+      setActiveContext(picked);
+    });
+    bar.append(label, sel, meta);
+    const main = document.querySelector('main') || document.querySelector('.app') || document.body;
+    main.prepend(bar);
+  }
+  void mountPOContextRibbon();
+  document.addEventListener('agiparel:dossiers-updated', () => {
+    const old = document.getElementById('agiparel-po-scope-bar');
+    if (old) old.remove();
+    void mountPOContextRibbon();
+  });
+
+  // 2. Existing Same-Tab Unsaved Form Recovery
   const KEY = 'agiparel:wip:v1:' + location.pathname.replace(/\/$/, '');
   const MAX_AGE = 24 * 60 * 60 * 1000;
   const MAX_VALUE = 3000;
@@ -19,7 +100,6 @@
     if (el.matches('input')) {
       if (!allowedTypes.has((el.type || 'text').toLowerCase())) return false;
     }
-    // Never restore statements of consent, approval, or file selection.
     return true;
   }
   function keyFor(el) {
@@ -56,7 +136,7 @@
     try {
       sessionStorage.setItem(KEY, JSON.stringify({at: Date.now(), values, scroll: Math.round(scrollY)}));
       cached = read();
-    } catch { /* Storage can be disabled or full. No claim of saved draft then. */ }
+    } catch {}
   }
   for (const name of ['input', 'change']) {
     document.addEventListener(name, event => {
@@ -67,7 +147,6 @@
     }, true);
   }
   window.addEventListener('pagehide', persist);
-  // Future chapter save handlers may dispatch this only AFTER an acknowledged server commit.
   document.addEventListener('agiparel:draft-committed', () => {
     sessionStorage.removeItem(KEY); cached = null; dirty.clear();
   });

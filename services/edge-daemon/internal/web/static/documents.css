@@ -96,3 +96,17 @@ body[data-ag-workflow="simple"][data-ag-phase="documents"] main .file-table butt
 /* Author: Sunil Jain, 2026-10-28. Quiet evidence paging within existing Chapter 10 design. */
 body[data-ag-phase="documents"] .library-progress {color:var(--muted);font-size:12px;margin:6px 0 9px}
 body[data-ag-phase="documents"] :is(#library-more,#source-more) {margin-top:12px;min-height:43px}
+/* Author: Sunil Jain, CyberinQ LLC — Chapter 10 PO-Anchored Dossiers & 17-Stage RFID Experiment */
+.dossier-box{padding:14px 0 6px;border-top:1px solid var(--line);display:grid;gap:12px}
+.dossier-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.dossier-input,.dossier-role-select,.dossier-sub-input{border:1px solid #c7d7df;border-radius:8px;padding:8px 10px;min-height:40px;background:#fff;color:var(--ink);font-size:13px}
+.dossier-assign-list{display:grid;gap:8px;max-height:280px;overflow:auto;padding:4px 0}
+.dossier-assign-row{display:grid;grid-template-columns:1.4fr 1.2fr 1fr;gap:8px;align-items:center;padding:8px 10px;border:1px solid #e3ecef;border-radius:8px;background:#fafcfd}
+.dossier-chk-label{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;overflow-wrap:anywhere}
+.dossier-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:8px}
+.dossier-card{border:1px solid #d5e3ea;border-radius:10px;padding:12px 14px;background:#f9fcfd;display:grid;gap:6px}
+.dossier-doc-list{margin:4px 0;padding-left:16px;display:grid;gap:5px;font-size:12px}
+.dossier-role-badge{display:inline-block;padding:2px 7px;border-radius:10px;background:#e3f1f5;color:#155e75;font-size:10px;font-weight:800;letter-spacing:.04em}
+.dossier-exp-box{border:1px solid #b9dcd6;background:#f4fbf9;border-radius:10px;padding:14px;display:grid;gap:8px}
+@media(max-width:700px){.dossier-assign-row{grid-template-columns:1fr}}
+.dossier-style-branch{margin-top:8px;padding:10px 12px;border-left:3px solid #16869A;background:#fff;border-radius:6px;display:grid;gap:5px}

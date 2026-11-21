@@ -288,6 +288,18 @@ func checkDocumentSafety(ctx context.Context, name string, raw []byte) error {
 		valid = format == "TSV" || format == "TEXT"
 	case ".txt", ".md":
 		valid = format == "TEXT"
+	case ".ods":
+		valid = format == "ODS"
+	case ".odt":
+		valid = format == "ODT"
+	case ".rtf":
+		valid = format == "RTF" || format == "TEXT"
+	case ".json":
+		valid = format == "JSON" || format == "TEXT"
+	case ".xml":
+		valid = format == "XML" || format == "TEXT"
+	case ".html", ".htm":
+		valid = format == "HTML" || format == "TEXT"
 	}
 	if !valid {
 		return errors.New("unsupported or mismatched file type; use PDF, images, CSV, XLSX, DOCX, or scanned legacy XLS")

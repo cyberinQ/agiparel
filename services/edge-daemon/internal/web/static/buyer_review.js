@@ -1,4 +1,4 @@
-// Author: Sunil Jain, CyberinQ LLC — Source-locked, multi-PO-safe buyer review with colleague conflict reconciliation.
+// Author: Sunil Jain, CyberinQ LLC — Source-locked, auto-downselecting PO->TechPack/OB buyer review with colleague conflict reconciliation.
 (()=>{'use strict';
 const $=id=>document.getElementById(id),elt=(tag,cls,txt,parent)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(txt!==undefined)node.textContent=String(txt);if(parent)parent.append(node);return node};
 const api=async(url,opts={})=>{
@@ -21,7 +21,85 @@ let analyzedSources=null, analysisEpoch=0, selectedOption=-1, confirmedSupersede
 const optionEdits=new Map();
 const report=(id,msg,fail=false)=>{const n=$(id);n.textContent=msg;n.style.color=fail?'#a22b31':'#647a94'};
 function opt(select,value,label){const x=elt('option','',label,select);x.value=value}
-async function loadSources(){try{const out=await api('/api/v1/documents');sources=(out.items||[]).filter(x=>['EXTRACTED','PARTIAL'].includes(x.status));for(const item of sources){const label=item.filename;opt($('po-source'),item.id,label);opt($('bom-source'),item.id,label)}if(sources.length===1){$('po-source').value=sources[0].id;$('bom-source').value=sources[0].id;}report('load-message',sources.length?`${sources.length} file(s) ready. Choose your order files.`:'No files ready yet. Upload a PO or tech pack, then return here.');}catch(err){report('load-message',err.message,true)}}
+
+function extractFileStyleAndRole(name=''){
+ const u=String(name).toUpperCase();
+ const norm=u.replace(/[_\s().-]+/g,' ');
+ let role='OTHER';
+ if(/\b(01 MACHINE|MACHINE ROSTER|02 WORKFORCE|SKILLS MATRIX|03 OPERATION BULLETIN RATES|04 RAW MATERIAL)/.test(norm))role='PLANT_MASTER';
+ else if(norm.includes('PO SHEET')||norm.includes('PURCHASE ORDER')||norm.includes('BUYER PO'))role='ANCHOR_PO';
+ else if(` ${norm} `.includes(' OB ')||norm.includes('OPERATION BULLETIN')||(u.endsWith('.XLSX')&&(norm.includes('45PW')||norm.includes('PRINT')||norm.includes('SOLID'))))role='OPERATION_BULLETIN';
+ else if(norm.includes('TECH PACK')||norm.includes('SAMPLE ENGLISH')||norm.includes('SPEC'))role='TECH_PACK';
+ const m=/(?:^|\s)([A-Z]{2}[0-9]{2}[A-Z][0-9]{3}|[0-9]{2}[A-Z]{2}[0-9]{3}|[0-9]{6})(?=\s|$)/.exec(norm);
+ return {styleKey:m?m[1]:'', role};
+}
+
+// Down-select #bom-source automatically whenever a PO file is chosen in #po-source
+// so the user only sees Tech Packs and Bulletins belonging to that PO's style.
+function syncScopedBOMOptions(selectedPOId, showAll=false){
+ const bomSel=$('bom-source');
+ const prevBOM=bomSel.value;
+ bomSel.replaceChildren();
+ opt(bomSel,'','Choose file…');
+ const poItem=sources.find(x=>x.id===selectedPOId);
+ const poInfo=poItem?extractFileStyleAndRole(poItem.filename):{styleKey:''};
+ if(!poInfo.styleKey || showAll){
+  for(const item of sources)opt(bomSel,item.id,item.filename);
+  if(sources.some(x=>x.id===prevBOM))bomSel.value=prevBOM;
+  return;
+ }
+ const matching=sources.filter(x=>{
+  const info=extractFileStyleAndRole(x.filename);
+  return info.styleKey===poInfo.styleKey;
+ });
+ const candidates=matching.length?matching:sources;
+ for(const item of candidates){
+  const info=extractFileStyleAndRole(item.filename);
+  const tag=info.role==='TECH_PACK'?' [Tech Pack]':info.role==='OPERATION_BULLETIN'?' [Operation Bulletin]':info.role==='ANCHOR_PO'?' [PO Sheet]':'';
+  opt(bomSel,item.id,item.filename+tag);
+ }
+ // Auto-select the matching Tech Pack (or OB/PO if no separate Tech Pack)
+ const preferredTP=matching.find(x=>extractFileStyleAndRole(x.filename).role==='TECH_PACK')||matching.find(x=>x.id!==selectedPOId)||matching[0];
+ if(matching.some(x=>x.id===prevBOM))bomSel.value=prevBOM;
+ else if(preferredTP)bomSel.value=preferredTP.id;
+ report('load-message',`Scoped to Style ${poInfo.styleKey}: filtered Tech Pack / Bulletin list to ${matching.length} matching file(s) (${matching.map(x=>x.filename).join(' · ')}).`);
+}
+
+async function loadSources(){
+ try{
+  const out=await api('/api/v1/documents');
+  sources=(out.items||[]).filter(x=>['EXTRACTED','PARTIAL'].includes(x.status));
+  // Sort PO / Order files to the top of #po-source, and hide Plant Master CSVs unless no other files exist.
+  const orderFiles=sources.filter(x=>extractFileStyleAndRole(x.filename).role!=='PLANT_MASTER');
+  const poList=orderFiles.length?orderFiles:sources;
+  poList.sort((a,b)=>{
+   const ra=extractFileStyleAndRole(a.filename).role==='ANCHOR_PO'?0:1;
+   const rb=extractFileStyleAndRole(b.filename).role==='ANCHOR_PO'?0:1;
+   return ra-rb;
+  });
+  for(const item of poList){
+   const info=extractFileStyleAndRole(item.filename);
+   const prefix=info.styleKey?`[${info.styleKey}] `:'';
+   opt($('po-source'),item.id,prefix+item.filename);
+  }
+  for(const item of sources)opt($('bom-source'),item.id,item.filename);
+  if(sources.length===1){$('po-source').value=sources[0].id;$('bom-source').value=sources[0].id;}
+  // Check if user clicked "Check <Style> in Chapter 02" from Chapter 10
+  if(typeof window!=='undefined'&&window.sessionStorage){
+   try{
+    const ctx=JSON.parse(window.sessionStorage.getItem('agiparel:active-po-context:v51')||'null');
+    if(ctx&&ctx.po_document_id&&sources.some(x=>x.id===ctx.po_document_id)){
+     $('po-source').value=ctx.po_document_id;
+     syncScopedBOMOptions(ctx.po_document_id,false);
+     if(ctx.bom_document_id&&sources.some(x=>x.id===ctx.bom_document_id))$('bom-source').value=ctx.bom_document_id;
+     return;
+    }
+   }catch{}
+  }
+  report('load-message',sources.length?`${sources.length} file(s) ready. Pick a Purchase Order above to auto-filter its matching Tech Pack & Operation Bulletin.`:'No files ready yet. Upload a PO or tech pack, then return here.');
+ }catch(err){report('load-message',err.message,true)}
+}
+
 const input=(value,cls,placeholder='')=>{const n=elt('input',cls);n.value=value??'';n.placeholder=placeholder;return n};
 function cell(row,node,label){const td=elt('td','',undefined,row);if(label)td.dataset.label=label;td.append(node);return td}
 
@@ -175,7 +253,6 @@ function reviewSourcesCurrent(){
   $('po-source').value===analyzedSources.po&&$('bom-source').value===analyzedSources.bom);
 }
 
-// Client-side diff engine comparing current screen values against a colleague's saved draft.
 function diffAgainstColleagueDraft(colleague, currentReq){
  const diffs=[];
  if(colleague.style_code && currentReq.style_code && colleague.style_code!==currentReq.style_code){
@@ -353,7 +430,7 @@ function renderDrawingsCard(){
  }
 }
 function openDrawingLightbox(d){
- let modal=document.querySelector('.po-drawing-modal');
+ let modal=document.querySelector?.('.po-drawing-modal');
  if(modal)modal.remove();
  modal=elt('div','po-drawing-modal',undefined,document.body);
  const inner=elt('div','po-drawing-modal-inner',undefined,modal);
@@ -657,15 +734,27 @@ async function stage(){
  }finally{$('stage').disabled=false}
 }
 $('analyze').addEventListener('click',()=>void analyze());
-for(const id of ['po-source','bom-source'])$(id).addEventListener('change',invalidateReview);
+$('po-source').addEventListener('change',()=>{
+ invalidateReview();
+ syncScopedBOMOptions($('po-source').value,false);
+});
+$('bom-source').addEventListener('change',invalidateReview);
 $('po-choice').addEventListener('change',e=>{captureOption();applyOption(Number(e.target.value));renderTechPackHints()});
 $('style-code').addEventListener('change',()=>{renderOrderSummary();renderTechPackHints()});
 $('acknowledged').addEventListener('change',()=>{if($('acknowledged').checked)checkLiveColleagueConflict()});
 $('add-sku').addEventListener('click',()=>{makeRow('sku');renderOrderSummary()});
-const assignBtn=document.querySelector('#assign-upcs');
-if(assignBtn)assignBtn.addEventListener('click',()=>assignMissingUPCs());
+$('review').addEventListener('click',e=>{if(e.target?.id==='assign-upcs')assignMissingUPCs()});
 $('add-material').addEventListener('click',()=>{makeRow('material');renderOrderSummary()});
 $('review').addEventListener('input',e=>{if(e.target?.dataset?.field)renderOrderSummary()});
 $('review').addEventListener('change',e=>{if(e.target?.dataset?.field)renderOrderSummary()});
+if(typeof document.addEventListener==='function'){
+ document.addEventListener('agiparel:po-context-changed',e=>{
+  const d=e.detail;
+  if(d&&d.po_document_id&&sources.some(x=>x.id===d.po_document_id)){
+   $('po-source').value=d.po_document_id;
+   syncScopedBOMOptions(d.po_document_id,false);
+  }
+ });
+}
 $('stage').addEventListener('click',()=>void stage());void loadSources();
 })();
