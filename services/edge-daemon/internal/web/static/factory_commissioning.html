@@ -16,7 +16,7 @@
 <p>Use your enterprise SSO account with a provisioned <code>sewing.read</code> or <code>sewing.transfer</code> permission for the exact tenant and plant.</p>
 <div class="ag-report-controls"><label for="tenant">Tenant ID<input id="tenant" type="text" maxlength="64" autocomplete="off" spellcheck="false" required></label>
 <label for="plant">Plant ID<input id="plant" type="text" maxlength="64" autocomplete="off" spellcheck="false" required></label></div>
-<div class="ag-report-controls"><button id="load" type="button">Check station configuration</button><button id="more" type="button" hidden>Next page</button><a href="/auth/login">Sign in with enterprise SSO</a><a href="/intelligence">Factory report</a></div>
+<div class="ag-report-controls"><button id="load" type="button">Check station configuration</button><button id="more" type="button" hidden>Next page</button><label style="display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;font-weight:650;"><input id="only-incomplete" type="checkbox" style="width:18px;height:18px;min-height:18px;margin:0;"> Show incomplete stations only</label><a href="/auth/login">Sign in with enterprise SSO</a><a href="/intelligence">Factory report</a></div>
 <p id="status" class="ag-report-status" role="status" aria-live="polite">Sign in, enter your provisioned plant and run the configuration check.</p>
 </section>
 <section class="card" aria-labelledby="stations-head"><h2 id="stations-head">Configured stations</h2>

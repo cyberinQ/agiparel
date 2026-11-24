@@ -102,6 +102,8 @@ function show(report) {
   }
   if (!body.children.length) { const row = add('tr', '', body); const td = add('td', 'No matching stock claims.', row); td.colSpan = 5; }
   const holds = $('holds'); holds.replaceChildren();
+  const shades=new Set((report.candidates||[]).map(c=>c.shade_band).filter(Boolean));
+  if(shades.size>1)add('li',`Shade-lot notice (Conflict C7): ${shades.size} shade bands detected (${[...shades].join(', ')}). Cutting requires single-shade lays—verify shade coverage in Fabric Store.`,holds);
   for (const hold of report.holds || []) add('li', hold, holds);
   if (!holds.children.length) add('li', 'Even matching stock still needs operational authorization.', holds);
 }

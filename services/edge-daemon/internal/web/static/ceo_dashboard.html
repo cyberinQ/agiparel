@@ -6,26 +6,69 @@
   <title>Agiparel · CEO Group 6-Stage Dashboard (10-Min Sync)</title>
   <link rel="stylesheet" href="/static/ux_unified.css" />
   <style>
-    .ceo-wrap { max-width: 1400px; margin: 0 auto; padding: 18px; }
+    .ceo-wrap { max-width: 1440px; margin: 0 auto; padding: 18px; }
     .card { background: #fff; border: 1px solid #d7dee8; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-    .fresh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+    .fresh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .stage-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+    @media (max-width: 960px) { .stage-grid { grid-template-columns: repeat(2, 1fr); } }
+    .stage-kpi { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #f8fafc; }
+    .stage-kpi small { display: block; color: #64748b; font-weight: 700; font-size: 11px; text-transform: uppercase; }
+    .stage-kpi strong { display: block; font-size: 18px; margin: 4px 0; }
     .fresh-pill { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; background: #f8fafc; }
     .fresh-stale { border-color: #dc2626; background: #fef2f2; }
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 12px; }
+    .filter-bar label { font-size: 12px; font-weight: 700; display: flex; flex-direction: column; gap: 4px; }
+    .filter-bar select, .filter-bar input { min-height: 36px; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 7px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
     th, td { border: 1px solid #e2e8f0; padding: 7px 9px; text-align: left; }
     .neg { color: #b91c1c; font-weight: 700; }
     .pos { color: #15803d; font-weight: 700; }
+    button.mini { padding: 4px 9px; font-size: 11px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; font-weight: 700; }
   </style>
 </head>
 <body>
   <div class="ceo-wrap">
     <div class="card">
-      <h2>CEO Group Control Tower · Planned vs Actual Across 6 Stages</h2>
-      <p>Refreshed every 10 minutes from each factory server. Factory freshness timestamps are shown below so stale figures are never mistaken for live counts.</p>
-      <div id="freshness-host" class="fresh-grid"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div>
+          <h2 style="margin:0;">CEO Group Control Tower · Planned vs Actual Across 6 Stages</h2>
+          <p style="margin:4px 0 0;color:#475569;">Refreshed every 10 minutes from each factory server. Factory freshness timestamps are shown below so stale figures are never mistaken for live counts.</p>
+        </div>
+        <a href="/" style="font-weight:700;text-decoration:none;color:#167e88;">← Factory Home</a>
+      </div>
+      <div id="freshness-host" class="fresh-grid" style="margin-top:12px;"></div>
+      <div id="stage-rollup-host" class="stage-grid"></div>
     </div>
+
+    <div class="card" id="reason-editor" hidden>
+      <h3 style="margin-top:0;">Log Manager Shortfall Reason</h3>
+      <p id="reason-target" style="font-size:13px;color:#475569;"></p>
+      <div class="filter-bar">
+        <label>Shortfall Category
+          <select id="reason-code">
+            <option value="MATERIAL_DELAY">Material / Fabric Arrival Delay</option>
+            <option value="MACHINE_BREAKDOWN">Machine Breakdown</option>
+            <option value="ABSENTEEISM">Operator Absenteeism / Skill Bottleneck</option>
+            <option value="QUALITY_HOLD">Quality Hold / Rework</option>
+            <option value="UTILITY_POWER">Power / Utility Disruption</option>
+            <option value="OTHER">Other Operational Variance</option>
+          </select>
+        </label>
+        <label style="flex:1;min-width:240px;">Manager Note
+          <input id="reason-note" placeholder="Explain root cause and recovery plan..." maxlength="300" />
+        </label>
+        <button type="button" id="reason-save" style="padding:8px 14px;background:#167e88;color:#fff;border:0;border-radius:7px;font-weight:700;cursor:pointer;">Save Reason</button>
+        <button type="button" id="reason-cancel" class="mini" style="padding:8px 12px;">Cancel</button>
+      </div>
+    </div>
+
     <div class="card">
       <h3>6-Stage Order Progress &amp; Shortfall Reasons</h3>
+      <div class="filter-bar">
+        <label>Factory <select id="filter-factory"><option value="">All Factories</option></select></label>
+        <label>Stage <select id="filter-stage"><option value="">All 6 Stages</option></select></label>
+        <label style="flex-direction:row;align-items:center;gap:6px;"><input type="checkbox" id="filter-shortfalls" style="width:16px;height:16px;min-height:16px;" /> Shortfalls only (Variance &lt; 0)</label>
+      </div>
       <table>
         <thead>
           <tr>

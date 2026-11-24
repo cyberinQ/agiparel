@@ -23,7 +23,7 @@
 <label for="since">From (local time)<input id="since" type="datetime-local" required></label>
 <label for="until">Until, exclusive (local time)<input id="until" type="datetime-local" required></label>
 </div>
-<details class="ag-work-extra"><summary>Authenticated manager access</summary><div class="ag-report-detail">
+<details class="ag-work-extra" id="prod-auth-details"><summary>Authenticated manager access (SSO auto-detected)</summary><div class="ag-report-detail">
 <p>The identity provider must issue a short-lived, strong-authentication assertion with action <code>intelligence.read</code>, role <code>factory_manager</code>, and challenge <code>INTELLIGENCE_PROD_REPORT_V1</code>. A separately provisioned plant assignment is also required.</p>
 <label for="token">Short-lived identity assertion (never stored in browser storage)<input id="token" type="password" autocomplete="off" spellcheck="false"></label>
 <label for="authmode">Authentication mode<select id="authmode"><option value="pilot">Challenge-bound pilot assertion</option><option value="oidc">Enterprise IdP access token (read-only)</option><option value="session">Enterprise SSO browser session (read-only)</option></select></label>

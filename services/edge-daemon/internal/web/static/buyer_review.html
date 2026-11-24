@@ -37,7 +37,7 @@
   </details>
   <div class="table-head"><h3>Colors, sizes &amp; pieces</h3><div class="actions"><button class="secondary" type="button" id="assign-upcs">Assign missing UPCs / SKU IDs</button><button class="secondary" type="button" id="add-sku">+ Add size</button></div></div>
   <div class="scroll"><table><thead><tr><th>Color</th><th>Size</th><th>Pieces</th><th>UPC / Item Barcode (GTIN)</th><th>Document Origin</th><th>Remove</th></tr></thead><tbody id="sku-rows"></tbody></table></div>
-  <div class="table-head"><h3>Cloth &amp; trims</h3><button class="secondary" type="button" id="add-material">+ Add material</button></div>
+  <div class="table-head"><h3>Cloth &amp; trims</h3><div class="actions"><button class="secondary" type="button" id="confirm-all-codes">Confirm all suggested codes</button><button class="secondary" type="button" id="add-material">+ Add material</button></div></div>
   <p class="support">Use the material code in the file. If it only has a name, we’ll suggest a code for you to confirm. Check the amount and unit.</p>
   <div class="scroll"><table><thead><tr><th>Material code</th><th>Type</th><th>Per garment</th><th>Unit</th><th>Document Origin</th><th>Remove</th></tr></thead><tbody id="bom-rows"></tbody></table></div>
   <details id="techpack-workbench" class="techpack-panel" hidden aria-label="Tech-pack material evidence"><summary>More material details found in the tech pack</summary>
@@ -50,7 +50,7 @@
   <label class="ack"><input id="acknowledged" type="checkbox"> I checked the order details. This saves a draft, not permission to buy or produce.</label>
   <div class="actions"><button class="primary" type="button" id="stage">Save draft order →</button></div><p class="message" id="stage-message" role="status" aria-live="polite">No stock, purchasing, or production records will change.</p>
  </section>
- <section id="result" class="panel result" aria-labelledby="result-title" hidden><span class="chapter-label">DRAFT SAVED</span><h2 id="result-title">Order saved</h2><p id="result-message"></p><div class="actions"><a class="primary linkbtn" href="/material-planning">Plan material →</a><a class="secondary linkbtn" href="/order-intake">See draft orders</a></div></section>
+ <section id="result" class="panel result" aria-labelledby="result-title" hidden><span class="chapter-label">DRAFT SAVED</span><h2 id="result-title">Order saved</h2><p id="result-message"></p><div class="actions"><a class="primary linkbtn" href="/material-planning">Plan material →</a><a class="secondary linkbtn" href="/costing">Run Costing &amp; Feasibility (S1–S5) →</a><a class="secondary linkbtn" href="/order-intake">See draft orders</a></div></section>
 </main>
 </div>
 <section id="aggie-chat" class="aggie-chat" role="dialog" aria-label="Chat with Aggie" aria-modal="false" hidden>

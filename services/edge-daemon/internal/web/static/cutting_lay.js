@@ -123,7 +123,14 @@ async function cutOpen(id) {
 function cutRenderList() {
  const list = cutEl('cut-register');list.replaceChildren();
  if (!cutDrafts.length) {list.append(cutNode('p','No cutting drafts yet. Create a lay from a buyer order.','hint'));return;}
- for (const d of cutDrafts) {
+ const stFilter=cutEl('cut-state-filter')?.value||'ALL';
+ const visibleDrafts=cutDrafts.filter(d=>{
+  const isRel=String(d.state||'').toUpperCase().includes('RELEASE');
+  if(stFilter==='RELEASED' && !isRel)return false;
+  if(stFilter==='DRAFT' && isRel)return false;
+  return true;
+ });
+ for (const d of visibleDrafts) {
   const btn = cutNode('button',undefined,'cut-entry');btn.type='button';
   btn.append(cutNode('strong',`${d.po_number} · Cut ${d.cut_no} / Rev ${d.revision}`));
   btn.append(cutNode('small',`${d.marker_code} · ${d.reported_plies} reported plies · ${d.planned_garments} planned units`));
@@ -213,6 +220,7 @@ cutEl('cut-form').addEventListener('submit',async event=>{
  finally {button.disabled=false;}
 });
 cutEl('refresh-cut').addEventListener('click',cutRefresh);
+cutEl('cut-state-filter')?.addEventListener('change',cutRenderList);
 cutEl('revise-cut').addEventListener('click',cutPrepareRevision);
 cutEl('print-cut').addEventListener('click',()=>{if(cutSelected)window.print();});
 cutEl('cut-order').addEventListener('change',()=>{

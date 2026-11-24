@@ -26,12 +26,12 @@
 <p class="mono" id="garmentInfo"></p></section>
 <section class="card"><h2>Set up finishing for this style</h2>
 <label for="profile">Finishing steps for this style</label><select id="profile"><option value="WOVEN_STANDARD">Woven · trim → press</option><option value="WASH_FINISH">Wash · wash → dry → press → trim</option><option value="HANGER_FINISH">Hanger · trim → press → hanger</option><option value="KNIT_FOLD">Knit · trim → press → fold</option></select>
-<div class="actions"><button id="setRoute" class="secondary">Save demo finishing steps</button></div><p class="muted">Check the tech pack before setting up real finishing.</p>
+<div class="actions"><button id="setRoute" class="secondary">Save demo finishing steps</button><button id="resetRoute" class="secondary" type="button" hidden>Change finishing route</button></div><p class="muted">Check the tech pack before setting up real finishing.</p>
 <div id="routeSteps"></div><p id="routeInfo" class="muted"></p></section>
 <section class="card"><h2>Step 2 — Check the piece</h2>
 <details class="ag-work-extra"><summary>Checker and station details</summary><div class="two"><div><label for="actor">Checker or repair worker</label><input id="actor" placeholder="Use a distinct checker identity"></div><div><label for="station">Station</label><input id="station" placeholder="Enter the current QC station"></div></div>
 </details>
-<label for="defect">Problem found (if any)</label><input id="defect" placeholder="Enter an observed defect code" maxlength="64">
+<label for="defect">Problem found (if any)</label><input id="defect" placeholder="Enter an observed defect code" maxlength="64"><div class="actions" style="margin:6px 0 10px;"><button type="button" class="secondary defect-chip" data-code="STITCH_SKIP" style="padding:5px 9px;min-height:32px;font-size:12px;">Skip stitch</button><button type="button" class="secondary defect-chip" data-code="OPEN_SEAM" style="padding:5px 9px;min-height:32px;font-size:12px;">Open seam</button><button type="button" class="secondary defect-chip" data-code="STAIN_OIL" style="padding:5px 9px;min-height:32px;font-size:12px;">Oil / stain</button><button type="button" class="secondary defect-chip" data-code="SHADE_MISMATCH" style="padding:5px 9px;min-height:32px;font-size:12px;">Shade mismatch</button></div>
 <div class="actions"><button id="pass" class="green">Pass check</button><button id="fail" class="red">Hold this piece</button></div>
 <details class="ag-work-extra"><summary>Repair or check a held piece again</summary><p class="muted">The repair worker and rechecker must be different people.</p><div class="actions"><button id="repair" class="secondary">Mark repair done</button><button id="repass" class="green">Pass recheck</button><button id="refail" class="red">Hold after recheck</button></div></details>
 <p class="muted">A different person must repair the piece. Another checker must check it again.</p></section>

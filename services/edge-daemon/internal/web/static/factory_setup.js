@@ -129,7 +129,7 @@
   // The discovery feed shows only the newest 40 files; never erase a fact's
   // older source link just because it is not in that recent-file dropdown.
   if (old.source_document_id && !model.documents.some(d=>d.id===old.source_document_id)) {
-   const retained=node('option','','Previously attached document (outside recent list)');
+   const retained=node('option','',`Previously attached document · ${old.source_document_id} (outside recent list)`);
    retained.value=old.source_document_id;sources.append(retained);
   }
   sources.value=old.source_document_id||'';
@@ -159,6 +159,16 @@
   document.addEventListener('DOMContentLoaded',()=>{if(!approvals.open)approvals.showModal();},{once:true});
  }
  el('approval-close').addEventListener('click',()=>approvals.close());
+ const inlineTrigger=el('open-inline-review');
+ if(inlineTrigger){inlineTrigger.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(!approvals.open)approvals.showModal();});}
+ const sourceFilter=el('fact-source-filter');
+ if(sourceFilter){sourceFilter.addEventListener('input',()=>{
+  const q=sourceFilter.value.trim().toLowerCase();
+  for(const opt of el('fact-source').options){
+   if(!opt.value)continue;
+   opt.hidden=Boolean(q)&&!opt.textContent.toLowerCase().includes(q)&&!opt.value.toLowerCase().includes(q);
+  }
+ });}
  // Show the real outstanding count, including saved reviews and submitted files.
  const badge=el('approval-count');
  async function updateBadge(){

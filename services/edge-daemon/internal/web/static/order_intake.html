@@ -30,7 +30,7 @@
      <form id="intake-form">
        <label class="upload">Buyer PO lines <small>po_number, style_code, color_code, size_code, ordered_qty, upc</small><input id="po-file" name="po_file" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" required></label>
        <label class="upload">Style BOM <small>style_code, material_sku, category, qty_per_garment, uom</small><input id="bom-file" name="bom_file" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" required></label>
-       <div class="templates"><button type="button" data-template="po">Download PO template</button><button type="button" data-template="bom">Download BOM template</button></div>
+       <div class="templates"><button type="button" data-template="po">Download PO template</button><button type="button" data-template="bom">Download BOM template</button><a href="/buyer-review" style="font-size:13px;font-weight:700;padding:5px 0;">Have a PO without BOM yet? Review in Buyer Order →</a></div>
        <div class="actions"><button class="primary" id="preview-btn" type="submit">Step 2 — Check numbers</button><button class="secondary" id="stage-btn" type="button" disabled>Step 3 — Save draft</button></div>
      </form>
      <p id="alert" class="alert" role="status" aria-live="polite">Select files to begin. All data stays within the restricted development environment.</p>

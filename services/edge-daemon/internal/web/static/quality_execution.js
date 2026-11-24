@@ -17,7 +17,7 @@ function render(){const u=selected(),s=source(),route=steps();$('sourceStatus').
 $('garmentInfo').textContent=s?`${s.serial} | ${s.color} / ${s.size} | marker ${s.position} | ${u?u.qc_state:'NOT ENROLLED'}`:'';
 const hasPending=!!pending();$('pendingInfo').textContent=hasPending?'One unacknowledged simulation event is retained for exact-payload replay. Retry before new operations.':'No pending simulation events.';
 $('retry').disabled=!hasPending||st.busy;$('discard').disabled=!hasPending||st.busy;
-$('enroll').disabled=!s||!!u||st.busy||hasPending;$('profile').disabled=!!st.route||st.busy;$('setRoute').disabled=!!st.route||st.busy||!$('lay').value;
+$('enroll').disabled=!s||!!u||st.busy||hasPending;const anyStarted=st.units.some(x=>x.finished_steps>0);$('profile').disabled=(!!st.route&&anyStarted)||st.busy;$('setRoute').disabled=(!!st.route&&anyStarted)||st.busy||!$('lay').value;if($('resetRoute'))$('resetRoute').hidden=!st.route||anyStarted;
 for(const [id,enabled] of Object.entries({pass:u?.qc_state==='PENDING',fail:u?.qc_state==='PENDING',repair:u?.qc_state==='HOLD',repass:u?.qc_state==='REINSPECT',refail:u?.qc_state==='REINSPECT',finish:u?.qc_state==='ACCEPTED'&&route.length>0&&u.finished_steps<route.length,bind:u?.qc_state==='ACCEPTED'&&route.length>0&&u.finished_steps===route.length&&!u.buyer_code}))$(id).disabled=!enabled||st.busy||hasPending;
 $('routeSteps').innerHTML=route.map((x,i)=>`<span class="step ${u&&i<u.finished_steps?'done':''}">${i+1}. ${esc(x)}</span>`).join('')||'<span class="muted">No finishing steps chosen</span>';
 $('routeInfo').textContent=st.route?st.route.profile+' · UNAPPROVED SIMULATION ROUTE':'Choose one route for this lay and plant.';
@@ -41,6 +41,8 @@ storePending(v);await flushPending()}
 $('lay').addEventListener('change',()=>refresh(false));$('plant').addEventListener('change',()=>refresh(false));$('serial').addEventListener('change',render);$('reload').addEventListener('click',()=>refresh());
 $('retry').addEventListener('click',flushPending);
 $('discard').addEventListener('click',()=>{if(!pending())return;const answer=confirm('Clear the unsent tap? The server may have saved it already. Refresh and check this piece before tapping again.');if(answer){localStorage.removeItem(pendingKey);info('Unsent tap cleared. Refresh to check this piece.');refresh()}});
+document.querySelectorAll('.defect-chip').forEach(btn=>btn.addEventListener('click',()=>{$('defect').value=btn.dataset.code;$('defect').focus();}));
+$('resetRoute')?.addEventListener('click',()=>{st.route=null;render();info('Select a new finishing profile and click Save demo finishing steps.');});
 $('setRoute').addEventListener('click',async()=>{try{const r=await request('/route',{lay_id:$('lay').value,plant_id:$('plant').value.trim(),profile:$('profile').value});info('Simulated route '+r.profile+' created; independent approval still required');await refresh()}catch(e){info('Route rejected: '+e.message,true)}});
 for(const [b,a] of Object.entries({enroll:'ENROLL',pass:'INSPECT_PASS',fail:'INSPECT_FAIL',repair:'REPAIR_COMPLETE',repass:'REINSPECT_PASS',refail:'REINSPECT_FAIL',finish:'FINISH_STEP',bind:'BIND_BUYER'}))$(b).addEventListener('click',()=>action(a));
 refresh(false).then(()=>{if(pending())flushPending()});

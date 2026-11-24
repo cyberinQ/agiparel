@@ -1,4 +1,4 @@
-// Gate 06.5-B3: versioned onboarding drafts and human-led conflict resolution.
+// Gate 06.5-B3: versioned onboarding drafts and human-led conflict resolution (searchable, filterable, paginated).
 (() => {
  'use strict';
  const find = id => document.getElementById(id);
@@ -11,11 +11,31 @@
  const message=(text,bad=false)=>{find('draft-feedback').textContent=text;find('draft-feedback').classList.toggle('bad',bad);};
  const location = source => {const loc=source.source_locator||{};if(loc.sheet)return `${loc.sheet}, row ${loc.row||'?'}`;if(loc.page)return `page ${loc.page}`;if(loc.row)return `row ${loc.row}`;return `segment ${source.source_ordinal}`;};
  const link = source => {const a=element('a','draft-link',`${source.filename} · ${location(source)} ↗`);a.href=`/documents?document=${encodeURIComponent(source.document_id)}&segment=${encodeURIComponent(source.source_ordinal)}`;return a;};
- let truncated=false;
+ let truncated=false, allGroups=[], filterType='ALL', filterQuery='', conflictsOnly=false, page=0;
+ const PAGE_SIZE=40;
+
+ function ensureFilterBar(){
+  if(find('draft-filter-bar'))return;
+  const bar=element('div','candidate-toolbar');bar.id='draft-filter-bar';bar.style.margin='12px 0';
+  const search=document.createElement('input');search.type='search';search.placeholder='Filter by machine, skill, material or rate key…';search.style.flex='1';
+  search.addEventListener('input',()=>{filterQuery=search.value.trim().toLowerCase();page=0;renderGroups();});
+  const sel=document.createElement('select');
+  for(const [v,lbl] of [['ALL','All types'],['MACHINE','Machines'],['SKILL','Skills'],['MATERIAL','Materials'],['RATE','Rates']]){
+   const o=element('option','',lbl);o.value=v;sel.append(o);
+  }
+  sel.addEventListener('change',()=>{filterType=sel.value;page=0;renderGroups();});
+  const confLabel=element('label','');confLabel.style.cssText='display:inline-flex;align-items:center;gap:6px;margin:0;cursor:pointer;';
+  const confChk=document.createElement('input');confChk.type='checkbox';
+  confChk.addEventListener('change',()=>{conflictsOnly=confChk.checked;page=0;renderGroups();});
+  confLabel.append(confChk,document.createTextNode('Conflicts only'));
+  bar.append(search,sel,confLabel);
+  root.parentElement.insertBefore(bar,root);
+ }
+
  const build = group => {
   const card=element('article',`draft-card ${group.evidence_state==='CONFLICT'?'draft-conflict':''}`);
   const top=element('div','draft-top');top.append(element('strong','',`${group.entity_type} · ${group.entity_key}`));top.append(element('span','draft-state',group.evidence_state.replaceAll('_',' ')));card.append(top);
-  const description=group.evidence_state==='CONFLICT'?`${group.distinct_versions} different versions of this record were found. Please compare the originals and choose one to carry forward as a draft.`:group.evidence_state==='CORROBORATED'? 'Multiple sources agree on this provisional record. Confirm the source before using it further.': 'Only one source currently supports this record. You can keep it provisional until someone checks it.';
+  const description=group.evidence_state==='CONFLICT'?`${group.distinct_versions} different versions of this record were found. Compare the originals below and choose one to carry forward as a draft.`:group.evidence_state==='CORROBORATED'? 'Multiple sources agree on this provisional record. Confirm the source before using it further.': 'Only one source currently supports this record. You can keep it provisional until someone checks it.';
   card.append(element('p','draft-help',description));
   const choice=element('div','draft-choices');const options=[];
   for(const source of group.sources){
@@ -30,7 +50,6 @@
   const note=document.createElement('textarea');note.className='draft-note';note.placeholder=group.evidence_state==='CONFLICT'?'Explain which evidence is correct and why (required, at least 12 characters)':'Optional review note or remaining question';note.maxLength=1000;note.rows=2;note.setAttribute('aria-label',`Review explanation for ${group.entity_type} ${group.entity_key}`);card.append(note);
   const actions=element('div','draft-actions');
   const submit=async(decision)=>{
-   if(truncated){message('Too many records to display safely. Reconcile the document library before confirming.',true);return;}
    if(group.evidence_state==='CONFLICT' && note.value.trim().length<12){message(`Explain the discrepancy in ${group.entity_key} before recording a decision.`,true);note.focus();return;}
    const candidate=options.find(x=>x.checked)?.value;
    if(!candidate){message('Select the supporting source first.',true);return;}
@@ -46,15 +65,41 @@
   actions.append(verify,flag);card.append(actions);
   return card;
  };
+
+ function renderGroups(){
+  ensureFilterBar();
+  const filtered=allGroups.filter(g=>{
+   if(filterType!=='ALL' && g.entity_type!==filterType)return false;
+   if(conflictsOnly && g.evidence_state!=='CONFLICT')return false;
+   if(filterQuery && !`${g.entity_type} ${g.entity_key}`.toLowerCase().includes(filterQuery))return false;
+   return true;
+  });
+  const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+  if(page>=totalPages)page=totalPages-1;
+  const slice=filtered.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
+  root.replaceChildren();
+  if(!filtered.length){
+   root.append(element('p','empty',allGroups.length?'No draft records match your current filter.':'No accepted factory records to reconcile yet. Upload a factory document, find candidates and keep the relevant ones as provisional first.'));
+   return;
+  }
+  for(const g of slice)root.append(build(g));
+  if(totalPages>1){
+   const pager=element('div','draft-actions');pager.style.gridColumn='1 / -1';
+   const prev=element('button','btn secondary','← Previous page');prev.type='button';prev.disabled=page===0;prev.addEventListener('click',()=>{page--;renderGroups();});
+   const next=element('button','btn secondary','Next page →');next.type='button';next.disabled=page>=totalPages-1;next.addEventListener('click',()=>{page++;renderGroups();});
+   const info=element('span','draft-help',`Page ${page+1} of ${totalPages} (${filtered.length} matching records)`);
+   pager.append(prev,info,next);root.append(pager);
+  }
+ }
+
  async function load(){
   try{
-   const result=await get('/api/v1/factory-onboarding/draft-masters');truncated=!!result.truncated;const groups=result.items||[];
-   const conflicts=groups.filter(g=>g.evidence_state==='CONFLICT').length;
-   const verified=groups.filter(g=>g.decision==='VERIFY_DRAFT').length;
-   find('draft-count').textContent=`${groups.length} entities · ${conflicts} disagreements · ${verified} reviewed drafts`;
-   root.replaceChildren();if(!groups.length)root.append(element('p','empty','No accepted factory records to reconcile yet. Upload a factory document, find candidates and keep the relevant ones as provisional first.'));
-   else for(const g of groups)root.append(build(g));
-   if(truncated)message('More than 500 source rows exist. Display is incomplete; review actions are disabled until this is resolved.',true);
+   const result=await get('/api/v1/factory-onboarding/draft-masters');truncated=!!result.truncated;allGroups=result.items||[];
+   const conflicts=allGroups.filter(g=>g.evidence_state==='CONFLICT').length;
+   const verified=allGroups.filter(g=>g.decision==='VERIFY_DRAFT').length;
+   find('draft-count').textContent=`${allGroups.length}${truncated?'+':''} entities · ${conflicts} disagreements · ${verified} reviewed drafts`;
+   renderGroups();
+   if(truncated)message('Showing the first 500 source rows. Use the search and conflict filters above to review and reconcile records page by page.',true);
   }catch(e){message(`Cannot load draft review: ${e.message}. Apply migration 0012.`,true);}
  }
  find('refresh-factory-drafts').addEventListener('click',load);

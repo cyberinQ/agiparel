@@ -82,6 +82,30 @@
   $('sop2-load').addEventListener('click',load);
   $('sop2-freeze').addEventListener('click',freeze);
   $('sop2-solve').addEventListener('click',solve);
+  $('mk-add')?.addEventListener('click',()=>{
+    try{
+      const req=JSON.parse($('sop2-solver-json').value||'{"markers":[]}');
+      req.markers=req.markers||[];
+      const ratios={};
+      for(const pair of ($('mk-ratios').value||'').split(',').map(s=>s.trim()).filter(Boolean)){
+        const [k,v]=pair.split(':');if(k&&Number(v)>0)ratios[k.trim()]=Number(v);
+      }
+      req.markers.push({
+        id:($('mk-id').value||'MARK-NEW').trim(),
+        fabric_sku:'APPROVED-FAB',
+        shade:'SHADE-A',
+        length_mm:Number($('mk-len').value)||7500,
+        width_mm:Number($('mk-wid').value)||1500,
+        table_length_mm:9000,
+        max_plies:Number($('mk-plies').value)||55,
+        minutes_per_cut:45,
+        ratios,
+        approved:true
+      });
+      $('sop2-solver-json').value=JSON.stringify(req,null,2);
+      status('Added marker candidate to solver request.');
+    }catch(err){status('Could not update solver JSON: '+err.message,true);}
+  });
   $('sop2-order').addEventListener('change',()=>{selected='';sourceLines=[];requestKey=''});
   $('sop2-target-input').addEventListener('input',()=>{requestKey=''});
   ['sop2-pomin','sop2-pomax','sop2-reason','sop2-actor'].forEach(id=>$(id).addEventListener('input',()=>{requestKey=''}));

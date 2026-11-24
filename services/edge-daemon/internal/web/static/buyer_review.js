@@ -311,12 +311,35 @@ function renderConflictBanner(colleague, diffs, fromServer=false){
   elt('th','','Section',hr);elt('th','','Item / Size / Material',hr);
   elt('th','',`${colleague.reviewed_by||'Colleague'}'s Saved Value`,hr);
   elt('th','','Your Current Screen Value',hr);
+  elt('th','','Merge Action',hr);
   const tbody=elt('tbody','',undefined,tbl);
   for(const d of diffs){
    const tr=elt('tr','',undefined,tbody);
    elt('td','',d.scope,tr);elt('td','',d.key,tr);
    elt('td','diff-colleague',d.colleague_value,tr);
    elt('td','diff-yours',d.your_value,tr);
+   const mtd=elt('td','',undefined,tr);
+   const mbtn=elt('button','secondary','Use colleague value',mtd);
+   mbtn.type='button';mbtn.style.cssText='padding:4px 8px;min-height:30px;font-size:11px;';
+   mbtn.addEventListener('click',()=>{
+    if(d.scope==='Order Header' && d.key==='Style Code')$('style-code').value=colleague.style_code||'';
+    else if(d.scope==='SKU Line'){
+     const match=(colleague.skus||[]).find(s=>`${s.color} · Size ${s.size}`===d.key);
+     const rows=Array.from($('sku-rows').querySelectorAll('tr'));
+     const target=rows.find(r=>`${r.querySelector('[data-field="color"]')?.value.trim()} · Size ${r.querySelector('[data-field="size"]')?.value.trim()}`===d.key);
+     if(match && target){target.querySelector('[data-field="quantity"]').value=match.quantity;if(match.upc)target.querySelector('[data-field="upc"]').value=match.upc;}
+     else if(match && !target)makeRow('sku',match);
+     else if(!match && target)target.remove();
+    }else if(d.scope==='BOM Material'){
+     const match=(colleague.materials||[]).find(m=>`${m.category} · ${m.material_sku}`===d.key);
+     const rows=Array.from($('bom-rows').querySelectorAll('tr'));
+     const target=rows.find(r=>`${r.querySelector('[data-field="category"]')?.value.trim()} · ${r.querySelector('[data-field="material_sku"]')?.value.trim()}`===d.key);
+     if(match && target){target.querySelector('[data-field="per_garment"]').value=match.per_garment;target.querySelector('[data-field="uom"]').value=match.uom;}
+     else if(match && !target)makeRow('material',match);
+     else if(!match && target)target.remove();
+    }
+    renderOrderSummary();
+   });
   }
  }
  const actions=elt('div','actions conflict-actions',undefined,card);
@@ -649,6 +672,25 @@ function showMaterialError(index){
  field.setAttribute('aria-invalid','true');field.focus();field.scrollIntoView({block:'nearest'});
  return false;
 }
+function confirmAllSuggestedCodes(){
+ let count=0;
+ for(const tr of $('bom-rows').querySelectorAll('tr')){
+  const field=tr.querySelector('[data-field="material_sku"]');
+  if(!field)continue;
+  const raw=field.value.trim();
+  if(raw && !validMaterialSKU(raw)){
+   const proposed=suggestMaterialCode(raw);
+   if(proposed){
+    field.value=proposed;
+    field.removeAttribute('aria-invalid');
+    clearMaterialHint(tr);
+    count++;
+   }
+  }
+ }
+ renderOrderSummary();
+ report('stage-message',count?`Confirmed ${count} suggested material code(s). Review per-garment usage and units before saving.`:'All material rows already use valid material codes.');
+}
 function checkMaterialRows(){
  const rows=$('bom-rows').querySelectorAll('tr');
  for(let i=0;i<rows.length;i++){
@@ -745,6 +787,7 @@ $('acknowledged').addEventListener('change',()=>{if($('acknowledged').checked)ch
 $('add-sku').addEventListener('click',()=>{makeRow('sku');renderOrderSummary()});
 $('review').addEventListener('click',e=>{if(e.target?.id==='assign-upcs')assignMissingUPCs()});
 $('add-material').addEventListener('click',()=>{makeRow('material');renderOrderSummary()});
+$('confirm-all-codes')?.addEventListener('click',confirmAllSuggestedCodes);
 $('review').addEventListener('input',e=>{if(e.target?.dataset?.field)renderOrderSummary()});
 $('review').addEventListener('change',e=>{if(e.target?.dataset?.field)renderOrderSummary()});
 if(typeof document.addEventListener==='function'){

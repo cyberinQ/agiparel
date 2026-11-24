@@ -28,6 +28,12 @@
 </section>
 <p class="store-count-note" id="roll-count-note" role="status">Loading observed roll coverage…</p>
 <p class="safety-note"><strong>Checks are not stock approval.</strong> A reported PASS does not create available stock. Stock entry requires two separate external-IdP signatures before a new roll enters the stock ledger.</p>
+<nav class="store-tabs" aria-label="Fabric store workspaces" style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px;">
+  <button type="button" class="store-tab-btn active" data-store-tab="all">All Workspaces</button>
+  <button type="button" class="store-tab-btn" data-store-tab="inspect">1. Roll Check &amp; Register</button>
+  <button type="button" class="store-tab-btn" data-store-tab="picks">2. Order Pick Proposals</button>
+  <button type="button" class="store-tab-btn" data-store-tab="checks">3. Reconciliation &amp; Stock Book</button>
+</nav>
 <div class="work-grid">
 <section class="panel" aria-labelledby="roll-form-title"><div class="section-head"><div><span class="eyebrow">STEP 1</span><h2 id="roll-form-title">Check a fabric roll</h2></div><a href="/documents">Upload roll papers ↗</a></div>
 <p class="sub">Measure the roll and record its details. For a second check, select an existing roll. Changes preserve the earlier observation.</p>
@@ -46,7 +52,7 @@
 </section>
 <section class="panel" aria-labelledby="roll-list-title"><div class="section-head"><div><span class="eyebrow">ROLL REGISTER</span><h2 id="roll-list-title">Rolls we've checked</h2></div><button id="refresh" class="refresh" type="button">Refresh</button></div>
 <p class="sub">Tap a roll to see its earlier checks and update measurements.</p>
-<div class="roll-list" id="roll-list"><div class="empty">Loading roll passports…</div></div>
+<div style="display:flex;gap:8px;margin-bottom:12px;"><input type="search" id="roll-search" placeholder="Filter rolls by Roll ID, Fabric SKU, Shade, or Bin…" autocomplete="off" style="flex:1;margin:0;"><select id="roll-status-filter" style="width:auto;min-width:130px;margin:0;"><option value="ALL">All statuses</option><option value="PASS">PASS only</option><option value="HOLD">HOLD only</option><option value="REJECTED">REJECTED only</option></select></div><div class="roll-list" id="roll-list"><div class="empty">Loading roll passports…</div></div>
 <details class="quiet-details"><summary>Earlier measurements for the selected roll</summary><div class="details-content"><div class="history"><h3>Earlier roll checks</h3><p class="sub">Choose a roll to view all earlier measurements and their document links.</p><div class="history-list" id="passport-history">Select a roll above to inspect revisions.</div></div></div></details>
 </section>
 </div>

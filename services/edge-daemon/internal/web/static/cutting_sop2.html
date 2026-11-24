@@ -21,7 +21,17 @@
 <div class="form-row"><label for="sop2-actor">Operator note</label><input id="sop2-actor" placeholder="Development reviewer (not an authenticated identity)"><label for="sop2-reason">Reason</label><input id="sop2-reason" placeholder="Cutting in-charge reviewed quantity requirements and extras"><button id="sop2-freeze" type="button">Freeze target version 1</button></div>
 </details></section>
 <section class="section"><div class="section-header"><div><span class="step">02</span><h2>Optimization lab</h2><p>Evaluate approved marker candidates, finite search limits, roll pools and sewing capacity without altering production.</p></div><span class="chip">Explainable decisions</span></div>
-<div class="two-col"><div><h3>Marker and extras optimizer</h3><p class="note">Use the source PO and marker candidates. The solver minimizes cuts → fabric length → minutes. An exhaustive proof is shown only when search completes.</p><label for="sop2-solver-json">Solver request (JSON)</label><textarea id="sop2-solver-json" rows="9" spellcheck="false" placeholder="Load an order to prefill SKU quantities; add verified marker templates here"></textarea><button id="sop2-solve" type="button">Evaluate cutting alternatives</button></div>
+<div class="two-col"><div><h3>Marker and extras optimizer</h3><p class="note">Use the source PO and marker candidates. The solver minimizes cuts → fabric length → minutes. An exhaustive proof is shown only when search completes.</p><div style="background:#f8fafc;border:1px solid #dce5ed;border-radius:9px;padding:12px;margin:10px 0;">
+<strong style="font-size:12px;display:block;margin-bottom:8px;">Quick Add Approved Marker Candidate</strong>
+<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;">
+<label style="font-size:11px;">Marker ID<input id="mk-id" placeholder="MARK-101" style="min-width:110px;"></label>
+<label style="font-size:11px;">Length (mm)<input id="mk-len" type="number" value="7500" style="width:95px;"></label>
+<label style="font-size:11px;">Width (mm)<input id="mk-wid" type="number" value="1500" style="width:95px;"></label>
+<label style="font-size:11px;">Max Plies<input id="mk-plies" type="number" value="55" style="width:80px;"></label>
+<label style="font-size:11px;">Ratios (e.g. NAVY|S:1,NAVY|M:2)<input id="mk-ratios" placeholder="NAVY|S:1,NAVY|M:2" style="min-width:170px;"></label>
+<button type="button" id="mk-add" style="background:#334155;">+ Add Marker</button>
+</div></div>
+<label for="sop2-solver-json">Solver request (JSON)</label><textarea id="sop2-solver-json" rows="9" spellcheck="false" placeholder="Load an order to prefill SKU quantities; add verified marker templates here"></textarea><button id="sop2-solve" type="button">Evaluate cutting alternatives</button></div>
 <div><h3>Result / proof boundary</h3><pre id="sop2-solver-result" aria-live="polite">No optimization run yet.</pre><p class="note">Optimizer feasibility is not proof of machine-readable marker nesting, inspected roll availability or cutter throughput. Physical deployment stays blocked until those checks pass.</p></div></div>
 </section>
 <section class="section"><div class="section-header"><div><span class="step">03</span><h2>Factory execution gates</h2><p>Every critical handoff must be evidence-based and independently authorized.</p></div><span class="chip">No phantom production</span></div>

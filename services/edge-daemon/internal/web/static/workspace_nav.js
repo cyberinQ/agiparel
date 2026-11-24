@@ -78,6 +78,17 @@
       historyGroup.append(forward);
     }
     actions.append(historyGroup);
+    const opsLinks = document.createElement('nav');
+    opsLinks.className = 'ag-chapter-ops-links';
+    opsLinks.setAttribute('aria-label', 'Operational views');
+    for (const [href, labelText] of [['/costing', 'Costing'], ['/plant', 'Floor'], ['/ceo', 'CEO']]) {
+      const a = document.createElement('a');
+      a.href = href;
+      a.textContent = labelText;
+      a.className = 'ag-chapter-ops-pill';
+      opsLinks.append(a);
+    }
+    actions.append(opsLinks);
     let aggie = document.getElementById('aggie-open');
     const hasExistingAggie = Boolean(aggie && document.getElementById('aggie-chat'));
     if (!aggie) {

@@ -61,7 +61,22 @@
    $('notes').replaceChildren();
    const item=document.createElement('li');item.textContent='Load evidence to see its limits.';$('notes').append(item);
  };
- function td(tr, text) { const c=document.createElement('td');c.textContent=String(text);tr.append(c); }
+ function humanStatusLabel(status) {
+  const map = {
+    SIGNED_HUMAN_EVIDENCE: 'Verified (Human Signed)',
+    SIGNED_GATEWAY_AND_HUMAN_EVIDENCE: 'Verified (Gateway + Human)',
+    DERIVED_SIGNED_ATTESTATIONS: 'Calculated from Signed Records',
+    DERIVED_RECORDED_HANDOFF: 'Calculated from Custody Logs',
+    STAGED_NOT_SHIPPED: 'Staged Manifest (Not Shipped)',
+    NO_DENOMINATOR: 'Not Measured (No Base Count)',
+    NO_HANDOFF_PAIRS: 'Not Measured (No Pairs Yet)',
+    INVALID_INTERVAL: 'Not Measured (Clock Check)',
+    NOT_MEASURED: 'Not Measured Yet',
+    OBSERVED_GROUP_EVENT: 'Observed Group Event'
+  };
+  return map[status] ? `${map[status]} [${status}]` : status;
+}
+function td(tr, text) { const c=document.createElement('td');c.textContent=String(text);tr.append(c); }
  function validateFactory(report) {
    if (!report) return null; // Compatible with an older, pre-F3.6 authenticated server.
    if (report.authority!==FACTORY_AUTH || report.production_release!==false ||
@@ -110,7 +125,7 @@
    }
    for (const m of report.metrics) {
      const row=document.createElement('tr');
-     td(row,factoryLabels[m.id]);td(row,factoryDisplay(m));td(row,m.status);td(row,m.source);td(row,m.meaning);
+     td(row,factoryLabels[m.id]);td(row,factoryDisplay(m));td(row,humanStatusLabel(m.status));td(row,m.source);td(row,m.meaning);
      $('factorymeasures').append(row);
    }
    for (const rt of report.slowest_routes) {
@@ -141,7 +156,7 @@
    for (const m of report.metrics) {
      const row=document.createElement('tr');
      td(row,labels[m.id]);td(row,m.status==='NOT_MEASURED'?'Not measured':m.value.toLocaleString());
-     td(row,m.status);td(row,m.source);td(row,m.meaning);
+     td(row,humanStatusLabel(m.status));td(row,m.source);td(row,m.meaning);
      $('measures').append(row);
      if (cards[m.id]) $(cards[m.id]).textContent=m.status==='NOT_MEASURED'?'—':m.value.toLocaleString();
    }
@@ -203,7 +218,7 @@
    $('oidcscope').hidden=!['oidc','session'].includes($('authmode').value);
    clearView();status('Authentication mode changed; choose an authenticated identity.');
  });
- ['since','until','token','tenant','plant'].forEach(id=>$(id).addEventListener('change',()=>{clearView();status('Inputs changed; reload evidence.');}));
+ ['since','until','token','tenant','plant'].forEach(id=>$(id).addEventListener('change',()=>{status('Filter changed — click Show production evidence to refresh.');}));
  async function checkSession() {
    csrf=null;sessionActive=false;
    try {

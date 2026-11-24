@@ -137,10 +137,10 @@
         if (response.status === 503) {
           const detail = await response.json().catch(() => ({}));
           if (detail.code === 'model_unavailable') {
-            throw new Error('Aggie needs its AI model running. Ask your administrator to start Ollama. Your question is kept below.');
+            throw new Error('Aggie AI assistant is offline right now (Admin: start Ollama). You can continue floor work normally—your question is saved below to retry.');
           }
           if (detail.code === 'records_unavailable') {
-            throw new Error('Factory records are temporarily unavailable. Please ask your administrator to check the database.');
+            throw new Error('Factory records are temporarily syncing (Admin: check the database). Your question is saved below to retry.');
           }
           throw new Error('Aggie is temporarily unavailable. Check the server log for the cause.');
         }

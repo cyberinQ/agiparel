@@ -146,3 +146,17 @@ body:has(#agiparel-workspace-navigation) #aggie-close {cursor:pointer; flex-shri
 .ag-wip-resume button {border:1px solid #b9cad5;border-radius:8px;background:#fff;color:#263f4b;font:650 13px system-ui,-apple-system,'Segoe UI',Arial,sans-serif;padding:8px 11px;min-height:36px;cursor:pointer}
 .ag-wip-resume button:first-of-type {background:#27546a;color:#fff;border-color:#27546a}
 .ag-wip-resume small {flex-basis:100%;font-size:11px;color:#5b6e7a}
+
+/* Enterprise operational quick-switcher pills */
+#agiparel-workspace-navigation .ag-chapter-ops-links { display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap; }
+#agiparel-workspace-navigation .ag-chapter-ops-pill {
+  font:700 12px/1 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
+  color:#364e61; background:#f2f6f9; border:1px solid #d5e0e7;
+  padding:7px 10px; border-radius:999px; text-decoration:none; white-space:nowrap;
+}
+#agiparel-workspace-navigation .ag-chapter-ops-pill:hover {
+  background:#e4edf3; border-color:var(--ag-accent,#167e88); color:var(--ag-accent,#167e88);
+}
+@media(max-width:680px) {
+  #agiparel-workspace-navigation .ag-chapter-ops-links { display:none; }
+}

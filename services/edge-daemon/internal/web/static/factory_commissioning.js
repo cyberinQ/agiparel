@@ -47,9 +47,13 @@ async function load(reset){
   if(!res.ok)throw new Error(res.status===401?'Sign in with SSO.':res.status===403?'Your identity is not provisioned for this plant.':'Configuration report unavailable (HTTP '+res.status+').');
   const data=await res.json();if(serial!==pending)return;
   if(!validReport(data,tenant,plant,previous))throw new Error('Invalid commissioning evidence response.');
-  for(const s of data.stations){const tr=document.createElement('tr');cell(tr,s.station_id);cell(tr,s.enabled_gateways+' / '+s.total_gateways);
+  for(const s of data.stations){
+   if($('only-incomplete')?.checked && s.status==='CONFIGURED_NOT_PHYSICALLY_CERTIFIED')continue;
+   const tr=document.createElement('tr');cell(tr,s.station_id);cell(tr,s.enabled_gateways+' / '+s.total_gateways);
    cell(tr,s.assigned_workers);cell(tr,s.enabled_inbound_routes+' / '+s.enabled_outbound_routes);
-   cell(tr,s.last_signed_scan_received_at||'No signed scan received');cell(tr,s.status+' — '+(s.blockers.length?s.blockers.join(', '):'No configuration blockers found'));$('stations').append(tr);}
+   const scanAge=s.last_signed_scan_received_at?Math.round((Date.now()-Date.parse(s.last_signed_scan_received_at))/60000):null;
+   const scanHealth=scanAge===null?'No signed scan received':`${s.last_signed_scan_received_at} (${scanAge<=5?'Active · '+scanAge+'m ago':scanAge<=30?'Idle · '+scanAge+'m ago':'Stale · '+scanAge+'m ago'})`;
+   cell(tr,scanHealth);cell(tr,s.status+' — '+(s.blockers.length?s.blockers.join(', '):'No configuration blockers found'));$('stations').append(tr);}
   cursor=data.next_station;loaded+=data.stations.length;$('more').hidden=!cursor;
   $('summary').textContent=loaded+' station configuration records loaded · '+data.as_of+' · '+AUTH;
   $('status').textContent=loaded===0?'No station configuration records found for this authorized plant.':'Configuration records loaded. No physical certification implied.';

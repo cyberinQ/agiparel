@@ -18,7 +18,7 @@
 <ol class="ag-steps" aria-label="Sewing steps"><li><b>1</b>Choose bundles</li><li><b>2</b>Choose the sewing job</li><li><b>3</b>Record the work</li></ol>
 <div class="layout">
 <section class="card"><h2>Step 1 — Choose bundles</h2>
-<label for="lay">Cutting lay</label><select id="lay"><option value="">Loading available cutting lays…</option></select>
+<div style="display:flex;justify-content:space-between;align-items:center;"><label for="lay" style="margin:0;">Cutting lay</label><label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:600;font-size:12px;"><input type="checkbox" id="released-lays-only" style="width:16px;height:16px;min-height:16px;"> Released lays only</label></div><select id="lay"><option value="">Loading available cutting lays…</option></select>
 <label for="group">Bundle group</label><select id="group"></select>
 <div id="bundlePreview" class="status">Select a cutting lay.</div>
 <div class="actions"><button id="moreLays" class="secondary hidden">Load more cutting lays</button><button id="moreGroups" class="secondary hidden">Load more bundle groups</button></div>

@@ -58,7 +58,7 @@
   </section>
   <section class="panel"><h2>Your saved cut plans</h2>
    <p class="hint">Choose a plan to see its cut parts and bundles.</p>
-   <button class="secondary" id="refresh-cut" type="button">Refresh register</button>
+   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"><button class="secondary" id="refresh-cut" type="button" style="margin:0;">Refresh register</button><select id="cut-state-filter" style="width:auto;min-width:155px;"><option value="ALL">All lays</option><option value="RELEASED">Released only</option><option value="DRAFT">Drafts only</option></select></div>
    <p id="cut-register-scope" class="hint" role="status">Recent latest-revision plans only; not factory-wide production.</p>
    <div id="cut-register" class="register" aria-live="polite"></div>
   </section>

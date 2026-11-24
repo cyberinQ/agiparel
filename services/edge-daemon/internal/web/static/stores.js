@@ -90,7 +90,14 @@
       host.append(empty);
       return;
     }
-    for (const p of records) {
+    const rollQuery=($('roll-search')?.value||'').trim().toLowerCase();
+    const statusFilter=$('roll-status-filter')?.value||'ALL';
+    const visibleRecords=records.filter(p=>{
+      if(statusFilter!=='ALL' && p.inspection_result!==statusFilter)return false;
+      if(rollQuery && !`${p.roll_id} ${p.material_sku} ${p.shade_band} ${p.bin_location} ${p.supplier_lot}`.toLowerCase().includes(rollQuery))return false;
+      return true;
+    });
+    for (const p of visibleRecords) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'roll';
@@ -241,5 +248,23 @@
   });
   $('new-roll').addEventListener('click', resetNewRoll);
   $('refresh').addEventListener('click', () => void refresh());
+  $('roll-search')?.addEventListener('input', () => render());
+  $('roll-status-filter')?.addEventListener('change', () => render());
+  document.querySelectorAll('.store-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.store-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const mode = btn.dataset.storeTab;
+      const wg = document.querySelector('.work-grid');
+      const op = document.querySelector('.order-picks');
+      const ac = document.querySelector('.additional-checks');
+      if (wg) wg.hidden = (mode !== 'all' && mode !== 'inspect');
+      if (op) op.hidden = (mode !== 'all' && mode !== 'picks');
+      if (ac) {
+        ac.hidden = (mode !== 'all' && mode !== 'checks');
+        if (mode === 'checks') ac.querySelectorAll('details').forEach(d => d.open = true);
+      }
+    });
+  });
   void Promise.all([refresh(), loadDocuments()]);
 })();

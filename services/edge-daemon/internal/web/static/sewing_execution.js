@@ -89,7 +89,7 @@ function render(){
   $('identityHelp').textContent=ready()?'Demo identities entered. No physical station authentication or payroll credit is implied.':'Enter valid plant, station, worker and machine codes (2–64 letters, digits, _ or -).';
   controls();
 }
-function layOptions(items){return items.map(x=>`<option value="${esc(x.lay_id)}">${esc(x.order)} / cut ${x.cut} / ${esc(x.marker)} ${x.signed_cut_release?'[released]':'[draft]'}</option>`).join('')}
+function layOptions(items){const onlyRel=$('released-lays-only')?.checked;const list=onlyRel?items.filter(x=>x.signed_cut_release):items;return list.map(x=>`<option value="${esc(x.lay_id)}">${esc(x.order)} / cut ${x.cut} / ${esc(x.marker)} ${x.signed_cut_release?'[released]':'[draft]'}</option>`).join('')}
 async function loadLays(keep='',more=false){
   const token=++state.generation, cursor=more?state.layCursor:'';
   const previousLay=state.lays.find(x=>x.lay_id===keep);
@@ -251,5 +251,17 @@ $('dropPending').addEventListener('click',()=>{
   catch{message('Could not update local retry queue. No item was removed.',true)}
 });
 window.addEventListener('online',flush);
+$('released-lays-only')?.addEventListener('change',()=>loadLays($('lay').value));
+try{
+  const savedCtx=JSON.parse(sessionStorage.getItem('agiparel.sew.stationCtx')||'null');
+  if(savedCtx){
+    if(savedCtx.plant_id&&!$('plant').value)$('plant').value=savedCtx.plant_id;
+    if(savedCtx.station_id&&!$('station').value)$('station').value=savedCtx.station_id;
+    if(savedCtx.machine&&!$('machine').value)$('machine').value=savedCtx.machine;
+  }
+}catch{}
+for(const fid of ['plant','station','machine'])$(fid).addEventListener('change',()=>{
+  try{sessionStorage.setItem('agiparel.sew.stationCtx',JSON.stringify({plant_id:$('plant').value.trim(),station_id:$('station').value.trim(),machine:$('machine').value.trim()}));}catch{}
+});
 migrateLegacyQueue();$('pending').textContent=queue().length;loadLays().then(()=>flush());
 })();

@@ -6,32 +6,67 @@
   <title>Agiparel · Costing with Planning Preview (S1–S5)</title>
   <link rel="stylesheet" href="/static/ux_unified.css" />
   <style>
-    .costing-shell { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; padding: 16px; max-width: 1440px; margin: 0 auto; }
-    @media (max-width: 960px) { .costing-shell { grid-template-columns: 1fr; } }
+    .costing-shell { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; padding: 16px; max-width: 1460px; margin: 0 auto; }
+    @media (max-width: 980px) { .costing-shell { grid-template-columns: 1fr; } }
     .panel-card { background: #fff; border: 1px solid #d7dee8; border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+    .stage-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; align-items: center; justify-content: space-between; background: #fff; border: 1px solid #d7dee8; border-radius: 10px; padding: 12px 16px; }
+    .stage-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    .stage-pill { padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+    .stage-pill.active { background: #1e293b; color: #fff; border-color: #1e293b; }
     .preview-sticky { position: sticky; top: 14px; }
-    .preview-stale { opacity: 0.55; filter: grayscale(0.4); border-color: #d97706; }
+    .preview-stale { opacity: 0.62; border-color: #d97706; }
     .verdict-chip { display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }
     .verdict-GREEN { background: #dcfce7; color: #166534; }
     .verdict-AMBER { background: #fef3c7; color: #92400e; }
     .verdict-RED { background: #fee2e2; color: #991b1b; }
     .verdict-PENDING { background: #e2e8f0; color: #334155; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
     .readonly-cell { background: #f1f5f9; font-weight: 600; color: #0f172a; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
     th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
-    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    td input, td select { width: 100%; min-width: 65px; padding: 5px 7px; font-size: 12px; min-height: 32px; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
     button { padding: 8px 14px; border-radius: 6px; border: 1px solid #1e293b; background: #1e293b; color: #fff; cursor: pointer; font-weight: 600; }
     button.secondary { background: #fff; color: #1e293b; }
+    button.danger { background: #fff1f2; color: #be123c; border-color: #fecdd3; padding: 4px 8px; min-height: 30px; }
     button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .tab-bar { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 12px; }
+    .tab-btn { background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; padding: 6px 12px; font-size: 12px; }
+    .tab-btn.active { background: #1e293b; color: #fff; border-color: #1e293b; }
+    .warn-note { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 8px 12px; border-radius: 8px; font-size: 12px; margin-top: 8px; }
   </style>
 </head>
-<body>
+<body data-ag-phase="buyer">
+  <div style="max-width:1460px;margin:12px auto 0;padding:0 16px;">
+    <div class="stage-bar">
+      <div><a href="/" style="font-weight:800;text-decoration:none;color:#1e293b;">← Home</a> · <strong>Costing &amp; Feasibility Control (S1–S5)</strong></div>
+      <div class="stage-pills" id="stage-pills">
+        <span class="stage-pill active" data-stage="S1">S1 · Register</span>
+        <span class="stage-pill" data-stage="S2">S2 · Cost &amp; Preview</span>
+        <span class="stage-pill" data-stage="S3">S3 · Bottleneck Detail</span>
+        <span class="stage-pill" data-stage="S4">S4 · Approval</span>
+        <span class="stage-pill" data-stage="S5">S5 · Confirm &amp; Freeze</span>
+      </div>
+    </div>
+  </div>
+
   <div class="costing-shell">
     <div>
       <div class="panel-card">
-        <h2>S1 · Costing Register &amp; S2 · Costing Sheet (CPM = Expense ÷ Paid Work Minutes)</h2>
-        <div class="grid-2">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <h2 style="margin:0;">S1/S2 · Order &amp; Costing Sheet</h2>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <label style="margin:0;font-size:12px;">Active Role:
+              <select id="active-role" style="min-height:34px;padding:4px 8px;">
+                <option value="MERCHANDISER">Merchandiser</option>
+                <option value="IE_ENGINEER">IE / Costing Engineer</option>
+                <option value="PLANNING_MGR">Planning Manager</option>
+                <option value="FACTORY_HEAD">Factory Head / CEO</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="grid-3" style="margin-top:10px;">
           <label>Unit ID <input id="unit-id" value="UNIT-OKHLA-02" /></label>
           <label>Buyer ID <input id="buyer-id" value="PERY" /></label>
           <label>Style ID <input id="style-id" value="KK524867" /></label>
@@ -42,6 +77,8 @@
           <label>Quote Valid Until <input id="valid-date" type="date" /></label>
           <label>Pinned Released OB ID <input id="ob-id" value="OB-KK524867-V1" /></label>
           <label>Target Margin % <input id="margin-pct" type="number" step="0.1" value="14.0" /></label>
+          <label>Quote Currency <select id="quote-currency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="INR">INR</option></select></label>
+          <label>FX Rate to Base <input id="fx-rate" type="number" step="0.0001" value="1.0000" /></label>
         </div>
         <div class="btn-row">
           <button id="btn-save-draft" type="button">Save Draft &amp; Recompute Totals (V1–V6)</button>
@@ -54,15 +91,81 @@
       </div>
 
       <div class="panel-card">
-        <h3>Order Matrix (Computed Totals Only · V1/V2/V3)</h3>
-        <table>
-          <thead><tr><th>Colour</th><th>Size</th><th>UPC</th><th>Qty</th></tr></thead>
-          <tbody id="matrix-body">
-            <tr><td><input value="BLUE" /></td><td><input value="30/30" /></td><td><input value="8901001001" /></td><td><input type="number" value="3000" /></td></tr>
-            <tr><td><input value="GREEN" /></td><td><input value="32/30" /></td><td><input value="8901001002" /></td><td><input type="number" value="6000" /></td></tr>
-            <tr><td><input value="BLACK" /></td><td><input value="34/30" /></td><td><input value="8901001003" /></td><td><input type="number" value="3000" /></td></tr>
-          </tbody>
-        </table>
+        <div class="tab-bar" role="tablist">
+          <button type="button" class="tab-btn active" data-tab="tab-matrix">1. Order Matrix (FR-1)</button>
+          <button type="button" class="tab-btn" data-tab="tab-bom">2. BOM &amp; Stock Netting (FR-2)</button>
+          <button type="button" class="tab-btn" data-tab="tab-ob">3. CM &amp; Pinned OB (FR-3)</button>
+          <button type="button" class="tab-btn" data-tab="tab-other">4. Other Costs &amp; Margin (FR-4)</button>
+          <button type="button" class="tab-btn" data-tab="tab-s3">5. S3 Bottlenecks &amp; Scenarios (FR-11)</button>
+        </div>
+
+        <div id="tab-matrix" class="tab-pane">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h3 style="margin:0;">Order Matrix (Computed Totals Only · V1/V2/V3)</h3>
+            <button type="button" class="secondary" id="add-matrix-row">+ Add Size Row</button>
+          </div>
+          <table>
+            <thead><tr><th>Colour</th><th>Size</th><th>UPC</th><th>Qty</th><th>Remove</th></tr></thead>
+            <tbody id="matrix-body">
+              <tr><td><input value="BLUE" /></td><td><input value="30/30" /></td><td><input value="8901001001" /></td><td><input type="number" value="3000" /></td><td><button type="button" class="danger rm-row">×</button></td></tr>
+              <tr><td><input value="GREEN" /></td><td><input value="32/30" /></td><td><input value="8901001002" /></td><td><input type="number" value="6000" /></td><td><button type="button" class="danger rm-row">×</button></td></tr>
+              <tr><td><input value="BLACK" /></td><td><input value="34/30" /></td><td><input value="8901001003" /></td><td><input type="number" value="3000" /></td><td><button type="button" class="danger rm-row">×</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="tab-bom" class="tab-pane" hidden>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h3 style="margin:0;">BOM Lines &amp; Available-Unreserved Netting (FR-2)</h3>
+            <button type="button" class="secondary" id="add-bom-row">+ Add BOM Line</button>
+          </div>
+          <p class="warn-note">Conflict C2 &amp; C7 Guard: Only Available-Unreserved stock is netted here (re-verified at S5 Confirm). Shade-lot allocation stays in Sourcing &amp; Stores.</p>
+          <div class="scroll">
+            <table>
+              <thead><tr><th>Item ID</th><th>Category</th><th>Supplier</th><th>Cons./pc</th><th>UOM</th><th>Wastage %</th><th>Unit Price</th><th>Unreserved Stock</th><th>Lead (d)</th><th>Remove</th></tr></thead>
+              <tbody id="bom-body">
+                <tr><td><input value="DENIM-STRETCH-12OZ" /></td><td><select><option value="FABRIC" selected>FABRIC</option><option value="TRIM">TRIM</option></select></td><td><input value="SUP-01" /></td><td><input type="number" step="0.01" value="1.50" /></td><td><input value="YD" /></td><td><input type="number" step="0.1" value="2" /></td><td><input type="number" step="0.01" value="3.10" /></td><td><input type="number" value="0" /></td><td><input type="number" value="28" /></td><td><button type="button" class="danger rm-row">×</button></td></tr>
+                <tr><td><input value="INNER-WAISTBAND" /></td><td><select><option value="FABRIC">FABRIC</option><option value="TRIM" selected>TRIM</option></select></td><td><input value="SUP-02" /></td><td><input type="number" step="0.01" value="1.34" /></td><td><input value="YD" /></td><td><input type="number" step="0.1" value="3" /></td><td><input type="number" step="0.01" value="0.45" /></td><td><input type="number" value="0" /></td><td><input type="number" value="18" /></td><td><button type="button" class="danger rm-row">×</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tab-ob" class="tab-pane" hidden>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h3 style="margin:0;">Pinned Operation Bulletin (CM = Total SAM × Paid-Minutes CPM · D3/FR-3)</h3>
+            <button type="button" class="secondary" id="add-ob-row">+ Add Operation</button>
+          </div>
+          <table>
+            <thead><tr><th>Op ID</th><th>Seq</th><th>Machine Type</th><th>Skill Grade</th><th>SAM (min)</th><th>Critical?</th><th>Remove</th></tr></thead>
+            <tbody id="ob-body">
+              <tr><td><input value="OP-10" /></td><td><input type="number" value="10" /></td><td><input value="SNLS_LOCKSTITCH" /></td><td><select><option value="A" selected>A</option><option value="B">B</option><option value="C">C</option></select></td><td><input type="number" step="0.01" value="0.60" /></td><td><input type="checkbox" /></td><td><button type="button" class="danger rm-row">×</button></td></tr>
+              <tr><td><input value="OP-20" /></td><td><input type="number" value="20" /></td><td><input value="WAISTBAND_ATTACH" /></td><td><select><option value="A" selected>A</option><option value="B">B</option><option value="C">C</option></select></td><td><input type="number" step="0.01" value="0.85" /></td><td><input type="checkbox" checked /></td><td><button type="button" class="danger rm-row">×</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="tab-other" class="tab-pane" hidden>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h3 style="margin:0;">Other Commercial &amp; Overhead Cost Lines (FR-4)</h3>
+            <button type="button" class="secondary" id="add-cost-row">+ Add Cost Line</button>
+          </div>
+          <table>
+            <thead><tr><th>Cost Type</th><th>Basis</th><th>Rate Ref</th><th>Amount / pc</th><th>Note (mandatory for manual)</th><th>Remove</th></tr></thead>
+            <tbody id="cost-body">
+              <tr><td><input value="OVERHEAD" /></td><td><select><option value="RATE" selected>RATE</option><option value="MANUAL">MANUAL</option></select></td><td><input value="OH-STD" /></td><td><input type="number" step="0.01" value="0.35" /></td><td><input value="Standard unit overhead" /></td><td><button type="button" class="danger rm-row">×</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="tab-s3" class="tab-pane" hidden>
+          <h3>S3 · Bottleneck Breakdown &amp; Scenario Comparison (FR-5–FR-8, FR-11)</h3>
+          <div id="s3-detail-host" style="font-size:13px;color:#475569;">Run Planning Preview to inspect material timelines, machine shortages, skill shortages, and daily load.</div>
+          <div class="btn-row">
+            <button type="button" class="secondary" id="btn-save-scenario">Snapshot Current Scenario for Comparison (up to 3)</button>
+          </div>
+          <div id="scenario-compare-grid" class="grid-3" style="margin-top:12px;"></div>
+        </div>
       </div>
 
       <div class="panel-card" id="replan-panel" hidden>
@@ -71,6 +174,14 @@
         <input id="replan-participants" style="width:100%;margin-bottom:8px;" value="merchandiser_01, planning_mgr_01, ie_lead_01, prod_mgr_01" />
         <textarea id="replan-reason" rows="2" style="width:100%;" placeholder="Describe agreed ship date, unit, ramp, or OB adjustment (min 20 chars)..."></textarea>
         <div class="btn-row"><button id="btn-record-replan" type="button">Record Joint Re-Plan</button></div>
+      </div>
+
+      <div class="panel-card" id="s4-reject-panel" hidden>
+        <h3>S4 · Approver Decision &amp; Rejection Reason (FR-12)</h3>
+        <textarea id="s4-decision-note" rows="2" style="width:100%;" placeholder="Approval or rejection note (rejection requires at least 20 characters)..."></textarea>
+        <div class="btn-row">
+          <button id="btn-reject" type="button" class="danger" style="padding:8px 14px;min-height:38px;">S4 · Reject Quote (Return to Draft)</button>
+        </div>
       </div>
     </div>
 
@@ -81,7 +192,7 @@
         <table>
           <tbody>
             <tr><td>Computed Order Qty</td><td class="readonly-cell" id="out-qty">—</td></tr>
-            <tr><td>Paid-Minutes CPM</td><td class="readonly-cell" id="out-cpm">—</td></tr>
+            <tr><td>Paid-Minutes CPM (D3)</td><td class="readonly-cell" id="out-cpm">—</td></tr>
             <tr><td>Material / pc</td><td class="readonly-cell" id="out-mat">—</td></tr>
             <tr><td>CM / pc (SAM × CPM)</td><td class="readonly-cell" id="out-cm">—</td></tr>
             <tr><td>FOB / pc</td><td class="readonly-cell" id="out-fob">—</td></tr>
