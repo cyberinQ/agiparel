@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Agiparel · CEO Group 6-Stage Dashboard (10-Min Sync)</title>
+  <link rel="stylesheet" href="/static/ux_unified.css" />
+  <style>
+    .ceo-wrap { max-width: 1400px; margin: 0 auto; padding: 18px; }
+    .card { background: #fff; border: 1px solid #d7dee8; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+    .fresh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+    .fresh-pill { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; background: #f8fafc; }
+    .fresh-stale { border-color: #dc2626; background: #fef2f2; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+    th, td { border: 1px solid #e2e8f0; padding: 7px 9px; text-align: left; }
+    .neg { color: #b91c1c; font-weight: 700; }
+    .pos { color: #15803d; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="ceo-wrap">
+    <div class="card">
+      <h2>CEO Group Control Tower · Planned vs Actual Across 6 Stages</h2>
+      <p>Refreshed every 10 minutes from each factory server. Factory freshness timestamps are shown below so stale figures are never mistaken for live counts.</p>
+      <div id="freshness-host" class="fresh-grid"></div>
+    </div>
+    <div class="card">
+      <h3>6-Stage Order Progress &amp; Shortfall Reasons</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Factory</th>
+            <th>PO / Style</th>
+            <th>Date</th>
+            <th>Stage</th>
+            <th>Planned</th>
+            <th>Actual</th>
+            <th>Variance</th>
+            <th>Shortfall Reason &amp; Manager Note</th>
+          </tr>
+        </thead>
+        <tbody id="board-body"></tbody>
+      </table>
+    </div>
+  </div>
+  <script src="/static/ceo_dashboard.js"></script>
+</body>
+</html>

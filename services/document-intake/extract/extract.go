@@ -556,7 +556,7 @@ func parseXlsx(out *Result, z *zip.Reader) error {
 				if t.Name.Local == "v" || t.Name.Local == "f" || t.Name.Local == "t" {
 					if inCell {
 						var v string
-						if er = dec.DecodeElement(&v, &t); err != nil {
+						if er = dec.DecodeElement(&v, &t); er != nil {
 							return er
 						}
 						if t.Name.Local == "f" {

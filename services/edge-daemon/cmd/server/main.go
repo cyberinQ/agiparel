@@ -210,6 +210,22 @@ func main() {
 	registerDockRoutesV34(mux, server)
 	registerDockExternalRoutesV35(mux, server)
 	registerRFIDAndDossierRoutesV51(mux, server)
+	registerCostingAndShopfloorRoutesV52(mux, server)
+	registerCostingP1P2AndCEOSyncRoutesV53(mux, server)
+	mux.HandleFunc("/ceo-dashboard", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		http.Redirect(w, r, "/static/ceo_dashboard.html", http.StatusFound)
+	})
+	mux.HandleFunc("/costing", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		http.Redirect(w, r, "/static/costing.html", http.StatusFound)
+	})
 	// Public routes are isolated; every other route requires operator access.
 	registerPublicPortal(mux)
 	registerPublicAccountRoutes(mux, server.browser)

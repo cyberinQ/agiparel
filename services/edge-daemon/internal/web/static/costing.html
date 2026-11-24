@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Agiparel · Costing with Planning Preview (S1–S5)</title>
+  <link rel="stylesheet" href="/static/ux_unified.css" />
+  <style>
+    .costing-shell { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; padding: 16px; max-width: 1440px; margin: 0 auto; }
+    @media (max-width: 960px) { .costing-shell { grid-template-columns: 1fr; } }
+    .panel-card { background: #fff; border: 1px solid #d7dee8; border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+    .preview-sticky { position: sticky; top: 14px; }
+    .preview-stale { opacity: 0.55; filter: grayscale(0.4); border-color: #d97706; }
+    .verdict-chip { display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }
+    .verdict-GREEN { background: #dcfce7; color: #166534; }
+    .verdict-AMBER { background: #fef3c7; color: #92400e; }
+    .verdict-RED { background: #fee2e2; color: #991b1b; }
+    .verdict-PENDING { background: #e2e8f0; color: #334155; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .readonly-cell { background: #f1f5f9; font-weight: 600; color: #0f172a; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+    th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    button { padding: 8px 14px; border-radius: 6px; border: 1px solid #1e293b; background: #1e293b; color: #fff; cursor: pointer; font-weight: 600; }
+    button.secondary { background: #fff; color: #1e293b; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="costing-shell">
+    <div>
+      <div class="panel-card">
+        <h2>S1 · Costing Register &amp; S2 · Costing Sheet (CPM = Expense ÷ Paid Work Minutes)</h2>
+        <div class="grid-2">
+          <label>Unit ID <input id="unit-id" value="UNIT-OKHLA-02" /></label>
+          <label>Buyer ID <input id="buyer-id" value="PERY" /></label>
+          <label>Style ID <input id="style-id" value="KK524867" /></label>
+          <label>PO Ref <input id="po-ref" value="MK6574J9" /></label>
+          <label>Order Date <input id="order-date" type="date" /></label>
+          <label>Requested Ship Date <input id="ship-date" type="date" /></label>
+          <label>Tentative Confirmation Date <input id="tent-date" type="date" /></label>
+          <label>Quote Valid Until <input id="valid-date" type="date" /></label>
+          <label>Pinned Released OB ID <input id="ob-id" value="OB-KK524867-V1" /></label>
+          <label>Target Margin % <input id="margin-pct" type="number" step="0.1" value="14.0" /></label>
+        </div>
+        <div class="btn-row">
+          <button id="btn-save-draft" type="button">Save Draft &amp; Recompute Totals (V1–V6)</button>
+          <button id="btn-run-preview" type="button" class="secondary">Run Planning Preview (FR-5–FR-8)</button>
+          <button id="btn-submit" type="button" disabled>Submit for Approval (V7 / D5 Gate)</button>
+          <button id="btn-approve" type="button" class="secondary" disabled>S4 · Approve &amp; Hold Capacity (D2)</button>
+          <button id="btn-confirm" type="button" class="secondary" disabled>S5 · Confirm Order &amp; Freeze Baseline (FR-13)</button>
+        </div>
+        <p id="status-msg" style="margin-top:10px;font-weight:600;"></p>
+      </div>
+
+      <div class="panel-card">
+        <h3>Order Matrix (Computed Totals Only · V1/V2/V3)</h3>
+        <table>
+          <thead><tr><th>Colour</th><th>Size</th><th>UPC</th><th>Qty</th></tr></thead>
+          <tbody id="matrix-body">
+            <tr><td><input value="BLUE" /></td><td><input value="30/30" /></td><td><input value="8901001001" /></td><td><input type="number" value="3000" /></td></tr>
+            <tr><td><input value="GREEN" /></td><td><input value="32/30" /></td><td><input value="8901001002" /></td><td><input type="number" value="6000" /></td></tr>
+            <tr><td><input value="BLACK" /></td><td><input value="34/30" /></td><td><input value="8901001003" /></td><td><input type="number" value="3000" /></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel-card" id="replan-panel" hidden>
+        <h3>D5 · Mandatory Joint Re-Plan (No Amber/Red Override)</h3>
+        <p>Amber or Red verdicts cannot be overridden. Record a joint re-plan with Merchandiser, Planning Manager, IE, and Production Manager (min 20 characters):</p>
+        <input id="replan-participants" style="width:100%;margin-bottom:8px;" value="merchandiser_01, planning_mgr_01, ie_lead_01, prod_mgr_01" />
+        <textarea id="replan-reason" rows="2" style="width:100%;" placeholder="Describe agreed ship date, unit, ramp, or OB adjustment (min 20 chars)..."></textarea>
+        <div class="btn-row"><button id="btn-record-replan" type="button">Record Joint Re-Plan</button></div>
+      </div>
+    </div>
+
+    <aside class="preview-sticky">
+      <div class="panel-card" id="preview-card">
+        <h3>Planning Preview Panel <span id="verdict-badge" class="verdict-chip verdict-PENDING">PENDING</span></h3>
+        <p id="stale-banner" style="color:#b45309;font-weight:700;">Stale – run preview before Submit</p>
+        <table>
+          <tbody>
+            <tr><td>Computed Order Qty</td><td class="readonly-cell" id="out-qty">—</td></tr>
+            <tr><td>Paid-Minutes CPM</td><td class="readonly-cell" id="out-cpm">—</td></tr>
+            <tr><td>Material / pc</td><td class="readonly-cell" id="out-mat">—</td></tr>
+            <tr><td>CM / pc (SAM × CPM)</td><td class="readonly-cell" id="out-cm">—</td></tr>
+            <tr><td>FOB / pc</td><td class="readonly-cell" id="out-fob">—</td></tr>
+            <tr><td>Latest Plan Cut Date</td><td class="readonly-cell" id="out-cut">—</td></tr>
+            <tr><td>Earliest Feasible Ex-Factory</td><td class="readonly-cell" id="out-exf">—</td></tr>
+            <tr><td>Schedule Slack</td><td class="readonly-cell" id="out-slack">—</td></tr>
+          </tbody>
+        </table>
+        <h4>Feasibility Reasons</h4>
+        <ul id="reasons-list"></ul>
+      </div>
+    </aside>
+  </div>
+  <script src="/static/costing.js"></script>
+</body>
+</html>
